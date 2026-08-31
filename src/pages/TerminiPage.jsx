@@ -42,7 +42,7 @@ export default function TerminiPage() {
           <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Pagamenti e Nessun Rimborso</h2>
           <p>
             Il Servizio prevede piani in abbonamento (mensile o annuale) a rinnovo automatico.
-            Poiché viene offerto un periodo di prova gratuito iniziale e trattandosi di un servizio B2B per l'esercizio della professione o impresa, 
+            Trattandosi di un servizio B2B per l'esercizio della professione o impresa,
             <strong> non è previsto alcun tipo di rimborso</strong> (totale o parziale) per i canoni già versati, né per i periodi di abbonamento parzialmente non utilizzati.
             L'Utente può disdire il rinnovo automatico in qualsiasi momento direttamente dal proprio account; il servizio rimarrà attivo fino al termine del periodo già fatturato.
           </p>
