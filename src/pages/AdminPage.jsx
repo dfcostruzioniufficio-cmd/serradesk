@@ -302,8 +302,9 @@ export default function AdminPage() {
                 >
                   <option value="trial">Trial</option>
                   <option value="starter">Starter</option>
+                  <option value="standard">Standard</option>
                   <option value="pro">Pro</option>
-                  <option value="business">Business</option>
+                  <option value="business">Business (legacy)</option>
                 </select>
               </div>
 

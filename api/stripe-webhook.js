@@ -6,6 +6,25 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Mappa esplicita Prodotto Stripe -> piano interno. Non usare più il nome
+// prodotto per indovinare il piano: un prodotto rinominato o rimosso dal
+// catalogo (es. "Business", tolto ad Agosto 2026) assegnava silenziosamente
+// il piano sbagliato. Aggiornare qui quando cambia il catalogo prodotti.
+const PLAN_BY_PRODUCT_ID = {
+  'prod_UgBJy4C1qqtJPq': 'starter',   // Starter mensile
+  'prod_UgBMoJTyOfA9dJ': 'standard',  // Standard annuale (livello base, come Starter)
+  'prod_UYGYgdoKqTXJc1': 'pro',       // Pro mensile
+  'prod_UYGZTINilm9bCH': 'pro',       // Pro Annuale
+};
+
+function getPlanForProductId(productId) {
+  const plan = PLAN_BY_PRODUCT_ID[productId];
+  if (!plan) {
+    console.error(`Unknown Stripe product ${productId} - not in PLAN_BY_PRODUCT_ID, skipping plan assignment`);
+  }
+  return plan || null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -24,7 +43,23 @@ export default async function handler(req, res) {
 
     // Inizializza il client Supabase una sola volta per tutto l'handler
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
+
+    // Idempotenza: Stripe puo' reinviare lo stesso evento (es. se la risposta
+    // e' lenta). Registriamo l'event.id e usciamo subito se e' un duplicato,
+    // cosi' non rieseguiamo due volte l'aggiornamento del piano.
+    const { error: dedupeError } = await supabase
+      .from('stripe_webhook_events')
+      .insert({ event_id: event.id });
+
+    if (dedupeError) {
+      if (dedupeError.code === '23505') {
+        console.log(`Event ${event.id} already processed, skipping`);
+        return res.json({ received: true, duplicate: true });
+      }
+      console.error('Error recording webhook event id:', dedupeError);
+      // Non blocchiamo l'elaborazione del pagamento per un errore di logging
+    }
+
   // Handle the checkout completion
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
@@ -41,23 +76,20 @@ export default async function handler(req, res) {
         });
 
         // current_period_end è in secondi (UNIX timestamp). Lo convertiamo in data esatta
+        // NB: trial_ends_at è usato come data di scadenza dell'accesso per QUALSIASI piano
+        // (anche quelli pagati, non solo il trial gratuito) - vedi UserContext.isSubscriptionActive
         const endDate = new Date(subscription.current_period_end * 1000).toISOString();
         
-        // Recuperiamo il Prodotto per capire che piano hanno comprato (Starter o Pro)
+        // Recuperiamo il Prodotto per capire che piano hanno comprato
         const productId = subscription.items.data[0].price.product;
-        const product = await stripe.products.retrieve(productId);
-        const productName = product.name.toLowerCase();
-        
-        let assignedPlan = 'pro'; // Fallback
-        if (productName.includes('starter')) assignedPlan = 'starter';
-        if (productName.includes('business')) assignedPlan = 'business';
+        const assignedPlan = getPlanForProductId(productId);
+
+        const profileUpdate = { trial_ends_at: endDate };
+        if (assignedPlan) profileUpdate.plan = assignedPlan;
 
         const { error } = await supabase
           .from('profiles')
-          .update({ 
-            plan: assignedPlan,
-            trial_ends_at: endDate 
-          })
+          .update(profileUpdate)
           .eq('user_id', userId);
 
         if (error) {
@@ -79,17 +111,9 @@ export default async function handler(req, res) {
 
     if (userId) {
       const endDate = new Date(subscription.current_period_end * 1000).toISOString();
-      // Se è un aggiornamento, recuperiamo di nuovo il prodotto nel caso abbiano cambiato piano
-      let assignedPlan = null;
-      try {
-        const productId = subscription.items.data[0].price.product;
-        const product = await stripe.products.retrieve(productId);
-        const productName = product.name.toLowerCase();
-        
-        assignedPlan = 'pro';
-        if (productName.includes('starter')) assignedPlan = 'starter';
-        if (productName.includes('business')) assignedPlan = 'business';
-      } catch(e) { console.error("Error fetching product on update", e); }
+      // Se è un aggiornamento, ricontrolliamo il prodotto nel caso abbiano cambiato piano
+      const productId = subscription.items.data[0]?.price?.product;
+      const assignedPlan = productId ? getPlanForProductId(productId) : null;
 
       const updateData = { trial_ends_at: endDate };
       if (assignedPlan && event.type !== 'customer.subscription.deleted') {

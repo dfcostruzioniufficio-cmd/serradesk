@@ -52,7 +52,9 @@ export function UserProvider({ children, session }) {
     }
   };
 
-  // Usa trial_ends_at come data di scadenza effettiva dell'abbonamento
+  // trial_ends_at, nonostante il nome, è la data di scadenza dell'accesso per
+  // QUALSIASI piano (trial gratuito o abbonamento pagato) - viene aggiornata
+  // anche ai rinnovi Stripe, non solo all'attivazione del trial
   const isSubscriptionActive = userProfile?.trial_ends_at ? new Date(userProfile.trial_ends_at) > new Date() : false;
 
   const needsPayment = userProfile?.role !== 'admin' && !isSubscriptionActive;
