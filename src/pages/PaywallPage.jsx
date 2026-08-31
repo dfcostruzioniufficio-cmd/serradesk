@@ -145,7 +145,16 @@ export default function PaywallPage() {
                     // Note: If URL already has ?, we should append with & instead of ?.
                     // ma in questo caso Stripe supporta un parametro client_reference_id
                     const separator = baseUrl.includes('?') ? '&' : '?';
-                    const checkoutUrl = `${baseUrl}${separator}client_reference_id=${userProfile?.user_id || ''}`;
+                    let checkoutUrl = `${baseUrl}${separator}client_reference_id=${userProfile?.user_id || ''}`;
+
+                    // Chi arriva dal link della campagna di lancio si ritrova
+                    // lo sconto già applicato al checkout (50% mensile,
+                    // 20% annuale - vedi App.jsx)
+                    if (localStorage.getItem('sd_promo_lancio') === '1') {
+                      const promoCode = isAnnual ? 'ANNUALE20' : 'LANCIO50';
+                      checkoutUrl += `&prefilled_promo_code=${promoCode}`;
+                    }
+
                     window.location.href = checkoutUrl;
                   }}
                 >

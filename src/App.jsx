@@ -52,6 +52,14 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Traccia chi arriva dal link della campagna di lancio, cosi' al momento
+    // del checkout gli si puo' pre-applicare lo sconto senza che debba
+    // scrivere manualmente il codice - vedi PaywallPage.jsx
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('promo') === 'lancio') {
+      localStorage.setItem('sd_promo_lancio', '1');
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
