@@ -494,22 +494,40 @@ export default function PreventiviPage() {
               }
             }
             
-            // Convert all SVGs to IMGs to fix html2canvas zoom clipping bugs
+            // Convert all SVGs to IMGs to fix html2canvas rendering bugs
             const svgs = wrapper.querySelectorAll('svg');
             svgs.forEach(svg => {
-              const xml = new XMLSerializer().serializeToString(svg);
+              // Gli SVG (es. anteprima finestra) hanno width/height="100%":
+              // fuori dal loro contenitore originale (dentro un'immagine
+              // data-URI isolata) il browser non ha più nulla a cui
+              // riferire quella percentuale e sbaglia le dimensioni
+              // intrinseche dell'immagine, mostrando solo un frammento
+              // ritagliato invece dell'intera anteprima. Fissiamo width e
+              // height numerici presi dal viewBox prima di serializzare.
+              const svgClone = svg.cloneNode(true);
+              const viewBox = svgClone.getAttribute('viewBox');
+              if (viewBox) {
+                const parts = viewBox.split(/\s+/).map(Number);
+                if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+                  svgClone.setAttribute('width', parts[2]);
+                  svgClone.setAttribute('height', parts[3]);
+                }
+              }
+
+              const xml = new XMLSerializer().serializeToString(svgClone);
               const svg64 = btoa(unescape(encodeURIComponent(xml)));
               const b64Start = 'data:image/svg+xml;base64,';
               const image64 = b64Start + svg64;
 
               const img = clonedDoc.createElement('img');
               img.src = image64;
-              
-              // Copy essential dimensions and styles
+
+              // Copy essential dimensions and styles (dimensione di
+              // visualizzazione nella pagina, separata da quella intrinseca)
               img.style.width = svg.style.width || svg.getAttribute('width') || '100%';
               img.style.height = svg.style.height || svg.getAttribute('height') || '100%';
               if (svg.getAttribute('class')) img.setAttribute('class', svg.getAttribute('class'));
-              
+
               svg.parentNode.replaceChild(img, svg);
             });
           }

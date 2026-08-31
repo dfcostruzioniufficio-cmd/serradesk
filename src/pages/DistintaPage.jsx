@@ -104,6 +104,22 @@ export default function DistintaPage() {
         scrollY: 0,
         logging: false,
         windowWidth: 1024,
+        onclone: (clonedDoc) => {
+          // Vedi PreventiviPage.jsx: gli SVG con width/height="100%" (qui,
+          // il disegno del piano di taglio) perdono le dimensioni corrette
+          // se isolati in un'immagine data-URI - fissiamo width/height
+          // numerici presi dal viewBox prima che html2canvas li catturi.
+          const svgs = clonedDoc.querySelectorAll('#distinta-template-wrapper svg');
+          svgs.forEach(svg => {
+            const viewBox = svg.getAttribute('viewBox');
+            if (!viewBox) return;
+            const parts = viewBox.split(/\s+/).map(Number);
+            if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+              svg.setAttribute('width', parts[2]);
+              svg.setAttribute('height', parts[3]);
+            }
+          });
+        },
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
       pagebreak: { mode: ['css', 'legacy'] },
