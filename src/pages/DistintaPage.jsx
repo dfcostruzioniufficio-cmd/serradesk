@@ -123,7 +123,7 @@ export default function DistintaPage() {
           });
         },
       },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
       pagebreak: { mode: ['css', 'legacy'] },
     };
 
