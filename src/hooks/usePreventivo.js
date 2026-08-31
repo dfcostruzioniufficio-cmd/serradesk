@@ -34,12 +34,12 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   useEffect(() => {
     const fetchSistemiCam = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const seeded = await autoSeedProfilesIfNeeded(session.user.id);
-        // If we seeded new profiles, the subsequent fetch will catch them
-      }
-      
-      const { data, error } = await supabase.from('sistemi_cam').select('*').eq('user_id', session?.user?.id).order('created_at', { ascending: false });
+      if (!session?.user) return;
+
+      const seeded = await autoSeedProfilesIfNeeded(session.user.id);
+      // If we seeded new profiles, the subsequent fetch will catch them
+
+      const { data, error } = await supabase.from('sistemi_cam').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
       if (!error && data) setSistemiCam(data);
     };
     fetchSistemiCam();
