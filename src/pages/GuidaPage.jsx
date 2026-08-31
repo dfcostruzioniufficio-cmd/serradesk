@@ -23,16 +23,26 @@ export default function GuidaPage() {
         const fileName = path.split('/').pop();
         const slug = fileName.replace(/\.md$/, '');
         
+        // Il parser YAML del frontmatter converte una data non tra
+        // virgolette (es. "date: 2026-01-15") in un vero oggetto Date,
+        // non in una stringa - va normalizzata prima di essere usata
+        // in JSX, altrimenti React va in crash a runtime.
+        const rawDate = parsed.attributes.date;
+        const dateStr = rawDate instanceof Date
+          ? rawDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+          : (rawDate || '');
+
         loadedArticles.push({
           slug,
           title: parsed.attributes.title || 'Articolo senza titolo',
           description: parsed.attributes.description || '',
-          date: parsed.attributes.date || '',
+          date: dateStr,
+          sortDate: rawDate || '',
         });
       }
       
       // Ordina per data (più recenti prima) o semplicemente lascia l'ordine di lettura
-      loadedArticles.sort((a, b) => new Date(b.date) - new Date(a.date));
+      loadedArticles.sort((a, b) => new Date(b.sortDate) - new Date(a.sortDate));
       
       setArticles(loadedArticles);
       setLoading(false);

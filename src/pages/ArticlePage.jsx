@@ -60,6 +60,11 @@ export default function ArticlePage() {
   }
 
   const { attributes, body } = article;
+  // Vedi GuidaPage.jsx: il parser frontmatter converte una data senza
+  // virgolette in un vero oggetto Date, non in una stringa.
+  const displayDate = attributes.date instanceof Date
+    ? attributes.date.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+    : attributes.date;
 
   return (
     <main className="min-h-screen bg-[#070b14] pb-20">
@@ -82,10 +87,10 @@ export default function ArticlePage() {
           </h1>
           
           <div className="flex flex-wrap items-center gap-6 text-sm text-slate-400 font-medium">
-            {attributes.date && (
+            {displayDate && (
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-blue-400" />
-                <span>{attributes.date}</span>
+                <span>{displayDate}</span>
               </div>
             )}
             <div className="flex items-center gap-2">
