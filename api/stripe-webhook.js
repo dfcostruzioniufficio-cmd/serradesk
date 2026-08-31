@@ -17,12 +17,37 @@ const PLAN_BY_PRODUCT_ID = {
   'prod_UYGZTINilm9bCH': 'pro',       // Pro Annuale
 };
 
-function getPlanForProductId(productId) {
+function getPlanForProductId(productId, event) {
   const plan = PLAN_BY_PRODUCT_ID[productId];
   if (!plan) {
-    console.error(`Unknown Stripe product ${productId} - not in PLAN_BY_PRODUCT_ID, skipping plan assignment`);
+    logError(event, 'unknown_product', null, { product_id: productId });
   }
   return plan || null;
+}
+
+// Log strutturati (una riga JSON per evento) cosi' su Vercel si puo'
+// ricostruire l'intero percorso di un pagamento filtrando per event_id.
+function logStep(event, step, extra = {}) {
+  console.log(JSON.stringify({
+    scope: 'stripe-webhook',
+    event_id: event?.id,
+    event_type: event?.type,
+    step,
+    ...extra,
+    ts: new Date().toISOString(),
+  }));
+}
+
+function logError(event, step, err, extra = {}) {
+  console.error(JSON.stringify({
+    scope: 'stripe-webhook',
+    event_id: event?.id,
+    event_type: event?.type,
+    step,
+    error: err?.message || err || null,
+    ...extra,
+    ts: new Date().toISOString(),
+  }));
 }
 
 export default async function handler(req, res) {
@@ -37,9 +62,11 @@ export default async function handler(req, res) {
     const rawBody = await getRawBody(req);
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error(`Webhook Error: ${err.message}`);
+    logError(null, 'signature_verification_failed', err);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  logStep(event, 'received');
 
     // Inizializza il client Supabase una sola volta per tutto l'handler
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -53,10 +80,10 @@ export default async function handler(req, res) {
 
     if (dedupeError) {
       if (dedupeError.code === '23505') {
-        console.log(`Event ${event.id} already processed, skipping`);
+        logStep(event, 'duplicate_skipped');
         return res.json({ received: true, duplicate: true });
       }
-      console.error('Error recording webhook event id:', dedupeError);
+      logError(event, 'dedupe_insert_failed', dedupeError);
       // Non blocchiamo l'elaborazione del pagamento per un errore di logging
     }
 
@@ -82,7 +109,7 @@ export default async function handler(req, res) {
         
         // Recuperiamo il Prodotto per capire che piano hanno comprato
         const productId = subscription.items.data[0].price.product;
-        const assignedPlan = getPlanForProductId(productId);
+        const assignedPlan = getPlanForProductId(productId, event);
 
         const profileUpdate = { trial_ends_at: endDate };
         if (assignedPlan) profileUpdate.plan = assignedPlan;
@@ -93,13 +120,13 @@ export default async function handler(req, res) {
           .eq('user_id', userId);
 
         if (error) {
-          console.error("Error updating profile in Supabase:", error);
+          logError(event, 'profile_update_failed', error, { user_id: userId });
           return res.status(500).json({ error: 'Database update failed' });
         } else {
-          console.log(`User ${userId} successfully upgraded. Expiration set to ${endDate}`);
+          logStep(event, 'checkout_completed', { user_id: userId, plan: assignedPlan, expires_at: endDate });
         }
       } catch (err) {
-        console.error("Stripe API error:", err);
+        logError(event, 'checkout_completed_exception', err, { user_id: userId });
       }
     }
   }
@@ -113,22 +140,27 @@ export default async function handler(req, res) {
       const endDate = new Date(subscription.current_period_end * 1000).toISOString();
       // Se è un aggiornamento, ricontrolliamo il prodotto nel caso abbiano cambiato piano
       const productId = subscription.items.data[0]?.price?.product;
-      const assignedPlan = productId ? getPlanForProductId(productId) : null;
+      const assignedPlan = productId ? getPlanForProductId(productId, event) : null;
 
       const updateData = { trial_ends_at: endDate };
       if (assignedPlan && event.type !== 'customer.subscription.deleted') {
         updateData.plan = assignedPlan;
       }
 
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('user_id', userId);
-        
-      console.log(`Subscription updated for ${userId}. New expiration: ${endDate}`);
+
+      if (error) {
+        logError(event, 'subscription_update_failed', error, { user_id: userId });
+      } else {
+        logStep(event, 'subscription_updated', { user_id: userId, plan: assignedPlan, expires_at: endDate });
+      }
     }
   }
 
+  logStep(event, 'handled');
   res.json({ received: true });
 }
 
