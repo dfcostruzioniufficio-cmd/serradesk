@@ -94,9 +94,11 @@ export default function DistintaPage() {
     const opt = {
       margin: 8,
       filename,
-      image: { type: 'jpeg', quality: 1.0 },
+      // vedi PreventiviPage.jsx: scale 2 + quality 0.92 restano nitidi
+      // in stampa ma pesano 5-8 volte meno
+      image: { type: 'jpeg', quality: 0.92 },
       html2canvas: {
-        scale: 4,
+        scale: 2,
         useCORS: true,
         letterRendering: true,
         allowTaint: true,
