@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../lib/supabaseClient';
+import { detectBrowserZoom } from '../lib/utils';
 import { usePreventivo } from '../hooks/usePreventivo';
 
 import QuoteToolbar from '../components/preventivi/QuoteToolbar';
@@ -517,7 +518,19 @@ export default function PreventiviPage() {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
     };
-    html2pdf().set(opt).from(element).save().then(() => setIsExporting(false));
+
+    // Se il browser non è al 100% di zoom (es. Cmd+- per vedere meglio la
+    // pagina), html2canvas cattura l'elemento nella sua dimensione "zoomata"
+    // invece di quella reale, producendo un PDF con layout diverso.
+    // Compensiamo applicando lo zoom inverso solo durante la cattura.
+    const zoomFactor = detectBrowserZoom();
+    const isZoomed = Math.abs(zoomFactor - 1) > 0.01;
+    if (isZoomed) element.style.zoom = String(1 / zoomFactor);
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      if (isZoomed) element.style.zoom = '';
+      setIsExporting(false);
+    });
   };
 
   const handleExportDistinta = () => {

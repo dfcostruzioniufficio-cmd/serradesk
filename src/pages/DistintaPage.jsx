@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../lib/supabaseClient';
 import { runCamEngine } from '../utils/camEngine';
+import { detectBrowserZoom } from '../lib/utils';
 import DistintaPDFTemplate from '../components/DistintaPDFTemplate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,7 +108,17 @@ export default function DistintaPage() {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
       pagebreak: { mode: ['css', 'legacy'] },
     };
-    html2pdf().set(opt).from(element).save();
+
+    // Vedi PreventiviPage.jsx: compensa lo zoom del browser, altrimenti
+    // html2canvas cattura l'elemento con dimensioni diverse a seconda dello
+    // zoom con cui è stato generato il PDF.
+    const zoomFactor = detectBrowserZoom();
+    const isZoomed = Math.abs(zoomFactor - 1) > 0.01;
+    if (isZoomed) element.style.zoom = String(1 / zoomFactor);
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      if (isZoomed) element.style.zoom = '';
+    });
   };
 
   // Filtra solo gli item reali (no metadata)
