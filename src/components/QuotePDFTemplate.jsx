@@ -248,10 +248,10 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 </div>
               )}
               
-              {(item.colorName || item.colInt || item.colore || item.frameColor) && (
+              {(item.colorName || item.colInt || item.colore) && (
                 <div className="flex flex-col bg-slate-50 rounded-md px-2 py-1.5 border border-slate-100">
                   <span className="text-indigo-400/80 font-bold uppercase tracking-wider text-[6px] mb-[2px]">Colore</span>
-                  <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">{item.colInt || item.colorName || item.colore || item.frameColor}</span>
+                  <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">{item.colInt || item.colorName || item.colore}</span>
                 </div>
               )}
               
@@ -344,7 +344,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const showPulsarPage = typeof userEmail === 'string' && userEmail.trim().toLowerCase() === 'domenicopanico0303@gmail.com' && hasPulsar;
 
   return (
-    <div id="pdf-template-wrapper" className="w-full bg-white text-black font-sans text-sm flex flex-col items-center">
+    <div className="w-full bg-white text-black font-sans text-sm flex flex-col items-center">
       {showPulsarPage && <PulsarPreviewPage userSettings={userSettings} />}
 
       {pages.map((page, pageIndex) => {
