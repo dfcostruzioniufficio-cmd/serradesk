@@ -69,11 +69,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       return;
     }
     const count = Math.max(1, Math.min(6, Number(newItem.numAnte) || 1));
-    setPaneConfigs(prev => {
-      const next = [...prev];
-      while (next.length < count) next.push({ handleEdge: null });
-      return next.slice(0, count);
-    });
+    // Di default la maniglia va sull'anta più a destra (l'ultima), che è
+    // quella più usata. In precedenza, crescendo da 1 a più ante, l'anta
+    // di sinistra si teneva la maniglia ereditata da quando era l'unica
+    // anta, e quella nuova restava senza.
+    setPaneConfigs(() => Array.from({ length: count }, (_, i) => ({
+      handleEdge: i === count - 1 ? 'right' : null
+    })));
   }, [newItem.numAnte]);
 
   const updateItemField = (field, value) => {
