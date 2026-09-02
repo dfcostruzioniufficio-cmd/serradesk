@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import WindowPreview from './WindowPreview';
 import ShutterPreview from './ShutterPreview';
 import CassonettoPreview from './CassonettoPreview';
@@ -53,24 +53,23 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     maxBoundingH = MAX_H; 
   }
 
-  const getPages = () => {
+  // Stima "a peso" usata SOLO nel primissimo render, prima che la
+  // misurazione reale (sotto) sia disponibile. Con useLayoutEffect lo
+  // scarto tra questa stima e il layout reale si risolve nello stesso
+  // ciclo, prima che il browser dipinga: l'utente non la vede mai.
+  const getPagesEstimate = () => {
     const pages = [];
     let remaining = [...actualItems];
-    
+
     while (remaining.length > 0) {
       let currentPageItems = [];
       let currentWeight = 0;
-      // 1.6 permetteva 4 serramenti standard (4x0.35) per pagina, ma il
-      // disegno tecnico di un articolo occupa più spazio verticale reale
-      // di quanto il peso suggerisca: con 4 articoli il piè di pagina
-      // (validità offerta + numero pagina) veniva tagliato fuori dal
-      // foglio. Con 1.3 il limite pratico torna a 3 articoli per pagina.
       let maxWeight = pages.length === 0 ? 1.0 : 1.3;
-      
+
       while (remaining.length > 0) {
         const item = remaining[0];
-        let itemWeight = 0.35; // Serramento standard ridotto
-        
+        let itemWeight = 0.35;
+
         if (item.type === 'complemento') {
           itemWeight = 0.2;
         } else if (item.type === 'custom') {
@@ -82,20 +81,80 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           currentPageItems.push(remaining.shift());
           currentWeight += itemWeight;
         } else {
-          break; // Pagina piena
+          break;
         }
       }
-      
-      pages.push({
-        isFirst: pages.length === 0,
-        items: currentPageItems
-      });
+
+      pages.push({ isFirst: pages.length === 0, items: currentPageItems });
     }
 
-    if (pages.length === 0) {
-      pages.push({ isFirst: true, items: [] });
+    if (pages.length === 0) pages.push({ isFirst: true, items: [] });
+    return pages;
+  };
+
+  // --- Paginazione basata su altezze REALMENTE renderizzate ---
+  // Invece di indovinare quanto spazio occupa un articolo, misuriamo
+  // dal vero DOM (header, riga tabella, ogni articolo, footer, abaco)
+  // e impacchettiamo le pagine su queste altezze. Risolve alla radice
+  // i tagli del piè di pagina: qualunque combinazione di contenuti,
+  // se non ci sta fisicamente, non viene messa su quella pagina.
+  const MM_TO_PX = 96 / 25.4;
+  const PAGE_CONTENT_PX = (296 - 24) * MM_TO_PX; // 296mm pagina - 12mm x2 padding
+
+  const [measured, setMeasured] = useState(null);
+  const itemRowRefs = useRef([]);
+  const headerFirstRef = useRef(null);
+  const headerContRef = useRef(null);
+  const tableHeaderRef = useRef(null);
+  const footerRef = useRef(null);
+  const abacoRef = useRef(null);
+
+  const heightSignature = actualItems.map(i => [
+    i.id, i.type, i.width, i.height, i.description2, i.description3,
+    i.marca, i.colInt, i.colorName, i.colore, i.vetro, i.hasTraverso,
+    i.hasSopraluce, i.customDescription, i.quantity, i.unitPrice
+  ]).join('|');
+
+  useLayoutEffect(() => {
+    setMeasured({
+      headerFirstH: headerFirstRef.current?.offsetHeight || 0,
+      headerContH: headerContRef.current?.offsetHeight || 0,
+      tableHeaderH: tableHeaderRef.current?.offsetHeight || 0,
+      footerH: footerRef.current?.offsetHeight || 0,
+      abacoH: abacoRef.current?.offsetHeight || 0,
+      itemHeights: actualItems.map((_, i) => itemRowRefs.current[i]?.offsetHeight || 0)
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heightSignature, userSettings?.company_name, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
+
+  const getPages = () => {
+    if (!measured) return getPagesEstimate();
+
+    const { headerFirstH, headerContH, tableHeaderH, footerH, itemHeights } = measured;
+    const pages = [];
+    let remaining = actualItems.map((item, i) => ({ item, h: itemHeights[i] || 0 }));
+
+    while (remaining.length > 0) {
+      const isFirst = pages.length === 0;
+      const headerH = isFirst ? headerFirstH : headerContH;
+      const available = PAGE_CONTENT_PX - headerH - tableHeaderH - footerH;
+      const currentPageItems = [];
+      let used = 0;
+
+      while (remaining.length > 0) {
+        const next = remaining[0];
+        if (used + next.h <= available || currentPageItems.length === 0) {
+          currentPageItems.push(remaining.shift().item);
+          used += next.h;
+        } else {
+          break;
+        }
+      }
+
+      pages.push({ isFirst, items: currentPageItems, usedH: used, headerH });
     }
 
+    if (pages.length === 0) pages.push({ isFirst: true, items: [], usedH: 0, headerH: measured.headerFirstH });
     return pages;
   };
 
@@ -364,14 +423,19 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const abacoNeedsNewPage = (() => {
     if (pages.length === 0) return false;
     const lastPage = pages[pages.length - 1];
-    let weight = 0;
-    lastPage.items.forEach(item => {
-      let w = 0.35;
-      if (item.type === 'complemento') w = 0.2;
-      else if (item.type === 'custom') w = 0.15 + (Math.floor((item.customDescription || '').length / 100) * 0.05);
-      weight += w;
-    });
-    return weight > 1.0;
+    if (!measured) {
+      // Stessa stima prudente di ripiego usata per getPagesEstimate.
+      let weight = 0;
+      lastPage.items.forEach(item => {
+        let w = 0.35;
+        if (item.type === 'complemento') w = 0.2;
+        else if (item.type === 'custom') w = 0.15 + (Math.floor((item.customDescription || '').length / 100) * 0.05);
+        weight += w;
+      });
+      return weight > 1.0;
+    }
+    const available = PAGE_CONTENT_PX - lastPage.headerH - measured.tableHeaderH - measured.footerH;
+    return (lastPage.usedH + measured.abacoH) > available;
   })();
 
   const hasPulsar = actualItems.some(item => 
@@ -383,6 +447,94 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   return (
     <div className="w-full bg-white text-black font-sans text-sm flex flex-col items-center">
       {showPulsarPage && <PulsarPreviewPage userSettings={userSettings} />}
+
+      {/* Scaffold di misurazione: stessa larghezza/markup delle pagine
+          reali, ma invisibile e fuori dal flusso. Serve solo a leggere
+          le altezze vere via ref (vedi useLayoutEffect sopra) prima di
+          decidere come impaginare. */}
+      <div style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none', top: 0, left: 0, width: '186mm', zIndex: -1 }} aria-hidden="true">
+        <div ref={headerFirstRef} className="flex justify-between items-start mb-10 pb-6 border-b border-gray-200">
+          <div className="flex flex-col gap-4 max-w-[50%]">
+            <div className="h-16 relative flex items-center justify-start">
+                {userSettings?.logo_base64 ? (
+                  <img src={userSettings.logo_base64} alt="Company Logo" className="max-h-full object-contain" />
+                ) : (
+                  <div className="h-12 px-4 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xl tracking-wider">
+                    {userSettings?.company_name ? userSettings.company_name.toUpperCase() : 'SERRADESK'}
+                  </div>
+                )}
+            </div>
+            <div className={`text-[10px] space-y-[2px] ${['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail) ? 'text-gray-800 font-bold' : 'text-gray-500'}`}>
+              <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">
+                {['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
+              </h1>
+              <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
+              {userSettings?.legal_address && <p>Sede Legale: {userSettings.legal_address}</p>}
+              <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
+              <p className="pt-1">
+                {userSettings?.phone && <span className="mr-3">T: {userSettings.phone}</span>}
+                {userSettings?.email && <span>E: {userSettings.email}</span>}
+              </p>
+              {userSettings?.website && <p className="text-blue-600">{userSettings.website}</p>}
+            </div>
+          </div>
+          <div className="text-right flex flex-col items-end max-w-[45%]">
+            <div className="bg-gray-50 border border-gray-200 px-6 py-4 rounded-xl text-left w-full">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Spett.le Cliente</p>
+              <h2 className="text-base font-black text-gray-900 mb-1">{clientName || 'Cliente Non Specificato'}</h2>
+              <div className="text-xs font-bold text-gray-800 space-y-[2px]">
+                {cData.address && <p>{cData.address}</p>}
+                {cData.vat && <p>P.IVA/CF: {cData.vat}</p>}
+                {cData.phone && <p>Tel: {cData.phone}</p>}
+                {cData.email && <p>Email: {cData.email}</p>}
+              </div>
+            </div>
+            <div className="mt-4 text-[10px] text-gray-500">
+              <p>Documento: <span className="font-bold text-gray-900">Preventivo Commerciale</span></p>
+              <p>N. Preventivo: <span className="font-bold text-gray-900">PRV-XXXX-XXX</span></p>
+              <p>Data: <span className="font-bold text-gray-900">{new Date().toLocaleDateString('it-IT')}</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div ref={headerContRef} className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+          <h1 className="text-sm font-bold text-gray-800 uppercase tracking-wider">{userSettings?.company_name || 'SERRADESK'}</h1>
+          <p className="text-[10px] text-gray-500 font-medium">Preventivo Commerciale - Spett.le {clientName || 'Cliente Non Specificato'}</p>
+        </div>
+
+        <div ref={tableHeaderRef} className="flex bg-slate-800 text-white shadow-sm border border-slate-700 py-3 px-2 text-[10px] font-bold uppercase tracking-wider items-center rounded-lg mt-4 mb-2">
+          <div className="w-8 text-center shrink-0 text-slate-300">Nº</div>
+          <div className="flex-1 px-2 flex items-center gap-4">
+            <div className="w-[160px] shrink-0 text-center text-[9px] text-slate-400">DISEGNO TECNICO</div>
+            <div className="flex-1 pr-2 text-slate-200 leading-tight">DESCRIZIONE ARTICOLO E SPECIFICHE</div>
+          </div>
+          <div className="w-20 text-right px-2 shrink-0 text-slate-300">PREZZO</div>
+          <div className="w-12 text-center px-2 shrink-0 text-slate-300">Q.TÀ</div>
+          <div className="w-24 text-right pr-2 shrink-0 text-indigo-300">TOTALE</div>
+        </div>
+
+        <div className="flex flex-col">
+          {actualItems.map((item, i) => (
+            <div key={`measure-${i}`} ref={el => { itemRowRefs.current[i] = el; }}>
+              {renderItemRow(item, i)}
+            </div>
+          ))}
+        </div>
+
+        <div ref={abacoRef}>{renderAbaco()}</div>
+
+        <div ref={footerRef} className="pt-4 border-t border-gray-200 flex justify-between items-end text-[8px] text-gray-400">
+          <div className="max-w-[70%]">
+            <p className="mb-1"><strong>Validità dell'offerta:</strong> Il presente preventivo ha validità 15 giorni dalla data di emissione. Oltre tale termine, i prezzi potrebbero subire variazioni.</p>
+            {(!userEmail?.includes('dfcostruzioni.ufficio') && !userEmail?.includes('dfcostruzionisrl.ufficio')) && (
+              <p>Generato tramite piattaforma cloud SerraDesk.it</p>
+            )}
+          </div>
+          <div className="text-right">
+            <p>Pagina 1 di 1</p>
+          </div>
+        </div>
+      </div>
 
       {recapPages.map((rp, rpIndex) => (
         <div key={`recap-page-${rpIndex}`} className="bg-white relative shadow-sm" style={{
