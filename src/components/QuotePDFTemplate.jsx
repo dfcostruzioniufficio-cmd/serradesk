@@ -410,9 +410,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               const recapMisure = item.width && item.height ? `${item.width} x ${item.height}` : '—';
               const recapTotale = (item.unitPrice || 0) * (item.quantity || 1);
               return (
-                <div key={`recap-${index}`} className="flex border-b border-gray-200 py-2.5 items-center px-2 text-xs">
+                <div key={`recap-${index}`} className="flex border-b border-gray-200 py-3 break-inside-avoid items-center px-2 text-xs leading-normal">
                   <div className="w-8 text-center shrink-0 text-gray-400 font-bold">{index + 1}</div>
-                  <div className="flex-1 px-3 font-semibold text-gray-800 truncate">{recapTitle}</div>
+                  <div className="flex-1 px-3 font-semibold text-gray-800">{recapTitle}</div>
                   <div className="w-24 text-center shrink-0 text-gray-500 font-mono">{recapMisure}</div>
                   <div className="w-12 text-center shrink-0 text-gray-500">{item.quantity || 1}</div>
                   <div className="w-24 text-right pr-2 shrink-0 font-bold text-gray-900">{formatCurrency(recapTotale)}</div>
