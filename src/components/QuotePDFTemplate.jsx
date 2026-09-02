@@ -60,7 +60,12 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     while (remaining.length > 0) {
       let currentPageItems = [];
       let currentWeight = 0;
-      let maxWeight = pages.length === 0 ? 1.0 : 1.6;
+      // 1.6 permetteva 4 serramenti standard (4x0.35) per pagina, ma il
+      // disegno tecnico di un articolo occupa più spazio verticale reale
+      // di quanto il peso suggerisca: con 4 articoli il piè di pagina
+      // (validità offerta + numero pagina) veniva tagliato fuori dal
+      // foglio. Con 1.3 il limite pratico torna a 3 articoli per pagina.
+      let maxWeight = pages.length === 0 ? 1.0 : 1.3;
       
       while (remaining.length > 0) {
         const item = remaining[0];
