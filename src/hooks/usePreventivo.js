@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { calculateWindowPrice, calculateTransmittance, calculateQuoteSummary, syncFrameColor, calculateItemMq } from './usePricingEngine';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
@@ -120,6 +121,35 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   };
 
   const handleAddItem = () => {
+    // Evita di aggiungere un articolo con misure o prezzo mancanti: senza
+    // questo controllo il totale del preventivo diventa silenziosamente
+    // "NaN €", ed è facile non accorgersene prima di mandarlo al cliente.
+    if (itemType === 'window') {
+      if (!Number(newItem.width) || !Number(newItem.height)) {
+        toast.error('Inserisci larghezza e altezza prima di aggiungere il serramento.');
+        return;
+      }
+      if (!Number(newItem.unitPrice)) {
+        toast.error('Inserisci un prezzo valido prima di aggiungere il serramento.');
+        return;
+      }
+    } else if (itemType === 'complemento') {
+      const isFisso = newItem.complementoCalcType === 'fisso';
+      if (!isFisso && (!Number(newItem.width) || !Number(newItem.height))) {
+        toast.error('Inserisci larghezza e altezza (oppure passa a prezzo "fisso") prima di aggiungere.');
+        return;
+      }
+      if (!Number(newItem.unitPrice)) {
+        toast.error('Inserisci un prezzo valido prima di aggiungere.');
+        return;
+      }
+    } else if (itemType === 'custom') {
+      if (!Number(newItem.unitPrice)) {
+        toast.error('Inserisci un prezzo valido prima di aggiungere.');
+        return;
+      }
+    }
+
     let newItemsList = [...items];
     const isEditing = editingIndex !== null;
     const targetIndex = isEditing ? editingIndex : items.length;
