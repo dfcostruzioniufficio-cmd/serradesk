@@ -6,7 +6,7 @@ import BlindataPreview from './BlindataPreview';
 import PulsarPreviewPage from './preventivi/PulsarPreviewPage';
 import { calculateItemMq } from '../hooks/usePricingEngine';
 
-export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, isExporting }) {
+export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, isExporting, includeRecap }) {
   const {
     clientName,
     clientAddress,
@@ -95,6 +95,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   };
 
   const pages = getPages();
+  const recapPageCount = includeRecap ? 1 : 0;
 
   const totalQuadratura = actualItems.reduce((acc, item) => {
     return acc + (calculateItemMq(item) * (item.quantity || 1));
@@ -347,6 +348,122 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     <div className="w-full bg-white text-black font-sans text-sm flex flex-col items-center">
       {showPulsarPage && <PulsarPreviewPage userSettings={userSettings} />}
 
+      {includeRecap && (
+        <div className="bg-white relative shadow-sm" style={{
+            width: '210mm',
+            height: '296mm',
+            overflow: 'hidden',
+            padding: '12mm',
+            boxSizing: 'border-box',
+            pageBreakAfter: 'always',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+          <div className="flex justify-between items-start mb-10 pb-6 border-b border-gray-200">
+            <div className="flex flex-col gap-4 max-w-[50%]">
+              <div className="h-16 relative flex items-center justify-start">
+                  {userSettings?.logo_base64 ? (
+                    <img src={userSettings.logo_base64} alt="Company Logo" className="max-h-full object-contain" />
+                  ) : (
+                    <div className="h-12 px-4 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xl tracking-wider">
+                      {userSettings?.company_name ? userSettings.company_name.toUpperCase() : 'SERRADESK'}
+                    </div>
+                  )}
+              </div>
+              <div className="text-[10px] space-y-[2px] text-gray-500">
+                <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">{userSettings?.company_name || 'Azienda Non Impostata'}</h1>
+                <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
+                <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
+              </div>
+            </div>
+
+            <div className="text-right flex flex-col items-end max-w-[45%]">
+              <div className="bg-gray-50 border border-gray-200 px-6 py-4 rounded-xl text-left w-full">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Spett.le Cliente</p>
+                <h2 className="text-base font-black text-gray-900 mb-1">{clientName || 'Cliente Non Specificato'}</h2>
+              </div>
+              <div className="mt-4 text-[10px] text-gray-500">
+                <p>Documento: <span className="font-bold text-gray-900">Riepilogo Preventivo</span></p>
+                <p>Data: <span className="font-bold text-gray-900">{new Date().toLocaleDateString('it-IT')}</span></p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <h2 className="text-xl font-extrabold text-indigo-900 uppercase tracking-wider">Riepilogo Articoli</h2>
+            <p className="text-xs text-gray-500 mt-1">Il dettaglio tecnico di ogni singolo articolo si trova nelle pagine seguenti.</p>
+          </div>
+
+          <div className="flex-1">
+            <div className="flex bg-slate-800 text-white shadow-sm border border-slate-700 py-3 px-2 text-[10px] font-bold uppercase tracking-wider items-center rounded-lg mb-2">
+              <div className="w-8 text-center shrink-0 text-slate-300">Nº</div>
+              <div className="flex-1 px-3 text-slate-200">Descrizione</div>
+              <div className="w-24 text-center shrink-0 text-slate-300">Misure (mm)</div>
+              <div className="w-12 text-center shrink-0 text-slate-300">Q.TÀ</div>
+              <div className="w-24 text-right pr-2 shrink-0 text-indigo-300">TOTALE</div>
+            </div>
+
+            {actualItems.map((item, index) => {
+              const recapTitle = item.type === 'custom'
+                ? 'Articolo Personalizzato'
+                : (item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim() || 'Complemento');
+              const recapMisure = item.width && item.height ? `${item.width} x ${item.height}` : '—';
+              const recapTotale = (item.unitPrice || 0) * (item.quantity || 1);
+              return (
+                <div key={`recap-${index}`} className="flex border-b border-gray-200 py-2.5 items-center px-2 text-xs">
+                  <div className="w-8 text-center shrink-0 text-gray-400 font-bold">{index + 1}</div>
+                  <div className="flex-1 px-3 font-semibold text-gray-800 truncate">{recapTitle}</div>
+                  <div className="w-24 text-center shrink-0 text-gray-500 font-mono">{recapMisure}</div>
+                  <div className="w-12 text-center shrink-0 text-gray-500">{item.quantity || 1}</div>
+                  <div className="w-24 text-right pr-2 shrink-0 font-bold text-gray-900">{formatCurrency(recapTotale)}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <div className="w-1/2 p-6 bg-white rounded-2xl border border-slate-200 shadow-md relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
+              <div className="space-y-3 pl-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 font-medium tracking-wide">Totale Articoli</span>
+                  <span className="font-semibold text-slate-900">{formatCurrency(imponibile)}</span>
+                </div>
+                {scontoAmount > 0 && (
+                  <div className="flex justify-between items-center text-sm bg-emerald-50 text-emerald-700 -mx-6 px-6 py-2 border-y border-emerald-100/50">
+                    <span className="font-bold tracking-wide">Sconto applicato ({discountPercent}%)</span>
+                    <span className="font-bold text-emerald-800">- {formatCurrency(scontoAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-sm pt-1">
+                  <span className="text-slate-500 font-medium tracking-wide">Imponibile Scontato</span>
+                  <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm pb-4 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium tracking-wide">I.V.A. ({iva || 10}%)</span>
+                  <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-3">
+                  <span className="font-black text-[16px] text-slate-900 uppercase tracking-widest">TOTALE DA PAGARE</span>
+                  <span className="font-black text-xl text-blue-700">{formatCurrency(totaleIvato)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-auto pt-4 border-t border-gray-200 flex justify-between items-end text-[8px] text-gray-400">
+            <div className="max-w-[70%]">
+              {(!userEmail?.includes('dfcostruzioni.ufficio') && !userEmail?.includes('dfcostruzionisrl.ufficio')) && (
+                <p>Generato tramite piattaforma cloud SerraDesk.it</p>
+              )}
+            </div>
+            <div className="text-right">
+              <p>Pagina 1 di {pages.length + (abacoNeedsNewPage ? 1 : 0) + recapPageCount}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pages.map((page, pageIndex) => {
         return (
           <div key={`page-${pageIndex}`} className="bg-white relative shadow-sm" style={{ 
@@ -447,7 +564,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 )}
               </div>
               <div className="text-right">
-                <p>Pagina {pageIndex + 1} di {pages.length + (abacoNeedsNewPage ? 1 : 0)}</p>
+                <p>Pagina {pageIndex + 1 + recapPageCount} di {pages.length + (abacoNeedsNewPage ? 1 : 0) + recapPageCount}</p>
               </div>
             </div>
           </div>
@@ -483,7 +600,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               )}
             </div>
             <div className="text-right">
-              <p>Pagina {pages.length + 1} di {pages.length + (abacoNeedsNewPage ? 1 : 0)}</p>
+              <p>Pagina {pages.length + 1 + recapPageCount} di {pages.length + (abacoNeedsNewPage ? 1 : 0) + recapPageCount}</p>
             </div>
           </div>
         </div>

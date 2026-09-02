@@ -34,6 +34,7 @@ export default function PreventiviPage() {
 
   const [isCrmOpen, setIsCrmOpen] = useState(false);
   const [isCustomerMode, setIsCustomerMode] = useState(false);
+  const [includeRecap, setIncludeRecap] = useState(false);
   const [savedClients, setSavedClients] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showAiImport, setShowAiImport] = useState(false);
@@ -617,6 +618,13 @@ export default function PreventiviPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setIncludeRecap(!includeRecap)}
+            title="Aggiunge una pagina iniziale con la tabella riassuntiva di tutti gli articoli, prima delle schede tecniche di dettaglio"
+            className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all flex items-center gap-2 shadow-sm ${includeRecap ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+          >
+            {includeRecap ? 'Riepilogo Incluso' : 'Aggiungi Riepilogo'}
+          </button>
+          <button
             onClick={() => setIsCustomerMode(!isCustomerMode)}
             className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all flex items-center gap-2 shadow-sm ${isCustomerMode ? 'bg-purple-600 text-white border-purple-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
           >
@@ -736,8 +744,9 @@ export default function PreventiviPage() {
                     totaleIva: p.totaleIva,
                     totalePreventivo: p.totalePreventivo
                   }} 
-                  userSettings={userSettings} 
+                  userSettings={userSettings}
                   userEmail={session?.user?.email || userEmail}
+                  includeRecap={includeRecap}
                 />
               </div>
             </div>
@@ -807,9 +816,10 @@ export default function PreventiviPage() {
               totaleIva: p.totaleIva,
               totalePreventivo: p.totalePreventivo
             }} 
-            userSettings={userSettings} 
+            userSettings={userSettings}
             userEmail={session?.user?.email || userEmail}
             isExporting={isExporting}
+            includeRecap={includeRecap}
           />
         </div>
       </div>
