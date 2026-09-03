@@ -9,9 +9,10 @@ import {
   CalendarDays,
   Target
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, PieChart, Pie, Cell } from 'recharts';
 
 import { useUser } from '../contexts/UserContext';
+import { STATO_COLORS } from './OrdiniPage';
 
 const STATI_POSITIVI = ['Confermato', 'In Produzione', 'Consegnato'];
 
@@ -66,37 +67,49 @@ export default function DashboardPage() {
   const preventiviMese = ordini.filter(o => isCurrentMonth(o.created_at));
   const preventiviPrevMese = ordini.filter(o => isPrevMonth(o.created_at));
 
+  // Percentuale di variazione tra due valori. Se il mese precedente era
+  // zero, "+100%" non ha senso se anche il mese attuale è zero: in quel
+  // caso non c'è nessuna variazione da mostrare.
+  const deltaPercent = (attuale, precedente) => {
+    if (precedente === 0) return attuale === 0 ? 0 : 100;
+    return Math.round(((attuale - precedente) / precedente) * 100);
+  };
+
   const numPrevMese = preventiviMese.length;
   const numPrevPrevMese = preventiviPrevMese.length;
-  const deltaPrev = numPrevPrevMese === 0 ? 100 : Math.round(((numPrevMese - numPrevPrevMese) / numPrevPrevMese) * 100);
+  const deltaPrev = deltaPercent(numPrevMese, numPrevPrevMese);
 
   // Fatturato (solo confermati)
   const fatturatoTotale = ordini.filter(o => STATI_POSITIVI.includes(o.stato)).reduce((acc, o) => acc + (o.totale || 0), 0);
-  
+
   const fatturatoMese = preventiviMese.filter(o => STATI_POSITIVI.includes(o.stato)).reduce((acc, o) => acc + (o.totale || 0), 0);
   const fatturatoPrevMese = preventiviPrevMese.filter(o => STATI_POSITIVI.includes(o.stato)).reduce((acc, o) => acc + (o.totale || 0), 0);
-  const deltaFatturato = fatturatoPrevMese === 0 ? 100 : Math.round(((fatturatoMese - fatturatoPrevMese) / fatturatoPrevMese) * 100);
+  const deltaFatturato = deltaPercent(fatturatoMese, fatturatoPrevMese);
 
   // Tasso di conversione Globale
   const preventiviConvertiti = ordini.filter(o => STATI_POSITIVI.includes(o.stato)).length;
   const tassoConversione = ordini.length === 0 ? 0 : Math.round((preventiviConvertiti / ordini.length) * 100);
 
   // ---- CHART DATA GENERATION ----
-  // Raggruppa per mese per il grafico ad area
+  // Raggruppa per mese: numero di preventivi emessi (conteggio) e
+  // fatturato confermato (euro) sono due grandezze diverse, quindi
+  // restano due serie distinte invece di essere sommate sullo stesso
+  // asse come "Preventivi" (che in precedenza era in realtà un totale
+  // in euro, nonostante il nome).
   const monthlyData = {};
   ordini.forEach(o => {
     const d = new Date(o.created_at);
     const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    
+
     if (!monthlyData[monthKey]) {
-      monthlyData[monthKey] = { 
-        name: d.toLocaleString('it-IT', { month: 'short', year: '2-digit' }), 
-        Preventivi: 0, 
-        Fatturato: 0 
+      monthlyData[monthKey] = {
+        name: d.toLocaleString('it-IT', { month: 'short', year: '2-digit' }),
+        Preventivi: 0,
+        Fatturato: 0
       };
     }
-    
-    monthlyData[monthKey].Preventivi += (o.totale || 0);
+
+    monthlyData[monthKey].Preventivi += 1;
     if (STATI_POSITIVI.includes(o.stato)) {
       monthlyData[monthKey].Fatturato += (o.totale || 0);
     }
@@ -104,14 +117,16 @@ export default function DashboardPage() {
 
   const areaChartData = Object.keys(monthlyData).sort().map(k => monthlyData[k]).slice(-6); // Ultimi 6 mesi
 
-  // Dati Torta (Stato preventivi)
+  // Dati Torta (Stato preventivi) - stessi colori usati in Archivio Ordini,
+  // così lo stesso stato ha sempre lo stesso colore in tutta l'app invece
+  // di dipendere dall'ordine casuale con cui compaiono i dati.
   const statusCounts = {};
   ordini.forEach(o => {
     const s = o.stato || 'Bozza';
     statusCounts[s] = (statusCounts[s] || 0) + 1;
   });
   const pieData = Object.keys(statusCounts).map(k => ({ name: k, value: statusCounts[k] }));
-  const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6', '#ef4444'];
+  const colorFor = (stato) => (STATO_COLORS[stato] || STATO_COLORS['Bozza']).text;
 
   return (
     <div className="space-y-6">
@@ -197,30 +212,23 @@ export default function DashboardPage() {
           
           {/* Main Chart */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:col-span-2">
-            <h3 className="text-lg font-bold text-gray-800 mb-6">Andamento Preventivi vs Fatturato (Ultimi 6 Mesi)</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Preventivi emessi e fatturato confermato</h3>
+            <p className="text-xs text-gray-400 mb-5">Ultimi 6 mesi con dati</p>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={areaChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorFatturato" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorPreventivi" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
+                <ComposedChart data={areaChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `€${value/1000}k`} />
-                  <Tooltip 
-                    formatter={(value) => `€ ${value.toLocaleString('it-IT')}`}
+                  <YAxis yAxisId="count" axisLine={false} tickLine={false} allowDecimals={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <YAxis yAxisId="euro" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `€${value/1000}k`} />
+                  <Tooltip
+                    formatter={(value, name) => name === 'Fatturato' ? `€ ${value.toLocaleString('it-IT')}` : `${value} preventiv${value === 1 ? 'o' : 'i'}`}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
-                  <Area type="monotone" dataKey="Preventivi" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorPreventivi)" />
-                  <Area type="monotone" dataKey="Fatturato" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorFatturato)" />
-                </AreaChart>
+                  <Legend wrapperStyle={{ fontSize: 12 }} formatter={(value) => value === 'Preventivi' ? 'Preventivi emessi' : 'Fatturato confermato'} />
+                  <Bar yAxisId="count" dataKey="Preventivi" fill="#bfdbfe" radius={[4, 4, 0, 0]} barSize={28} />
+                  <Line yAxisId="euro" type="monotone" dataKey="Fatturato" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -242,7 +250,7 @@ export default function DashboardPage() {
                       dataKey="value"
                     >
                       {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={colorFor(entry.name)} />
                       ))}
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
@@ -256,7 +264,7 @@ export default function DashboardPage() {
               <div className="flex flex-wrap justify-center gap-3 mt-4">
                 {pieData.map((entry, index) => (
                   <div key={index} className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}></span>
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colorFor(entry.name) }}></span>
                     {entry.name} ({entry.value})
                   </div>
                 ))}

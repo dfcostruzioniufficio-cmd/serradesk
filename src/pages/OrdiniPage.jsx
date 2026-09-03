@@ -12,7 +12,7 @@ const STATI = ['Bozza', 'Bozza dal Web', 'Bozza (Stampata)', 'Inviato', 'Conferm
 // se lo stato salvato resta distinto per non perdere l'origine.
 const DRAFT_STATI = ['Bozza', 'Bozza dal Web', 'Bozza (Stampata)'];
 
-const STATO_COLORS = {
+export const STATO_COLORS = {
   'Bozza':             { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
   'Bozza dal Web':     { bg: '#fef3c7', text: '#d97706', border: '#fde68a' }, // Giallo/Ambra per i lead web
   'Bozza (Stampata)':  { bg: '#e0e7ff', text: '#4338ca', border: '#a5b4fc' }, // Indigo tenue per distinguerla
