@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, ExternalLink, CheckCircle, Clock, Truck, FileText, Euro, MessageCircle } from 'lucide-react';
+import { Trash2, ExternalLink, CheckCircle, Clock, Truck, FileText, Euro, MessageCircle, Search, MoreVertical, Send, PhoneCall } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { supabase } from '../lib/supabaseClient';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '../components/ui/dropdown-menu';
 
 const STATI = ['Bozza', 'Bozza dal Web', 'Bozza (Stampata)', 'Inviato', 'Confermato', 'In Produzione', 'Consegnato'];
+// "Bozza", "Bozza dal Web" e "Bozza (Stampata)" sono tutte, nella pratica,
+// preventivi non ancora mandati al cliente - raggruppate in vista, anche
+// se lo stato salvato resta distinto per non perdere l'origine.
+const DRAFT_STATI = ['Bozza', 'Bozza dal Web', 'Bozza (Stampata)'];
 
 const STATO_COLORS = {
   'Bozza':             { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
@@ -20,6 +25,7 @@ const STATO_COLORS = {
 export default function OrdiniPage() {
   const [ordini, setOrdini] = useState([]);
   const [filtroStato, setFiltroStato] = useState('tutti');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -43,9 +49,13 @@ export default function OrdiniPage() {
   };
 
   const updateStato = async (id, stato) => {
-    const { error } = await supabase.from('ordini').update({ stato }).eq('id', id);
+    const payload = { stato };
+    // Registra quando un preventivo viene mandato al cliente, per poter
+    // segnalare quelli rimasti senza risposta da troppi giorni.
+    if (stato === 'Inviato') payload.inviato_at = new Date().toISOString();
+    const { error } = await supabase.from('ordini').update(payload).eq('id', id);
     if (!error) {
-      setOrdini(ordini.map(o => o.id === id ? { ...o, stato } : o));
+      setOrdini(ordini.map(o => o.id === id ? { ...o, ...payload } : o));
     } else {
       alert('Errore aggiornamento stato');
     }
@@ -115,8 +125,18 @@ export default function OrdiniPage() {
     navigate('/preventivi');
   };
 
-  const filtered = filtroStato === 'tutti' ? ordini : ordini.filter(o => o.stato === filtroStato);
+  const FILTRI = ['tutti', 'Bozza', 'Inviato', 'Confermato', 'In Produzione', 'Consegnato'];
+  const matchFiltro = (o, f) => f === 'tutti' ? true : (f === 'Bozza' ? DRAFT_STATI.includes(o.stato) : o.stato === f);
+
+  const filtered = ordini
+    .filter(o => matchFiltro(o, filtroStato))
+    .filter(o => searchQuery.trim() === '' || (o.cliente || '').toLowerCase().includes(searchQuery.trim().toLowerCase()));
   const totaleValore = ordini.filter(o => o.stato === 'Confermato' || o.stato === 'In Produzione').reduce((s, o) => s + (o.totale || 0), 0);
+
+  const giorniDaInvio = (inviatoAt) => {
+    if (!inviatoAt) return null;
+    return Math.floor((Date.now() - new Date(inviatoAt).getTime()) / (1000 * 60 * 60 * 24));
+  };
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
@@ -162,16 +182,28 @@ export default function OrdiniPage() {
 
         {/* Header rimosso, spostato nella DashboardPage dedicata */}
 
+        {/* Ricerca cliente */}
+        <div className="relative mb-4 max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Cerca per nome cliente..."
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+
         {/* Filtro stato */}
         <div className="flex gap-2 mb-5 flex-wrap">
-          {['tutti', ...STATI].map(s => (
+          {FILTRI.map(s => (
             <button key={s} onClick={() => setFiltroStato(s)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
                 filtroStato === s
                   ? 'bg-[#1e3a5f] text-white border-[#1e3a5f]'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
               }`}>
-              {s === 'tutti' ? `Tutti (${ordini.length})` : `${s} (${ordini.filter(o=>o.stato===s).length})`}
+              {s === 'tutti' ? `Tutti (${ordini.length})` : `${s} (${ordini.filter(o => matchFiltro(o, s)).length})`}
             </button>
           ))}
         </div>
@@ -194,57 +226,93 @@ export default function OrdiniPage() {
             const rimanente = Number(o.totale || 0) - totIncassato;
             const isSaldato = rimanente <= 0;
             const displayItems = (o.items || []).filter(i => i.type !== 'metadata');
+            const isDraftStato = DRAFT_STATI.includes(o.stato);
+            // I pagamenti contano solo dopo che il preventivo è stato mandato:
+            // mostrarli su una bozza mai inviata è rumore. Restano visibili se
+            // per qualche motivo esiste già uno storico (es. acconto anticipato).
+            const showPagamenti = !isDraftStato || pagamenti.length > 0;
+            const giorni = o.stato === 'Inviato' ? giorniDaInvio(o.inviato_at) : null;
 
             return (
               <div key={o.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-                <div className="flex justify-between items-start p-4 pb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className="font-bold text-gray-900 text-lg">{o.cliente}</span>
-                      <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded" title={o.id}>
-                        #{o.id.substring(0, 8)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {new Date(o.created_at).toLocaleDateString('it-IT')} · {displayItems.length} articoli · <b className="text-gray-700">Totale: € {(Number(o.totale) || 0).toFixed(2)}</b>
-                    </div>
-                    {/* Pagamenti UI */}
-                    <div className="mt-3 flex items-center gap-4 text-xs">
-                      <div className="bg-gray-50 px-3 py-1.5 rounded-md border flex items-center gap-2">
-                        <span className="text-gray-500 font-medium">Incassato:</span>
-                        <span className="font-bold text-gray-800">€ {totIncassato.toFixed(2)}</span>
+                <div className="p-4 pb-3">
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-bold text-gray-900 text-lg truncate" title={o.id}>{o.cliente}</span>
+                        <span
+                          className="text-xs font-bold px-2.5 py-0.5 rounded-full border shrink-0"
+                          style={{ color: sc.text, borderColor: sc.border, background: sc.bg }}>
+                          {isDraftStato ? 'Bozza' : o.stato}
+                        </span>
+                        {o.stato === 'Bozza dal Web' && (
+                          <span className="text-[10px] text-amber-600 font-semibold uppercase tracking-wide">da web</span>
+                        )}
+                        {giorni !== null && (
+                          <span className={`text-[11px] font-semibold ${giorni >= 3 ? 'text-red-600' : 'text-gray-400'}`}>
+                            {giorni === 0 ? 'inviato oggi' : `inviato ${giorni}g fa`}
+                          </span>
+                        )}
                       </div>
-                      <div className={`px-3 py-1.5 rounded-md border flex items-center gap-2 ${isSaldato && Number(o.totale)>0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                        <span className="font-medium">{isSaldato && Number(o.totale)>0 ? 'Saldato!' : 'Da incassare:'}</span>
-                        {!isSaldato && <span className="font-bold">€ {rimanente.toFixed(2)}</span>}
+                      <div className="text-sm text-gray-500">
+                        {new Date(o.created_at).toLocaleDateString('it-IT')} · {displayItems.length} articoli · <b className="text-gray-700">€ {(Number(o.totale) || 0).toFixed(2)}</b>
                       </div>
-                      <Button variant="outline" size="sm" className="h-7 text-xs bg-white" onClick={() => { setSelectedOrderForPayment(o); setPaymentModalOpen(true); }}>
-                        <Euro size={12} className="mr-1" /> Aggiungi Pagamento
-                      </Button>
+
+                      {showPagamenti && (
+                        <div className="mt-3 flex items-center gap-4 text-xs flex-wrap">
+                          <div className="bg-gray-50 px-3 py-1.5 rounded-md border flex items-center gap-2">
+                            <span className="text-gray-500 font-medium">Incassato:</span>
+                            <span className="font-bold text-gray-800">€ {totIncassato.toFixed(2)}</span>
+                          </div>
+                          <div className={`px-3 py-1.5 rounded-md border flex items-center gap-2 ${isSaldato && Number(o.totale)>0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                            <span className="font-medium">{isSaldato && Number(o.totale)>0 ? 'Saldato!' : 'Da incassare:'}</span>
+                            {!isSaldato && <span className="font-bold">€ {rimanente.toFixed(2)}</span>}
+                          </div>
+                          <Button variant="outline" size="sm" className="h-7 text-xs bg-white" onClick={() => { setSelectedOrderForPayment(o); setPaymentModalOpen(true); }}>
+                            <Euro size={12} className="mr-1" /> Aggiungi Pagamento
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {/* Cambio stato */}
-                    <select
-                      value={o.stato}
-                      onChange={e => updateStato(o.id, e.target.value)}
-                      className="text-xs font-bold border-2 rounded-lg px-2 py-1.5 cursor-pointer"
-                      style={{ color: sc.text, borderColor: sc.border, background: sc.bg }}>
-                      {STATI.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" onClick={(e) => handleWhatsApp(e, meta.clientData?.phone || '', o)}
-                        className="text-green-600 hover:bg-green-50 text-xs font-bold px-2 h-8">
-                        <MessageCircle size={14} className="mr-1"/> WhatsApp
-                      </Button>
-                      <Button variant="ghost" onClick={() => handleRiapri(o)}
-                        className="text-blue-600 hover:bg-blue-50 text-xs font-bold px-2 h-8">
-                        <ExternalLink size={14} className="mr-1"/> Riapri
-                      </Button>
-                      <Button variant="ghost" onClick={() => deleteOrdine(o.id)}
-                        className="text-red-400 hover:bg-red-50 hover:text-red-600 h-8 px-2">
-                        <Trash2 size={15}/>
-                      </Button>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isDraftStato && (
+                        <Button onClick={() => updateStato(o.id, 'Inviato')} className="bg-[#1e3a5f] hover:bg-[#16293f] text-white text-xs font-bold h-9">
+                          <Send size={14} className="mr-1.5" /> Segna come inviato
+                        </Button>
+                      )}
+                      {o.stato === 'Inviato' && (
+                        <Button onClick={() => updateStato(o.id, 'Confermato')} className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold h-9">
+                          <CheckCircle size={14} className="mr-1.5" /> Confermato
+                        </Button>
+                      )}
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="h-9 w-9 p-0 text-gray-500 shrink-0">
+                            <MoreVertical size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={(e) => handleWhatsApp(e, meta.clientData?.phone || '', o)} className="text-green-600 cursor-pointer">
+                            <MessageCircle size={14} className="mr-2" /> WhatsApp
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleRiapri(o)} className="text-blue-600 cursor-pointer">
+                            <ExternalLink size={14} className="mr-2" /> Riapri e modifica
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <div className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cambia stato</div>
+                          {STATI.map(s => (
+                            <DropdownMenuItem key={s} disabled={o.stato === s} onClick={() => updateStato(o.id, s)} className="cursor-pointer text-xs">
+                              {s}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => deleteOrdine(o.id)} className="text-red-500 focus:text-red-600 cursor-pointer">
+                            <Trash2 size={14} className="mr-2" /> Elimina
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
