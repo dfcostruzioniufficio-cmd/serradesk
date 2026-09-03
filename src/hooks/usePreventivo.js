@@ -69,13 +69,16 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       return;
     }
     const count = Math.max(1, Math.min(6, Number(newItem.numAnte) || 1));
-    // Di default la maniglia va sull'anta più a destra (l'ultima), che è
-    // quella più usata. In precedenza, crescendo da 1 a più ante, l'anta
-    // di sinistra si teneva la maniglia ereditata da quando era l'unica
-    // anta, e quella nuova restava senza.
-    setPaneConfigs(() => Array.from({ length: count }, (_, i) => ({
-      handleEdge: i === count - 1 ? 'right' : null
-    })));
+    // Di default la maniglia va sull'anta più a destra, che è la più
+    // usata. Con più ante va sul suo bordo sinistro (il montante
+    // centrale, dove le ante si incontrano), non sul bordo esterno.
+    // In precedenza, crescendo da 1 a più ante, l'anta di sinistra si
+    // teneva la maniglia ereditata da quando era l'unica anta, e quella
+    // nuova a destra restava senza.
+    setPaneConfigs(() => Array.from({ length: count }, (_, i) => {
+      if (i !== count - 1) return { handleEdge: null };
+      return { handleEdge: count === 1 ? 'right' : 'left' };
+    }));
   }, [newItem.numAnte]);
 
   const updateItemField = (field, value) => {
