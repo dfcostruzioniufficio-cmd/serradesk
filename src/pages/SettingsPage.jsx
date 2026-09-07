@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../contexts/UserContext';
-import { Save, Building, FileText, Image as ImageIcon, MapPin } from 'lucide-react';
+import { Save, Building, FileText, Image as ImageIcon, MapPin, Globe } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+
+const slugify = (text) => (text || '')
+  .toLowerCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g, '') // rimuove accenti
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .slice(0, 60);
 
 export default function SettingsPage() {
   const { refreshUserSettings, session } = useUser();
@@ -21,8 +28,13 @@ export default function SettingsPage() {
     phone: '',
     email: '',
     website: '',
-    logo_base64: ''
+    logo_base64: '',
+    public_page_enabled: false,
+    public_page_slug: '',
+    public_page_bio: '',
+    public_page_area: ''
   });
+  const [slugError, setSlugError] = useState(null);
 
   useEffect(() => {
     fetchSettings();
@@ -49,7 +61,11 @@ export default function SettingsPage() {
           phone: data.phone || '',
           email: data.email || '',
           website: data.website || '',
-          logo_base64: data.logo_base64 || ''
+          logo_base64: data.logo_base64 || '',
+          public_page_enabled: data.public_page_enabled || false,
+          public_page_slug: data.public_page_slug || '',
+          public_page_bio: data.public_page_bio || '',
+          public_page_area: data.public_page_area || ''
         });
       }
     }
@@ -77,6 +93,30 @@ export default function SettingsPage() {
     if (!userId) return;
     setIsSaving(true);
     setMessage(null);
+    setSlugError(null);
+
+    let finalSlug = formData.public_page_slug?.trim() ? slugify(formData.public_page_slug) : '';
+
+    if (formData.public_page_enabled) {
+      if (!finalSlug) finalSlug = slugify(formData.company_name);
+      if (!finalSlug) {
+        setIsSaving(false);
+        setSlugError('Inserisci un nome azienda o un indirizzo personalizzato prima di attivare la pagina.');
+        return;
+      }
+      // Verifica che lo slug non sia già usato da un altro account
+      const { data: existing } = await supabase
+        .from('user_settings')
+        .select('user_id')
+        .eq('public_page_slug', finalSlug)
+        .neq('user_id', userId)
+        .maybeSingle();
+      if (existing) {
+        setIsSaving(false);
+        setSlugError(`L'indirizzo "${finalSlug}" è già in uso. Scegline un altro.`);
+        return;
+      }
+    }
 
     // Upsert behavior using onConflict
     const { error } = await supabase
@@ -90,11 +130,16 @@ export default function SettingsPage() {
         email: formData.email,
         website: formData.website,
         logo_base64: formData.logo_base64,
+        public_page_enabled: formData.public_page_enabled,
+        public_page_slug: finalSlug || null,
+        public_page_bio: formData.public_page_bio,
+        public_page_area: formData.public_page_area,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
 
     setIsSaving(false);
-    
+    setFormData(f => ({ ...f, public_page_slug: finalSlug }));
+
     if (error) {
       console.error(error);
       setMessage({ type: 'error', text: 'Errore durante il salvataggio.' });
@@ -276,58 +321,119 @@ export default function SettingsPage() {
         </div>
 
         {userId && (
-          <div className="bg-white rounded-2xl shadow-sm border border-blue-200 mt-6 overflow-hidden">
-            <div className="bg-blue-50 p-6 border-b border-blue-100">
-              <h2 className="text-xl font-bold text-blue-900 flex items-center gap-2">
-                🌐 Integrazione Sito Web (Preventivatore Pubblico)
-              </h2>
-              <p className="text-blue-700 text-sm mt-2">
-                Fai compilare ai tuoi clienti i preventivi direttamente dal tuo sito web. 
-                Le richieste arriveranno automaticamente nella tua pagina "Preventivi" con l'etichetta "Bozza dal Web".
-              </p>
+          <div className="bg-white rounded-2xl shadow-sm border border-emerald-200 mt-6 overflow-hidden">
+            <div className="bg-emerald-50 p-6 border-b border-emerald-100 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-emerald-900 flex items-center gap-2">
+                  <Globe size={20} /> La tua Pagina Pubblica
+                </h2>
+                <p className="text-emerald-700 text-sm mt-2 max-w-2xl">
+                  Una pagina su serradesk.it dove chiunque può disegnare il proprio infisso e mandarti la richiesta —
+                  utile se non hai un sito web. Le richieste arrivano automaticamente in "Preventivi" con l'etichetta "Bozza dal Web".
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formData.public_page_enabled}
+                onClick={() => setFormData({ ...formData, public_page_enabled: !formData.public_page_enabled })}
+                className={`shrink-0 w-12 h-7 rounded-full transition-colors relative ${formData.public_page_enabled ? 'bg-emerald-600' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.public_page_enabled ? 'translate-x-5' : ''}`} />
+              </button>
             </div>
-            
-            {userEmail === 'dfcostruzioni.ufficio@gmail.com' ? (
-              <div className="p-6 space-y-6">
+
+            {formData.public_page_enabled && (
+              <div className="p-6 space-y-5">
                 <div>
-                  <Label className="text-gray-700 font-bold mb-2 block">Link Diretto (da inviare su WhatsApp o Facebook)</Label>
-                  <div className="flex gap-2">
-                    <Input readOnly value={`https://serradesk.it/preventivatore/${userId}`} className="bg-gray-50 text-blue-600 font-mono" />
-                    <Button variant="outline" onClick={() => {
-                      navigator.clipboard.writeText(`https://serradesk.it/preventivatore/${userId}`);
-                      alert('Link copiato!');
-                    }}>Copia</Button>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label className="text-gray-700 font-bold mb-2 block">Codice iFrame (da incollare nel tuo sito web)</Label>
-                  <div className="flex gap-2">
-                    <textarea 
-                      readOnly 
-                      className="w-full bg-gray-50 text-gray-600 font-mono text-sm p-3 border rounded-md h-24"
-                      value={`<iframe src="https://serradesk.it/preventivatore/${userId}" width="100%" height="800" frameborder="0" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>`}
+                  <Label className="text-gray-700 font-bold mb-2 block">Indirizzo della pagina</Label>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-gray-400 text-sm font-mono">serradesk.it/i/</span>
+                    <Input
+                      value={formData.public_page_slug}
+                      onChange={(e) => setFormData({ ...formData, public_page_slug: e.target.value })}
+                      placeholder={slugify(formData.company_name) || 'nome-azienda'}
+                      className="h-9 font-mono text-sm max-w-xs"
                     />
                   </div>
+                  {slugError && <p className="text-red-600 text-xs mt-1.5 font-medium">{slugError}</p>}
+                  <p className="text-xs text-gray-400 mt-1.5">Lasciando vuoto lo generiamo dal nome azienda al salvataggio.</p>
                 </div>
-              </div>
-            ) : (
-              <div className="p-10 text-center flex flex-col items-center justify-center bg-gray-50">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-3xl">🔒</span>
+
+                <div>
+                  <Label className="text-gray-700 font-bold mb-2 block">Zona di lavoro</Label>
+                  <Input
+                    value={formData.public_page_area}
+                    onChange={(e) => setFormData({ ...formData, public_page_area: e.target.value })}
+                    placeholder="Es. Milano e provincia"
+                    className="h-11"
+                  />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Funzionalità Premium</h3>
-                <p className="text-gray-600 max-w-md mb-6">
-                  Il Modulo "Preventivatore Web" è una funzionalità premium. Esegui l'upgrade per sbloccare l'acquisizione lead direttamente dal tuo sito.
-                </p>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8">
-                  Scopri i Piani Premium
-                </Button>
+
+                <div>
+                  <Label className="text-gray-700 font-bold mb-2 block">Breve presentazione (opzionale)</Label>
+                  <textarea
+                    className="w-full border rounded-md p-3 text-sm min-h-[80px] outline-none focus:border-emerald-500"
+                    value={formData.public_page_bio}
+                    onChange={(e) => setFormData({ ...formData, public_page_bio: e.target.value })}
+                    placeholder="Es. Installiamo e riparliamo infissi in tutta la provincia da 20 anni."
+                  />
+                </div>
+
+                {formData.public_page_slug && (
+                  <div className="pt-2 border-t border-gray-100">
+                    <Label className="text-gray-700 font-bold mb-2 block">Link da condividere</Label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={`https://serradesk.it/i/${slugify(formData.public_page_slug)}`} className="bg-gray-50 text-emerald-700 font-mono text-sm" />
+                      <Button type="button" variant="outline" onClick={() => {
+                        navigator.clipboard.writeText(`https://serradesk.it/i/${slugify(formData.public_page_slug)}`);
+                        alert('Link copiato!');
+                      }}>Copia</Button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Ricorda di salvare le impostazioni per rendere effettive le modifiche.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
-        
+
+        {userId && (
+          <div className="bg-white rounded-2xl shadow-sm border border-blue-200 mt-6 overflow-hidden">
+            <div className="bg-blue-50 p-6 border-b border-blue-100">
+              <h2 className="text-xl font-bold text-blue-900 flex items-center gap-2">
+                🌐 Incorpora nel tuo sito (iFrame)
+              </h2>
+              <p className="text-blue-700 text-sm mt-2">
+                Se hai già un tuo sito web, puoi incorporarci lo stesso configuratore invece di linkare la pagina pubblica.
+              </p>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <Label className="text-gray-700 font-bold mb-2 block">Link Diretto</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={`https://serradesk.it/preventivatore/${userId}`} className="bg-gray-50 text-blue-600 font-mono" />
+                  <Button variant="outline" onClick={() => {
+                    navigator.clipboard.writeText(`https://serradesk.it/preventivatore/${userId}`);
+                    alert('Link copiato!');
+                  }}>Copia</Button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-gray-700 font-bold mb-2 block">Codice iFrame (da incollare nel tuo sito web)</Label>
+                <div className="flex gap-2">
+                  <textarea
+                    readOnly
+                    className="w-full bg-gray-50 text-gray-600 font-mono text-sm p-3 border rounded-md h-24"
+                    value={`<iframe src="https://serradesk.it/preventivatore/${userId}" width="100%" height="800" frameborder="0" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>`}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
