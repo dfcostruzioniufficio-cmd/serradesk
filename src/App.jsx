@@ -21,7 +21,6 @@ import TerminiPage from './pages/TerminiPage';
 import PrivacyPage from './pages/PrivacyPage';
 import OnboardingPage from './pages/OnboardingPage';
 import WidgetWebPage from './pages/WidgetWebPage';
-import PublicInstallerPage from './pages/PublicInstallerPage';
 import AppShell from './components/AppShell';
 import { supabase } from './lib/supabaseClient';
 import { UserProvider, useUser } from './contexts/UserContext';
@@ -98,7 +97,6 @@ function App() {
           <Route path="/termini" element={<TerminiPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/preventivatore/:userId" element={<WidgetWebPage />} />
-          <Route path="/i/:slug" element={<PublicInstallerPage />} />
 
           {/* Autenticazione */}
           <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/preventivi" />} />
