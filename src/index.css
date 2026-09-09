@@ -114,6 +114,12 @@ html {
   .print\:hidden {
     display: none !important;
   }
+  /* In stampa il contenuto deve occupare il foglio intero: senza questo
+     resterebbe il margine che l'app lascia per la barra laterale. */
+  main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
   .print\:p-0 {
     padding: 0 !important;
   }

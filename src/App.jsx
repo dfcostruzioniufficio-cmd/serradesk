@@ -24,6 +24,7 @@ const PaywallPage = lazy(() => import('./pages/PaywallPage'));
 const GuidaPage = lazy(() => import('./pages/GuidaPage'));
 const ArticlePage = lazy(() => import('./pages/ArticlePage'));
 const DistintaPage = lazy(() => import('./pages/DistintaPage'));
+const SchedaRilievoPage = lazy(() => import('./pages/SchedaRilievoPage'));
 const TerminiPage = lazy(() => import('./pages/TerminiPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
@@ -129,6 +130,7 @@ function App() {
           <Route path="/rubrica"    element={session ? <ProtectedRoute><AppShell><RubricaPage /></AppShell></ProtectedRoute>    : <Navigate to="/login" />} />
           <Route path="/ordini"     element={session ? <ProtectedRoute><AppShell><OrdiniPage /></AppShell></ProtectedRoute>     : <Navigate to="/login" />} />
           <Route path="/distinta"   element={session ? <ProtectedRoute><AppShell><DistintaPage /></AppShell></ProtectedRoute>   : <Navigate to="/login" />} />
+          <Route path="/scheda-rilievo" element={session ? <ProtectedRoute><AppShell><SchedaRilievoPage /></AppShell></ProtectedRoute> : <Navigate to="/login" />} />
           <Route path="/settings"   element={session ? <ProtectedRoute><AppShell><SettingsPage /></AppShell></ProtectedRoute>   : <Navigate to="/login" />} />
           <Route path="/admin"      element={session ? <AppShell><AdminPage /></AppShell>      : <Navigate to="/login" />} />
           <Route path="/guida"      element={<GuidaPage />} />

@@ -13,7 +13,8 @@ import {
   PanelLeft,
   LayoutDashboard,
   Users,
-  Save
+  Save,
+  ClipboardList
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../lib/supabaseClient';
@@ -24,6 +25,7 @@ import { useIsMobile } from '../hooks/use-mobile';
 const BASE_NAV = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Nuovo Preventivo', path: '/preventivi', icon: FilePlus2 },
+  { name: 'Scheda Rilievo', path: '/scheda-rilievo', icon: ClipboardList },
   { name: 'Rubrica Clienti', path: '/rubrica', icon: Users },
   { name: 'Archivio Ordini', path: '/ordini', icon: FolderOpen },
   { name: 'Archivio Sistemi', path: '/archivio', icon: Settings },
@@ -174,7 +176,7 @@ export default function AppShell({ children }) {
     return (
       <div className="min-h-screen bg-[hsl(var(--background))]">
         {/* Top header bar */}
-        <header className="sticky top-0 z-40 flex items-center justify-between h-14 px-4 bg-[hsl(var(--sidebar-background))] border-b border-[hsl(var(--sidebar-border))]">
+        <header className="print:hidden sticky top-0 z-40 flex items-center justify-between h-14 px-4 bg-[hsl(var(--sidebar-background))] border-b border-[hsl(var(--sidebar-border))]">
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
@@ -234,7 +236,7 @@ export default function AppShell({ children }) {
     >
       {/* Sidebar */}
       <aside
-        className="fixed top-0 left-0 h-screen z-30
+        className="print:hidden fixed top-0 left-0 h-screen z-30
           bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))]
           border-r border-[hsl(var(--sidebar-border))]
           transition-all duration-300 flex flex-col"
