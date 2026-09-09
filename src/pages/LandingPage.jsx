@@ -97,10 +97,10 @@ export default function LandingPage() {
 
           <div className="hidden md:flex items-center gap-8">
             <Link to="/guida" className="text-sm text-[#4b5563] hover:text-[#14181b] transition-colors">Guide</Link>
-            <Link to="/preventivi" className="text-sm text-[#4b5563] hover:text-[#14181b] transition-colors">Prova il configuratore</Link>
+            <Link to="#prezzi" className="text-sm text-[#4b5563] hover:text-[#14181b] transition-colors">Prezzi</Link>
             <Link to="/login" className="text-sm text-[#4b5563] hover:text-[#14181b] transition-colors">Accedi</Link>
-            <Link to="/login?mode=signup" className="text-sm font-semibold bg-[#14181b] text-white px-4 py-2 rounded hover:bg-[#0e6e66] transition-colors">
-              Prova gratis
+            <Link to="/preventivi" className="text-sm font-semibold bg-[#14181b] text-white px-4 py-2 rounded hover:bg-[#0e6e66] transition-colors">
+              Prova il configuratore
             </Link>
           </div>
 
@@ -112,9 +112,9 @@ export default function LandingPage() {
         {menuOpen && (
           <div className="md:hidden border-t border-[#d7ddda] px-6 py-4 flex flex-col gap-4 bg-[#f4f6f5]">
             <Link to="/guida" className="text-sm text-[#4b5563]">Guide</Link>
-            <Link to="/preventivi" className="text-sm text-[#4b5563]">Prova il configuratore</Link>
+            <Link to="#prezzi" className="text-sm text-[#4b5563]">Prezzi</Link>
             <Link to="/login" className="text-sm text-[#4b5563]">Accedi</Link>
-            <Link to="/login?mode=signup" className="text-sm font-semibold bg-[#14181b] text-white px-4 py-2.5 rounded text-center">Prova gratis</Link>
+            <Link to="/preventivi" className="text-sm font-semibold bg-[#14181b] text-white px-4 py-2.5 rounded text-center">Prova il configuratore</Link>
           </div>
         )}
       </nav>
@@ -259,7 +259,7 @@ export default function LandingPage() {
                 <span>Zero errori di calcolo che ti costano margine</span>
               </li>
             </ul>
-            <button onClick={() => navigate('/login?mode=signup')} className="inline-flex items-center gap-2 bg-[#14181b] text-white font-semibold px-6 py-3.5 rounded hover:bg-[#0e6e66] transition-colors">
+            <button onClick={() => navigate('/preventivi')} className="inline-flex items-center gap-2 bg-[#14181b] text-white font-semibold px-6 py-3.5 rounded hover:bg-[#0e6e66] transition-colors">
               Provalo sul tuo prossimo preventivo
             </button>
           </div>
@@ -334,7 +334,7 @@ export default function LandingPage() {
       </section>
 
       {/* PRICING */}
-      <section className="max-w-6xl mx-auto px-6 py-16 md:py-24">
+      <section id="prezzi" className="max-w-6xl mx-auto px-6 py-16 md:py-24 scroll-mt-20">
         <div className="text-center mb-12">
           <h2 className="font-display font-bold text-3xl md:text-4xl mb-4">Sblocca tutte le funzioni.</h2>
           <p className="text-lg text-[#6b7573] max-w-xl mx-auto">
@@ -399,10 +399,10 @@ export default function LandingPage() {
             Il prossimo preventivo, disegnato in 2 minuti.
           </h2>
           <p className="text-white/60 text-lg mb-9 max-w-xl mx-auto">
-            Registrati e provalo sul primo cliente vero.
+            Provalo sul primo cliente vero, senza registrarti.
           </p>
-          <Link to="/login?mode=signup" className="inline-flex items-center gap-2 bg-white text-[#14181b] font-semibold px-8 py-4 rounded hover:bg-[#dceeec] transition-colors">
-            Crea il tuo account <ArrowRight size={18} />
+          <Link to="/preventivi" className="inline-flex items-center gap-2 bg-white text-[#14181b] font-semibold px-8 py-4 rounded hover:bg-[#dceeec] transition-colors">
+            Apri il configuratore <ArrowRight size={18} />
           </Link>
         </div>
       </section>
