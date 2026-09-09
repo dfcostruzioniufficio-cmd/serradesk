@@ -1,6 +1,7 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { createLogger, defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-editor.js';
 import editModeDevPlugin from './plugins/visual-editor/vite-plugin-edit-mode.js';
 import selectionModePlugin from './plugins/selection-mode/vite-plugin-selection-mode.js';
@@ -292,6 +293,39 @@ export default defineConfig({
 	plugins: [
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), selectionModePlugin(), iframeRouteRestorationPlugin(), pocketbaseAuthPlugin()] : []),
 		react(),
+		VitePWA({
+			registerType: 'autoUpdate',
+			includeAssets: ['logo_rounded.png', 'apple-touch-icon.png'],
+			manifest: {
+				name: 'SerraDesk — Preventivi Serramenti',
+				short_name: 'SerraDesk',
+				description: 'Preventivi e distinte di taglio per serramentisti.',
+				lang: 'it',
+				start_url: '/preventivi',
+				scope: '/',
+				display: 'standalone',
+				background_color: '#0a0f1e',
+				theme_color: '#0a0f1e',
+				categories: ['business', 'productivity'],
+				icons: [
+					{ src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+					{ src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+					{ src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+				],
+			},
+			workbox: {
+				// Solo codice dell'app e icone: i file pesanti in public/
+				// (tutorial.mp4, smart670.pdf, i mockup) sarebbero decine di MB
+				// scaricati all'installazione senza servire a nulla offline.
+				globPatterns: ['**/*.{js,css,html}', 'pwa-*.png', 'apple-touch-icon.png', 'logo_rounded.png'],
+				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+				cleanupOutdatedCaches: true,
+				navigateFallback: '/index.html',
+				// Le funzioni serverless devono sempre arrivare alla rete,
+				// mai essere servite dalla index in cache
+				navigateFallbackDenylist: [/^\/api\//],
+			},
+		}),
 		addTransformIndexHtml
 	],
 	server: {
