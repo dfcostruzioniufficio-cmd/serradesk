@@ -6,7 +6,10 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 
 const RIGHE_PER_FOGLIO = 8;
-const TIPOLOGIE = ['Battente', 'Scorrevole', 'Fisso', 'Persiana', 'Porta', 'Altro'];
+// Abbreviate: a tutta parola le sei tipologie mangiavano la larghezza
+// che serve alle colonne Ante e Maniglia.
+const TIPOLOGIE = ['Batt.', 'Scorr.', 'Fisso', 'Pers.', 'Porta'];
+const COLORI_COMUNI = ['Bianco', 'Antracite', 'Noce', 'Bronzo', 'Argento'];
 
 // Caselle separate per ogni cifra: una misura scritta dentro riquadri
 // distinti si rilegge molto meglio di un numero scritto di corsa, sia
@@ -18,6 +21,15 @@ function CasellePerCifre({ n = 4 }) {
         <span key={i} className="block w-[7mm] h-[9mm] border border-gray-400 rounded-[1px]" />
       ))}
     </div>
+  );
+}
+
+function Spunta({ children }) {
+  return (
+    <span className="inline-flex items-center gap-[2px] whitespace-nowrap">
+      <span className="inline-block w-[3.5mm] h-[3.5mm] border border-gray-500 shrink-0" />
+      <span className="text-[8px] leading-none">{children}</span>
+    </span>
   );
 }
 
@@ -38,8 +50,10 @@ export default function SchedaRilievoPage() {
             </h1>
             <p className="text-sm text-gray-500 mt-1 max-w-xl">
               Stampa queste schede e portale in cantiere: compili le misure a mano nelle caselle,
-              con il tuo logo già sopra. Ogni foglio contiene {RIGHE_PER_FOGLIO} articoli — se non
-              bastano, stampa più fogli e numera il totale in fondo.
+              col tuo logo già sopra. Ogni foglio contiene {RIGHE_PER_FOGLIO} articoli — se non
+              bastano, stampa più fogli e numerali in fondo. Serve a raccogliere quello che puoi
+              rilevare solo sul posto (misure, quantità, tipologia, ante, lato di apertura): vetro,
+              anta a ribalta e traversi restano da impostare qui in ufficio, dove è più veloce.
             </p>
           </div>
           <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-2 px-6 shrink-0">
@@ -102,7 +116,7 @@ export default function SchedaRilievoPage() {
             </div>
 
             {/* Dati del cantiere */}
-            <div className="grid grid-cols-3 gap-4 mb-5 text-[11px]">
+            <div className="grid grid-cols-3 gap-4 mb-3 text-[11px]">
               <div className="col-span-2">
                 <span className="font-bold uppercase text-[9px] text-gray-500">Cliente</span>
                 <div className="border-b border-gray-400 h-[8mm]" />
@@ -113,16 +127,32 @@ export default function SchedaRilievoPage() {
               </div>
             </div>
 
+            {/* Colore: quasi sempre è lo stesso per tutto il lavoro, quindi
+                si compila una volta qui invece che riga per riga. */}
+            <div className="border border-gray-400 rounded-[2px] px-2 py-1.5 mb-3 flex items-center gap-3 flex-wrap">
+              <span className="font-bold uppercase text-[9px] text-gray-500">Colore infissi</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                {COLORI_COMUNI.map((c) => <Spunta key={c}>{c}</Spunta>)}
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block w-[3.5mm] h-[3.5mm] border border-gray-500" />
+                  <span className="text-[8px]">Altro / RAL</span>
+                  <span className="inline-block border-b border-gray-500 w-[26mm]" />
+                </span>
+              </div>
+            </div>
+
             {/* Tabella misure */}
             <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-gray-800 text-white">
-                  <th className="border border-gray-800 py-1.5 w-[8mm]">N°</th>
-                  <th className="border border-gray-800 py-1.5 w-[34mm]">Larghezza (mm)</th>
-                  <th className="border border-gray-800 py-1.5 w-[34mm]">Altezza (mm)</th>
-                  <th className="border border-gray-800 py-1.5 w-[14mm]">Q.tà</th>
+                  <th className="border border-gray-800 py-1.5 w-[7mm]">N°</th>
+                  <th className="border border-gray-800 py-1.5 w-[32mm]">Larghezza (mm)</th>
+                  <th className="border border-gray-800 py-1.5 w-[32mm]">Altezza (mm)</th>
+                  <th className="border border-gray-800 py-1.5 w-[13mm]">Q.tà</th>
+                  <th className="border border-gray-800 py-1.5 w-[17mm]">Ante</th>
                   <th className="border border-gray-800 py-1.5">Tipologia</th>
-                  <th className="border border-gray-800 py-1.5 w-[28mm]">Colore</th>
+                  <th className="border border-gray-800 py-1.5 w-[19mm]">Apre da</th>
+                  <th className="border border-gray-800 py-1.5 w-[22mm]">Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,15 +164,23 @@ export default function SchedaRilievoPage() {
                     <td className="border border-gray-400 px-1"><CasellePerCifre n={4} /></td>
                     <td className="border border-gray-400 px-1"><CasellePerCifre n={4} /></td>
                     <td className="border border-gray-400 px-1"><CasellePerCifre n={2} /></td>
-                    <td className="border border-gray-400 px-2">
+                    <td className="border border-gray-400 px-1">
+                      <div className="flex flex-wrap gap-x-2 gap-y-1 justify-center">
+                        {['1', '2', '3', '4'].map((n) => <Spunta key={n}>{n}</Spunta>)}
+                      </div>
+                    </td>
+                    <td className="border border-gray-400 px-1">
                       {/* Caselle da spuntare: niente parole scritte a mano da interpretare */}
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center">
-                        {TIPOLOGIE.map((t) => (
-                          <span key={t} className="inline-flex items-center gap-1 whitespace-nowrap">
-                            <span className="inline-block w-[4mm] h-[4mm] border border-gray-500" />
-                            <span className="text-[9px]">{t}</span>
-                          </span>
-                        ))}
+                      <div className="flex flex-wrap gap-x-2 gap-y-1 justify-center">
+                        {TIPOLOGIE.map((t) => <Spunta key={t}>{t}</Spunta>)}
+                      </div>
+                    </td>
+                    <td className="border border-gray-400 px-1">
+                      {/* Da che lato sta la maniglia: copre sia l'anta singola
+                          sia quale anta apre per prima nelle doppie. */}
+                      <div className="flex gap-x-2 justify-center">
+                        <Spunta>SX</Spunta>
+                        <Spunta>DX</Spunta>
                       </div>
                     </td>
                     <td className="border border-gray-400" />
