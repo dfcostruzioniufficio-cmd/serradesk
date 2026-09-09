@@ -341,7 +341,7 @@ export default function PreventiviPage() {
   const handleSaveOrder = async (silent = false) => {
     if (!userProfile) {
       if (!silent) {
-        alert("Fantastico! Per salvare i tuoi preventivi in cloud crea il tuo account gratuito in 10 secondi.");
+        alert("Per salvare i preventivi serve un account con abbonamento attivo. Registrati per attivarlo.");
         window.location.href = '/login?mode=signup';
       }
       return false;
@@ -436,7 +436,7 @@ export default function PreventiviPage() {
 
   const handleExportPDF = async () => {
     if (!userProfile) {
-      alert("Ottimo lavoro! Per scaricare il tuo preventivo in formato PDF crea il tuo account gratuito in 10 secondi.");
+      alert("Il configuratore è libero, ma per scaricare il PDF serve un account con abbonamento attivo. Registrati per attivarlo.");
       window.location.href = '/login?mode=signup';
       return;
     }
@@ -557,7 +557,7 @@ export default function PreventiviPage() {
 
   const handleExportDistinta = () => {
     if (!userProfile) {
-      alert("La distinta di taglio è riservata agli account registrati. Crea un account gratuito per sbloccarla.");
+      alert("La distinta di taglio richiede un account con abbonamento attivo. Registrati per attivarlo.");
       window.location.href = '/login?mode=signup';
       return;
     }
