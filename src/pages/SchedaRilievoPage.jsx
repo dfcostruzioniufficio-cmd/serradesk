@@ -127,6 +127,12 @@ export default function SchedaRilievoPage() {
               </div>
             </div>
 
+            {/* Marca del profilo: vale per tutto il lavoro come il colore */}
+            <div className="border border-gray-400 rounded-[2px] px-2 py-1.5 mb-2 flex items-center gap-2">
+              <span className="font-bold uppercase text-[9px] text-gray-500 shrink-0">Marca / Profilo</span>
+              <span className="flex-1 border-b border-gray-400 h-[6mm]" />
+            </div>
+
             {/* Colore: quasi sempre è lo stesso per tutto il lavoro, quindi
                 si compila una volta qui invece che riga per riga. */}
             <div className="border border-gray-400 rounded-[2px] px-2 py-1.5 mb-3 flex items-center gap-3 flex-wrap">
@@ -189,10 +195,29 @@ export default function SchedaRilievoPage() {
               </tbody>
             </table>
 
+            {/* Totale a cui si vuole arrivare: in ufficio SerraDesk somma i
+                mq del rilievo e ricava da qui il prezzo al mq. */}
+            <div className="mt-3 border-2 border-gray-800 rounded-[2px] px-3 py-2 flex items-center justify-between">
+              <div>
+                <span className="font-bold uppercase text-[10px]">Totale preventivo</span>
+                <p className="text-[8px] text-gray-500 leading-tight">
+                  Quanto vuoi far uscire in totale: SerraDesk ricava il prezzo al mq
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold">€</span>
+                <span className="inline-block border-b-2 border-gray-800 w-[45mm] h-[7mm]" />
+                <div className="flex gap-3 pl-2">
+                  <Spunta>IVA inclusa</Spunta>
+                  <Spunta>IVA esclusa</Spunta>
+                </div>
+              </div>
+            </div>
+
             {/* Note */}
-            <div className="mt-4 flex-1">
+            <div className="mt-3 flex-1">
               <span className="font-bold uppercase text-[9px] text-gray-500">Note</span>
-              <div className="border border-gray-400 h-[24mm] mt-1" />
+              <div className="border border-gray-400 h-[20mm] mt-1" />
             </div>
 
             {/* Piè di pagina */}

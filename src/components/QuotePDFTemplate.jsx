@@ -37,7 +37,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   };
 
   const formatNumber = (value) => {
-    return new Intl.NumberFormat('it-IT', { style: 'decimal', minimumFractionDigits: 2 }).format(value);
+    return new Intl.NumberFormat('it-IT', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   };
 
   const maxQuoteWidth = Math.max(1000, ...actualItems.map(i => Number(i.width) || 0));

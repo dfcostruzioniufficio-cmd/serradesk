@@ -56,7 +56,7 @@ export default function ItemsList({
                   <div className="text-right">
                     <p className="text-xs text-gray-500 uppercase font-semibold">Totale</p>
                     <p className="font-bold text-lg text-gray-900">
-                      €{new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2 }).format(item.unitPrice * item.quantity)}
+                      €{new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.unitPrice * item.quantity)}
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0">

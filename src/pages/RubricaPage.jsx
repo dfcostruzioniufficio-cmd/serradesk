@@ -242,7 +242,7 @@ export default function RubricaPage() {
                 <div className="flex justify-between items-center bg-green-50 text-green-800 p-3 rounded-lg border border-green-200 mb-4">
                   <span className="font-semibold text-sm">Totale Fatturato (Confermato):</span>
                   <span className="font-bold text-lg">
-                    € {clientOrders.filter(o => o.stato === 'Confermato' || o.stato === 'In Produzione' || o.stato === 'Consegnato').reduce((acc, o) => acc + (o.totale || 0), 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    € {clientOrders.filter(o => o.stato === 'Confermato' || o.stato === 'In Produzione' || o.stato === 'Consegnato').reduce((acc, o) => acc + (o.totale || 0), 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
@@ -264,7 +264,7 @@ export default function RubricaPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-gray-900 text-lg">€ {(order.totale || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                      <p className="font-bold text-gray-900 text-lg">€ {(order.totale || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                   </div>
                 ))}

@@ -10,7 +10,7 @@ export default function CostSummary({
   totalePreventivo,
   onSpalmaQuadratura
 }) {
-  const formatCurrency = (val) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2 }).format(val);
+  const formatCurrency = (val) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">

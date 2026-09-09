@@ -10,6 +10,7 @@ import QuoteToolbar from '../components/preventivi/QuoteToolbar';
 import ClientInfoCard from '../components/preventivi/ClientInfoCard';
 import CRMModal from '../components/preventivi/CRMModal';
 import CostSummary from '../components/preventivi/CostSummary';
+import PrezzoDaTotale from '../components/preventivi/PrezzoDaTotale';
 import ItemsList from '../components/preventivi/ItemsList';
 import LivePreview from '../components/preventivi/LivePreview';
 import ItemConfigurator from '../components/preventivi/ItemConfigurator';
@@ -697,6 +698,13 @@ export default function PreventiviPage() {
               iva={p.iva}
               totalePreventivo={p.totalePreventivo}
               onSpalmaQuadratura={p.handleSpalmaQuadratura}
+            />
+
+            <PrezzoDaTotale
+              items={p.items}
+              sconto={p.sconto}
+              iva={p.iva}
+              onApplica={p.setItems}
             />
          </div>
       </div>
