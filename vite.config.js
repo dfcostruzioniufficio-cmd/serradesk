@@ -301,7 +301,10 @@ export default defineConfig({
 				short_name: 'SerraDesk',
 				description: 'Preventivi e distinte di taglio per serramentisti.',
 				lang: 'it',
-				start_url: '/preventivi',
+				// Chi apre l'app installata trova il login. Se la sessione è
+				// già attiva, /login rimanda da solo a /preventivi, quindi chi
+				// è connesso entra dritto nel configuratore senza passaggi.
+				start_url: '/login',
 				scope: '/',
 				display: 'standalone',
 				background_color: '#0a0f1e',

@@ -8,10 +8,12 @@ import {
   BookOpen,
   Shield,
   LogOut,
+  LogIn,
   PanelLeftClose,
   PanelLeft,
   LayoutDashboard,
-  Users
+  Users,
+  Save
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../lib/supabaseClient';
@@ -106,12 +108,26 @@ function SidebarContent({ navItems, location, isCollapsed, onLogout, userProfile
             {!isCollapsed && <span>Esci</span>}
           </button>
         ) : (
-          <Link
-            to="/login?mode=signup"
-            className="flex items-center gap-3 py-2.5 px-4 rounded-lg w-full bg-blue-600 text-white hover:bg-blue-500 transition-all duration-200 justify-center"
-          >
-            {!isCollapsed && <span className="font-bold">Salva il lavoro</span>}
-          </Link>
+          <div className="space-y-2">
+            <Link
+              to="/login"
+              onClick={onNavClick}
+              title="Accedi"
+              className="flex items-center gap-3 py-2.5 px-4 rounded-lg w-full text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] transition-all duration-200"
+            >
+              <LogIn size={20} className="shrink-0" />
+              {!isCollapsed && <span>Accedi</span>}
+            </Link>
+            <Link
+              to="/login?mode=signup"
+              onClick={onNavClick}
+              title="Salva il lavoro"
+              className="flex items-center gap-3 py-2.5 px-4 rounded-lg w-full bg-blue-600 text-white hover:bg-blue-500 transition-all duration-200 justify-center"
+            >
+              <Save size={20} className="shrink-0" />
+              {!isCollapsed && <span className="font-bold">Salva il lavoro</span>}
+            </Link>
+          </div>
         )}
       </div>
     </div>
@@ -183,11 +199,20 @@ export default function AppShell({ children }) {
 
           <span className="text-white font-bold text-lg tracking-tight">SerraDesk</span>
 
-          <div className="w-8 h-8 rounded-full bg-[hsl(var(--sidebar-primary))] flex items-center justify-center">
-            <span className="text-white text-xs font-bold">
-              {(userEmail || 'U')[0].toUpperCase()}
-            </span>
-          </div>
+          {userProfile ? (
+            <div className="w-8 h-8 rounded-full bg-[hsl(var(--sidebar-primary))] flex items-center justify-center">
+              <span className="text-white text-xs font-bold">
+                {(userEmail || 'U')[0].toUpperCase()}
+              </span>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="flex items-center gap-1.5 text-white text-sm font-semibold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <LogIn size={16} /> Accedi
+            </Link>
+          )}
         </header>
 
         {/* Main content */}
