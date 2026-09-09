@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { Plus, Trash2, ChevronDown, ChevronUp, Edit, Copy } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -135,11 +136,11 @@ export default function ArchivioPage() {
   const n = (key, val) => setForm(p => ({ ...p, [key]: val }));
 
   const handleSave = async () => {
-    if (!form.nome.trim()) return alert('Inserisci il nome del sistema');
+    if (!form.nome.trim()) return toast.error('Inserisci il nome del sistema');
     
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
-    if (!user) return alert('Devi essere loggato per salvare.');
+    if (!user) return toast.error('Devi essere loggato per salvare.');
 
     const newSistema = {
       user_id: user.id,
@@ -169,7 +170,7 @@ export default function ArchivioPage() {
 
     if (response.error) {
       console.error('Error saving sistema:', response.error);
-      alert('Errore durante il salvataggio.');
+      toast.error('Errore durante il salvataggio.');
     } else {
       if (editingId) {
         setSistemi(s => s.map(item => item.id === editingId ? (response.data && response.data[0] ? response.data[0] : { ...item, ...newSistema }) : item));
@@ -183,12 +184,12 @@ export default function ArchivioPage() {
   };
 
   const handleSaveVetro = async () => {
-    if (!formVetro.nome.trim()) return alert('Inserisci il nome del vetro');
-    if (!formVetro.basePrice) return alert('Inserisci il prezzo al mq');
+    if (!formVetro.nome.trim()) return toast.error('Inserisci il nome del vetro');
+    if (!formVetro.basePrice) return toast.error('Inserisci il prezzo al mq');
     
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
-    if (!user) return alert('Devi essere loggato per importare.');
+    if (!user) return toast.error('Devi essere loggato per importare.');
 
     const newVetro = {
       user_id: user.id,
@@ -211,7 +212,7 @@ export default function ArchivioPage() {
 
     if (response.error) {
       console.error('Error saving vetro:', response.error);
-      alert('Errore durante il salvataggio.');
+      toast.error('Errore durante il salvataggio.');
     } else {
       if (editingId) {
         setSistemi(s => s.map(item => item.id === editingId ? (response.data && response.data[0] ? response.data[0] : { ...item, ...newVetro }) : item));
@@ -228,7 +229,7 @@ export default function ArchivioPage() {
     const { error } = await supabase.from('sistemi_cam').delete().eq('id', id);
     if (error) {
       console.error('Error deleting:', error);
-      alert('Errore durante l\'eliminazione.');
+      toast.error('Errore durante l\'eliminazione.');
     } else {
       setSistemi(s => s.filter(x => x.id !== id));
       if (editingId === id) cancelEdit();

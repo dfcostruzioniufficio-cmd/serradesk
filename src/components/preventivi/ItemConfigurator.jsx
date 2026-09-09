@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings2, Plus } from 'lucide-react';
+import { Settings2, Plus, Ruler, Palette } from 'lucide-react';
 import { getFrameColorHex, getAccessoriHex } from '../../utils/colors';
 
 export default function ItemConfigurator({
@@ -432,7 +432,7 @@ export default function ItemConfigurator({
           <div id="tour-step-1" className="col-span-4 flex flex-col sm:flex-row items-center gap-4 bg-purple-50 border border-purple-200 rounded-xl p-4 mt-6 shadow-sm">
               <div className="flex-1">
                 <Label className="text-purple-900 font-black text-base flex items-center gap-2">
-                  <span className="text-xl">📐</span> Modelli Preimpostati
+                  <Ruler size={18} /> Modelli Preimpostati
                 </Label>
                 <p className="text-sm text-purple-700 mt-1 font-medium">Scegli una tipologia di finestra e compila le misure.</p>
               </div>
@@ -441,7 +441,7 @@ export default function ItemConfigurator({
                 onClick={() => setShowGallery && setShowGallery(true)}
                 className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 font-bold px-6 py-3 rounded-xl text-sm transition-all hover:scale-105 shadow-md"
               >
-                🎨 Scegli Modello
+                <Palette size={16} /> Scegli Modello
               </button>
             </div>
         </div>

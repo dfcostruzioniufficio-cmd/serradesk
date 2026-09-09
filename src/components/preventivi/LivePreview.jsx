@@ -53,7 +53,13 @@ export default function LivePreview({ newItem, paneConfigs }) {
           />
         ) : isTapparella ? (
           <div className="flex flex-col items-center justify-center p-8 bg-gray-100 rounded-xl w-[80%] max-w-xs border-2 border-dashed border-gray-300 shadow-inner">
-            <span className="text-4xl mb-3">🪟</span>
+            <svg width="96" height="116" viewBox="0 0 86 104" className="mb-3">
+              <rect x="3" y="3" width="80" height="88" fill="#ffffff" stroke="#94a3b8" strokeWidth="2" />
+              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                <line key={i} x1="7" y1={14 + i * 11} x2="79" y2={14 + i * 11} stroke="#cbd5e1" strokeWidth="2" />
+              ))}
+              <rect x="3" y="91" width="80" height="9" fill="#94a3b8" />
+            </svg>
             <span className="font-bold text-gray-600 text-lg">Tapparella Avvolgibile</span>
             <span className="text-sm text-gray-500 font-medium mt-1">{newItem.width} x {newItem.height} mm</span>
           </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,7 +51,7 @@ export default function OnboardingPage() {
     if (!file) return;
 
     if (file.size > 200 * 1024) {
-      alert("L'immagine è troppo grande. Usa un logo di massimo 200 KB per garantire prestazioni veloci.");
+      toast.error("Immagine troppo grande: usa un logo di massimo 200 KB.");
       return;
     }
 
@@ -67,7 +68,7 @@ export default function OnboardingPage() {
     setIsSaving(true);
     
     if (!session?.user) {
-      alert('Sessione non trovata. Fai il login di nuovo.');
+      toast.error('Sessione non trovata. Fai il login di nuovo.');
       setIsSaving(false);
       return;
     }
@@ -89,7 +90,7 @@ export default function OnboardingPage() {
 
     if (error) {
       console.error("Errore salvataggio:", error);
-      alert("Errore durante il salvataggio dei dati.");
+      toast.error("Errore durante il salvataggio dei dati.");
       setIsSaving(false);
     } else {
       await refreshUserSettings();

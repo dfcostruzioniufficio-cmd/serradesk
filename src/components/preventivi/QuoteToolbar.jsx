@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Save, Plus, Download, Lock, MoreVertical } from 'lucide-react';
+import { Trash2, Save, Plus, Download, Lock, MoreVertical, HelpCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function QuoteToolbar({
@@ -39,7 +39,7 @@ export default function QuoteToolbar({
           className="text-slate-500 hover:text-blue-600 hidden md:flex items-center gap-1 font-semibold"
           onClick={() => window.dispatchEvent(new CustomEvent('start-tour'))}
         >
-          ❓ Guida
+          <HelpCircle size={16} /> Guida
         </Button>
         {/* Pulsante Menu Secondario */}
         <DropdownMenu>

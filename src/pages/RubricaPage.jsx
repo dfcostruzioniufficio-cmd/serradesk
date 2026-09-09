@@ -4,7 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Users, Search, Edit, Trash2, FileText, ChevronRight } from 'lucide-react';
+import { Users, Search, Edit, Trash2, FileText, ChevronRight, Phone, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 
 export default function RubricaPage() {
@@ -145,8 +145,8 @@ export default function RubricaPage() {
                     <tr key={c.id} className="hover:bg-blue-50/30 transition-colors group">
                       <td className="px-6 py-4 font-bold text-gray-800">{c.name}</td>
                       <td className="px-6 py-4 text-gray-600">
-                        {c.phone && <div>📞 {c.phone}</div>}
-                        {c.email && <div>✉️ {c.email}</div>}
+                        {c.phone && <div className="flex items-center gap-1.5"><Phone size={13} /> {c.phone}</div>}
+                        {c.email && <div className="flex items-center gap-1.5"><Mail size={13} /> {c.email}</div>}
                       </td>
                       <td className="px-6 py-4 text-gray-600">
                         {c.vat && <div>P.IVA: {c.vat}</div>}

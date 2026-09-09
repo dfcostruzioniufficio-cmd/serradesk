@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { detectBrowserZoom } from '../lib/utils';
 import { usePreventivo } from '../hooks/usePreventivo';
@@ -341,29 +342,29 @@ export default function PreventiviPage() {
   const handleSaveOrder = async (silent = false) => {
     if (!userProfile) {
       if (!silent) {
-        alert("Per salvare i preventivi serve un account con abbonamento attivo. Registrati per attivarlo.");
-        window.location.href = '/login?mode=signup';
+        toast.info("Per salvare i preventivi serve un account con abbonamento attivo.");
+        navigate('/login?mode=signup');
       }
       return false;
     }
 
     if (needsPayment) {
       if (!silent) {
-        alert("L'abbonamento PRO è necessario per salvare i preventivi e accedere al cloud. Passa subito al piano completo!");
+        toast.info("Serve un abbonamento attivo per salvare i preventivi nel cloud.");
         navigate('/dashboard'); // Li mando alla dashboard così scatta il paywall
       }
       return false;
     }
 
     if (p.items.length === 0) {
-      if (!silent) alert('Aggiungi almeno un articolo al preventivo.');
+      if (!silent) toast.error('Aggiungi almeno un articolo al preventivo.');
       return false;
     }
     
     setIsSaving(true);
     const user = session?.user;
     if (!user) {
-      if (!silent) alert('Devi effettuare l\'accesso per salvare.');
+      if (!silent) toast.error('Devi effettuare l\'accesso per salvare.');
       setIsSaving(false);
       return false;
     }
@@ -389,10 +390,10 @@ export default function PreventiviPage() {
     setIsSaving(false);
     if (error) {
       console.error(error);
-      if (!silent) alert('Errore durante il salvataggio.');
+      if (!silent) toast.error('Errore durante il salvataggio.');
       return false;
     } else {
-      if (!silent) alert('Ordine salvato con successo!');
+      if (!silent) toast.success('Preventivo salvato.');
       return true;
     }
   };
@@ -409,7 +410,7 @@ export default function PreventiviPage() {
 
   const handleCreateVariant = () => {
     if (needsPayment) {
-      alert("L'abbonamento PRO è necessario per gestire le varianti dei preventivi. Passa subito al piano completo!");
+      toast.info("Serve un abbonamento attivo per gestire le varianti.");
       navigate('/dashboard');
       return;
     }
@@ -431,18 +432,18 @@ export default function PreventiviPage() {
       p.setClientName(p.clientName ? `${p.clientName} (Variante)` : 'Variante');
     }
     
-    alert("Copia creata! Ora stai modificando un nuovo preventivo indipendente.");
+    toast.success("Copia creata: stai modificando un nuovo preventivo.");
   };
 
   const handleExportPDF = async () => {
     if (!userProfile) {
-      alert("Il configuratore è libero, ma per scaricare il PDF serve un account con abbonamento attivo. Registrati per attivarlo.");
-      window.location.href = '/login?mode=signup';
+      toast.info("Il configuratore è libero, ma per scaricare il PDF serve un abbonamento attivo.");
+      navigate('/login?mode=signup');
       return;
     }
 
     if (needsPayment) {
-      alert("L'abbonamento PRO è necessario per scaricare il preventivo in PDF e personalizzarlo col tuo logo. Passa subito al piano completo!");
+      toast.info("Serve un abbonamento attivo per scaricare il PDF col tuo logo.");
       navigate('/dashboard'); // Li mando alla dashboard così scatta il paywall
       return;
     }
@@ -450,9 +451,9 @@ export default function PreventiviPage() {
     // Autosalvataggio nell'archivio ordini
     const isSaved = await handleSaveOrder(true);
     if (isSaved) {
-      alert("Il preventivo è stato salvato correttamente nell'Archivio. Sto generando il PDF...");
+      toast.success("Preventivo salvato in Archivio. Sto generando il PDF...");
     } else {
-      alert("Attenzione: Non è stato possibile salvare il preventivo in cloud. Sto comunque generando il PDF...");
+      toast.warning("Non è stato possibile salvare nel cloud. Genero comunque il PDF.");
     }
 
     setIsExporting(true);
@@ -462,7 +463,7 @@ export default function PreventiviPage() {
     try {
       html2pdf = (await import('html2pdf.js')).default;
     } catch (e) {
-      alert('Aggiornamento di sistema in corso. La pagina verrà ricaricata.');
+      toast.info('Aggiornamento di sistema in corso, ricarico la pagina.');
       window.location.reload(true);
       return;
     }
@@ -557,8 +558,8 @@ export default function PreventiviPage() {
 
   const handleExportDistinta = () => {
     if (!userProfile) {
-      alert("La distinta di taglio richiede un account con abbonamento attivo. Registrati per attivarlo.");
-      window.location.href = '/login?mode=signup';
+      toast.info("La distinta di taglio richiede un abbonamento attivo.");
+      navigate('/login?mode=signup');
       return;
     }
     if (!canAccessCAM) return;

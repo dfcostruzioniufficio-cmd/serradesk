@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../contexts/UserContext';
-import { Save, Building, FileText, Image as ImageIcon, MapPin } from 'lucide-react';
+import { Save, Building, FileText, Image as ImageIcon, MapPin, Phone, Mail, Globe, Lock } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -61,7 +62,7 @@ export default function SettingsPage() {
     if (!file) return;
 
     if (file.size > 200 * 1024) {
-      alert("L'immagine è troppo grande. Usa un logo di massimo 200 KB.");
+      toast.error("Immagine troppo grande: usa un logo di massimo 200 KB.");
       return;
     }
 
@@ -86,6 +87,7 @@ export default function SettingsPage() {
         company_name: formData.company_name,
         vat_number: formData.vat_number,
         address: formData.address,
+        legal_address: formData.legal_address,
         phone: formData.phone,
         email: formData.email,
         website: formData.website,
@@ -237,7 +239,7 @@ export default function SettingsPage() {
 
               <div>
                 <Label className="flex items-center gap-2 mb-2 text-gray-700">
-                  📞 Telefono
+                  <Phone size={16} className="text-blue-600"/> Telefono
                 </Label>
                 <Input 
                   value={formData.phone} 
@@ -249,7 +251,7 @@ export default function SettingsPage() {
 
               <div>
                 <Label className="flex items-center gap-2 mb-2 text-gray-700">
-                  ✉️ Email
+                  <Mail size={16} className="text-blue-600"/> Email
                 </Label>
                 <Input 
                   value={formData.email} 
@@ -261,7 +263,7 @@ export default function SettingsPage() {
 
               <div>
                 <Label className="flex items-center gap-2 mb-2 text-gray-700">
-                  🌐 Sito Web
+                  <Globe size={16} className="text-blue-600"/> Sito Web
                 </Label>
                 <Input 
                   value={formData.website} 
@@ -279,7 +281,7 @@ export default function SettingsPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-blue-200 mt-6 overflow-hidden">
             <div className="bg-blue-50 p-6 border-b border-blue-100">
               <h2 className="text-xl font-bold text-blue-900 flex items-center gap-2">
-                🌐 Integrazione Sito Web (Preventivatore Pubblico)
+                <Globe size={20} /> Integrazione Sito Web (Preventivatore Pubblico)
               </h2>
               <p className="text-blue-700 text-sm mt-2">
                 Fai compilare ai tuoi clienti i preventivi direttamente dal tuo sito web. 
@@ -295,7 +297,7 @@ export default function SettingsPage() {
                     <Input readOnly value={`https://serradesk.it/preventivatore/${userId}`} className="bg-gray-50 text-blue-600 font-mono" />
                     <Button variant="outline" onClick={() => {
                       navigator.clipboard.writeText(`https://serradesk.it/preventivatore/${userId}`);
-                      alert('Link copiato!');
+                      toast.success('Link copiato!');
                     }}>Copia</Button>
                   </div>
                 </div>
@@ -314,7 +316,7 @@ export default function SettingsPage() {
             ) : (
               <div className="p-10 text-center flex flex-col items-center justify-center bg-gray-50">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-3xl">🔒</span>
+                  <Lock size={28} className="text-blue-600" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Funzionalità Premium</h3>
                 <p className="text-gray-600 max-w-md mb-6">

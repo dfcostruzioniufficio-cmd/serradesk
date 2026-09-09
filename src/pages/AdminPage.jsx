@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../contexts/UserContext';
 import { Navigate, Link } from 'react-router-dom';
@@ -37,7 +38,7 @@ export default function AdminPage() {
       setUsers(data.users || []);
     } catch (error) {
       console.error("Error fetching users via API:", error);
-      alert("Errore nel caricamento degli utenti. Controlla la console.");
+      toast.error("Errore nel caricamento degli utenti.");
     }
     setIsLoadingUsers(false);
   };
@@ -85,7 +86,7 @@ export default function AdminPage() {
 
   const handleImpersonate = async (targetEmail) => {
     if (!targetEmail || targetEmail === '—') {
-      alert("Nessuna email associata a questo utente.");
+      toast.error("Nessuna email associata a questo utente.");
       return;
     }
     
@@ -117,7 +118,7 @@ export default function AdminPage() {
         }
       }
     } catch (err) {
-      alert("Errore impersonificazione: " + err.message);
+      toast.error("Errore impersonificazione: " + err.message);
     }
   };
 

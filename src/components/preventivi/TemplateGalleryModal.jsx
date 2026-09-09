@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Ruler } from 'lucide-react';
 import WindowPreview from '../WindowPreview'; // Riusiamo l'anteprima per generare le icone!
 
 const templates = [
@@ -103,7 +103,7 @@ export default function TemplateGalleryModal({ onSelectTemplate, onClose }) {
         <div className="sticky top-0 z-10 flex justify-between items-center px-6 py-4 bg-white/95 backdrop-blur-md border-b border-gray-100 rounded-t-2xl shadow-sm">
           <div>
             <h2 className="text-xl font-bold text-purple-900 flex items-center gap-2">
-              <span className="text-xl">📐</span> Libreria Modelli
+              <Ruler size={18} /> Libreria Modelli
             </h2>
             <p className="text-xs text-gray-500 font-medium mt-0.5">Clicca su una tipologia per auto-compilare i campi.</p>
           </div>

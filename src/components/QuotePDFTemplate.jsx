@@ -315,9 +315,18 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             ) : item.apertura === 'Cassonetto' ? (
               <CassonettoPreview width={item.width} height={item.height} maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting} />
             ) : item.apertura?.toLowerCase() === 'tapparella' ? (
-              <div className="flex flex-col items-center justify-center text-center p-2 text-slate-400">
-                <span className="text-3xl mb-1">🪟</span>
-                <span className="text-[10px] font-bold">TAPPARELLA</span>
+              <div className="flex flex-col items-center justify-center text-center p-2">
+                {/* Disegno schematico: per le tapparelle non esiste un
+                    componente di anteprima, ma un'emoji in un documento
+                    mandato al cliente non è accettabile. */}
+                <svg width="86" height="104" viewBox="0 0 86 104" className="mb-1">
+                  <rect x="3" y="3" width="80" height="88" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2" />
+                  {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                    <line key={i} x1="7" y1={14 + i * 11} x2="79" y2={14 + i * 11} stroke="#cbd5e1" strokeWidth="2" />
+                  ))}
+                  <rect x="3" y="91" width="80" height="9" fill="#94a3b8" />
+                </svg>
+                <span className="text-[10px] font-bold text-slate-500">TAPPARELLA</span>
               </div>
             ) : (
               <WindowPreview numAnte={item.numAnte} apertura={item.apertura} antaRibalta={item.antaRibalta} frameColor={item.previewColor || item.frameColor} accessoriColore={item.previewAccessoriColor || item.accessori} width={item.width} height={item.height} hasTraverso={item.hasTraverso} traversoHeight={item.traversoHeight} topIsPanel={topIsPanel} bottomIsPanel={bottomIsPanel} hasSopraluce={item.hasSopraluce} sopraluceHeight={item.sopraluceHeight} handlePosition={item.handlePosition} paneConfigs={item.paneConfigs} anteWidths={item.anteAsimmetriche ? item.anteWidths : null} maniglioneAntipanico={item.maniglioneAntipanico} maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting} />

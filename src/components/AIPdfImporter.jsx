@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { toast } from 'sonner';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.js?url';
 
@@ -161,7 +162,7 @@ export default function AIPdfImporter({ isOpen, onClose, onProfilesAdded }) {
         } catch (e) {
           console.error('Errore durante analisi batch:', e);
           if (e.message.includes('Server returned 500') || e.message.includes('Server returned 400') || e.message.includes('Server returned 404') || e.message.includes('Server returned 429') || e.message.includes('Server returned 503')) {
-              alert(`Errore critico fermato alla pagina ${i}: ${e.message}`);
+              toast.error(`Errore alla pagina ${i}: ${e.message}`);
               throw e; 
           }
         }
@@ -179,7 +180,7 @@ export default function AIPdfImporter({ isOpen, onClose, onProfilesAdded }) {
       }
     } catch (error) {
       console.error('Error parsing PDF:', error);
-      alert('Errore durante la lettura del PDF: ' + error.message);
+      toast.error('Errore durante la lettura del PDF: ' + error.message);
       setStatus('Errore durante la lettura del file PDF.');
     } finally {
       setIsProcessing(false);
@@ -191,7 +192,7 @@ export default function AIPdfImporter({ isOpen, onClose, onProfilesAdded }) {
     if (!file) return;
     
     if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-      alert("Attenzione: Il file selezionato potrebbe non essere un PDF.");
+      toast.warning("Il file selezionato potrebbe non essere un PDF.");
     }
     
     setSelectedFile(file);
@@ -210,7 +211,7 @@ export default function AIPdfImporter({ isOpen, onClose, onProfilesAdded }) {
       setEndPage(pdf.numPages);
     } catch (err) {
       console.error(err);
-      alert('Errore nella lettura del file PDF');
+      toast.error('Errore nella lettura del file PDF');
       setSelectedFile(null);
     }
     

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../lib/supabaseClient';
 import { runCamEngine } from '../utils/camEngine';
@@ -80,13 +81,13 @@ export default function DistintaPage() {
     try {
       html2pdf = (await import('html2pdf.js')).default;
     } catch (e) {
-      alert('Aggiornamento di sistema in corso. La pagina verrà ricaricata.');
+      toast.info('Aggiornamento di sistema in corso, ricarico la pagina.');
       window.location.reload(true);
       return;
     }
     const element = document.getElementById('distinta-template-wrapper');
     if (!element) {
-      alert('Genera prima la distinta selezionando un ordine.');
+      toast.error('Genera prima la distinta selezionando un ordine.');
       return;
     }
     const clientName = selectedOrder?.cliente || 'Ordine';

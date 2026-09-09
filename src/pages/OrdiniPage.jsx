@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ExternalLink, CheckCircle, Clock, Truck, FileText, Euro, MessageCircle, Search, MoreVertical, Send, PhoneCall } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -57,7 +58,7 @@ export default function OrdiniPage() {
     if (!error) {
       setOrdini(ordini.map(o => o.id === id ? { ...o, ...payload } : o));
     } else {
-      alert('Errore aggiornamento stato');
+      toast.error('Errore aggiornamento stato');
     }
   };
 
@@ -67,7 +68,7 @@ export default function OrdiniPage() {
       if (!error) {
         setOrdini(ordini.filter(o => o.id !== id));
       } else {
-        alert('Errore eliminazione ordine');
+        toast.error('Errore eliminazione ordine');
       }
     }
   };
@@ -145,13 +146,13 @@ export default function OrdiniPage() {
 
   const onAddPaymentSubmit = async () => {
     const amt = parseFloat(newPaymentAmount);
-    if (isNaN(amt) || amt <= 0) return alert('Importo non valido');
+    if (isNaN(amt) || amt <= 0) return toast.error('Importo non valido');
     const success = await handleAddPayment(selectedOrderForPayment.id, amt, newPaymentDate);
     if (success) {
       setPaymentModalOpen(false);
       setNewPaymentAmount('');
     } else {
-      alert('Errore durante il salvataggio del pagamento');
+      toast.error('Errore durante il salvataggio del pagamento');
     }
   };
 

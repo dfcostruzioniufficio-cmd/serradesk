@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { Check, ChevronRight, Package, ArrowRight, User, Phone, Mail, MapPin } from 'lucide-react';
@@ -77,7 +78,7 @@ export default function WidgetWebPage() {
 
   const handleSubmit = async () => {
     if (cart.length === 0 || !clientData.nome || !clientData.telefono) {
-      alert("Compila tutti i campi obbligatori (Nome, Telefono) e aggiungi almeno un articolo.");
+      toast.error("Compila Nome e Telefono e aggiungi almeno un articolo.");
       return;
     }
 
@@ -108,7 +109,7 @@ export default function WidgetWebPage() {
     
     if (error) {
       console.error(error);
-      alert("Errore durante l'invio. Riprova più tardi.");
+      toast.error("Errore durante l'invio. Riprova più tardi.");
     } else {
       setSubmitSuccess(true);
     }
@@ -134,7 +135,7 @@ export default function WidgetWebPage() {
             Grazie per averci contattato. Un nostro tecnico esaminerà la tua richiesta e ti invierà un preventivo personalizzato il prima possibile.
           </p>
           <p className="text-sm font-bold text-gray-800">{settings?.company_name}</p>
-          <div className="mt-8 text-xs text-gray-400 font-medium">⚡ Powered by Serradesk</div>
+          <div className="mt-8 text-xs text-gray-400 font-medium">Powered by SerraDesk</div>
         </div>
       </div>
     );
@@ -349,7 +350,7 @@ export default function WidgetWebPage() {
         </div>
         
         <div className="mt-12 text-center">
-          <p className="text-xs font-bold text-gray-400">⚡ Powered by Serradesk</p>
+          <p className="text-xs font-bold text-gray-400">Powered by SerraDesk</p>
         </div>
       </div>
     </div>

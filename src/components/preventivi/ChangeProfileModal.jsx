@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { X, CopyPlus } from 'lucide-react';
 
 export default function ChangeProfileModal({ isOpen, onClose, sistemiCam, onApply }) {
@@ -15,7 +16,7 @@ export default function ChangeProfileModal({ isOpen, onClose, sistemiCam, onAppl
         onClose();
       }
     } else {
-      alert('Seleziona un profilo prima di procedere.');
+      toast.error('Seleziona un profilo prima di procedere.');
     }
   };
 
