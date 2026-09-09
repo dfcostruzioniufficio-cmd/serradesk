@@ -20,7 +20,10 @@ export default function QuoteToolbar({
   const [showPdfMenu, setShowPdfMenu] = useState(false);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t border-slate-200 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] p-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all">
+    <div
+      style={{ left: 'var(--app-sidebar-offset, 0px)' }}
+      className="fixed bottom-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t border-slate-200 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] p-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all"
+    >
       
       {/* Riepilogo Veloce a sinistra (visibile solo su schermi larghi) */}
       <div className="hidden sm:flex flex-col">

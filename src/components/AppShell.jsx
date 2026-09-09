@@ -225,7 +225,13 @@ export default function AppShell({ children }) {
 
   // ─── Desktop Layout ───
   return (
-    <div className="flex min-h-screen bg-[hsl(var(--background))]">
+    // --app-sidebar-offset dice alle barre fisse dei figli (es. la toolbar
+    // del preventivo) dove finisce la sidebar, così non ci finiscono sopra
+    // coprendo i pulsanti di accesso/uscita in fondo.
+    <div
+      className="flex min-h-screen bg-[hsl(var(--background))]"
+      style={{ '--app-sidebar-offset': isCollapsed ? 'var(--sidebar-width-collapsed)' : 'var(--sidebar-width)' }}
+    >
       {/* Sidebar */}
       <aside
         className="fixed top-0 left-0 h-screen z-30
