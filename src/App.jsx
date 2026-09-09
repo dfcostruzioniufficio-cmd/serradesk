@@ -1,29 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { Route, Routes, BrowserRouter as Router, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import ScrollToTop from './components/ScrollToTop';
+
+// Le due porte d'ingresso restano caricate subito: sono le prime cose
+// che vede chi arriva, un caricamento intermedio qui si noterebbe.
 import LandingPage from './pages/LandingPage';
-import PreventiviPage from './pages/PreventiviPage';
-import ArchivioPage from './pages/ArchivioPage';
-import OrdiniPage from './pages/OrdiniPage';
-import RubricaPage from './pages/RubricaPage';
-import DashboardPage from './pages/DashboardPage';
-import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
-import UpdatePasswordPage from './pages/UpdatePasswordPage';
-import AdminPage from './pages/AdminPage';
-import PaywallPage from './pages/PaywallPage';
-import GuidaPage from './pages/GuidaPage';
-import ArticlePage from './pages/ArticlePage';
-import DistintaPage from './pages/DistintaPage';
-import TerminiPage from './pages/TerminiPage';
-import PrivacyPage from './pages/PrivacyPage';
-import OnboardingPage from './pages/OnboardingPage';
-import WidgetWebPage from './pages/WidgetWebPage';
+
+// Tutto il resto viene scaricato solo quando si apre davvero quella
+// pagina: prima il browser si portava dietro anche pannello admin,
+// grafici e importatore PDF a chiunque aprisse il configuratore.
+const PreventiviPage = lazy(() => import('./pages/PreventiviPage'));
+const ArchivioPage = lazy(() => import('./pages/ArchivioPage'));
+const OrdiniPage = lazy(() => import('./pages/OrdiniPage'));
+const RubricaPage = lazy(() => import('./pages/RubricaPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const UpdatePasswordPage = lazy(() => import('./pages/UpdatePasswordPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const PaywallPage = lazy(() => import('./pages/PaywallPage'));
+const GuidaPage = lazy(() => import('./pages/GuidaPage'));
+const ArticlePage = lazy(() => import('./pages/ArticlePage'));
+const DistintaPage = lazy(() => import('./pages/DistintaPage'));
+const TerminiPage = lazy(() => import('./pages/TerminiPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
+const WidgetWebPage = lazy(() => import('./pages/WidgetWebPage'));
+
 import AppShell from './components/AppShell';
 import { supabase } from './lib/supabaseClient';
 import { UserProvider, useUser } from './contexts/UserContext';
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+      <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full" />
+    </div>
+  );
+}
 
 // Un componente wrapper per proteggere le rotte SaaS
 function ProtectedRoute({ children }) {
@@ -91,6 +107,7 @@ function App() {
     <UserProvider session={session}>
       <Router>
         <ScrollToTop />
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Landing Page pubblica */}
           <Route path="/" element={<LandingPage />} />
@@ -128,6 +145,7 @@ function App() {
             </div>
           } />
         </Routes>
+        </Suspense>
         <Toaster />
         <Analytics />
       </Router>
