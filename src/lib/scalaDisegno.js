@@ -77,16 +77,20 @@ export function dimensioniDisegno({
     }
   }
 
-  // Minimo assoluto, su entrambi i lati insieme per non deformare nulla.
+  // Minimo assoluto, su entrambi i lati insieme per non deformare nulla, e
+  // solo per quanto il riquadro lo consente: ingrandire e poi rientrare
+  // annullerebbe l'aumento proprio nei casi estremi, perche' un articolo
+  // molto allungato tocca gia' il bordo con il lato lungo.
   const latoCorto = Math.min(dW, dH);
   if (latoCorto > 0 && latoCorto < minLato) {
-    const fattore = minLato / latoCorto;
-    dW *= fattore;
-    dH *= fattore;
+    const fattore = Math.min(minLato / latoCorto, maxW / dW, maxH / dH);
+    if (fattore > 1) {
+      dW *= fattore;
+      dH *= fattore;
+    }
   }
 
-  // Il riquadro ha comunque la precedenza: se il minimo ha fatto sbordare il
-  // disegno, si rientra riducendo entrambi i lati nella stessa misura.
+  // Rete di sicurezza: il disegno non esce mai dal riquadro.
   const eccesso = Math.max(dW / maxW, dH / maxH, 1);
   dW /= eccesso;
   dH /= eccesso;
