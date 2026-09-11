@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../contexts/UserContext';
-import { Save, Building, FileText, Image as ImageIcon, MapPin, Phone, Mail, Globe, Lock } from 'lucide-react';
+import { Save, Building, FileText, Image as ImageIcon, MapPin, Phone, Mail, Globe, Lock, CreditCard, ExternalLink } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 
 export default function SettingsPage() {
-  const { refreshUserSettings, session } = useUser();
+  const { refreshUserSettings, session, userProfile } = useUser();
+  const [aperturaPortale, setAperturaPortale] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -127,6 +128,44 @@ export default function SettingsPage() {
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>;
   }
+
+  // Apre il Portale Clienti di Stripe: da lì si disdice (l'accesso resta
+  // fino alla fine del periodo già pagato), si cambia la carta e si
+  // scaricano le fatture. Non gestiamo noi nessun dato di pagamento.
+  const apriPortaleAbbonamento = async () => {
+    setAperturaPortale(true);
+    try {
+      const { data: { session: sessioneAttiva } } = await supabase.auth.getSession();
+      const token = sessioneAttiva?.access_token;
+      if (!token) {
+        toast.error('Sessione scaduta. Esci e rientra, poi riprova.');
+        return;
+      }
+
+      const risposta = await fetch('/api/billing-portal', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const esito = await risposta.json();
+
+      if (risposta.ok && esito.url) {
+        window.location.href = esito.url;
+        return;
+      }
+
+      if (esito.error === 'nessun_abbonamento') {
+        toast.error('Non risulta nessun abbonamento pagato con carta su questo account.');
+      } else {
+        toast.error('Non riesco ad aprire la gestione abbonamento. Riprova fra poco o scrivimi.');
+        console.error('billing-portal:', esito.error);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Non riesco ad aprire la gestione abbonamento. Controlla la connessione.');
+    } finally {
+      setAperturaPortale(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -292,6 +331,47 @@ export default function SettingsPage() {
               </div>
             </div>
 
+          </div>
+        </div>
+
+        {/* Abbonamento: qui il cliente trova la disdetta, il cambio carta e le
+            fatture. Sta in Impostazioni perche' e' dove si cercano le cose
+            del proprio account. */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mt-6 overflow-hidden">
+          <div className="bg-gray-50 p-6 border-b border-gray-100">
+            <h2 className="text-xl font-bold text-[#1a365d] flex items-center gap-2">
+              <CreditCard size={20} /> Abbonamento
+            </h2>
+            <p className="text-gray-600 text-sm mt-2">
+              Da qui puoi cambiare la carta, scaricare le fatture e disdire. Se disdici
+              continui a usare SerraDesk fino alla fine del periodo che hai gia&#39; pagato.
+            </p>
+          </div>
+
+          <div className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Piano attivo</span>
+              <p className="text-lg font-bold text-gray-800 capitalize">
+                {userProfile?.plan && userProfile.plan !== 'free' ? userProfile.plan : 'Nessun abbonamento'}
+              </p>
+              {userProfile?.trial_ends_at && (
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {new Date(userProfile.trial_ends_at) > new Date()
+                    ? `Attivo fino al ${new Date(userProfile.trial_ends_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                    : 'Scaduto'}
+                </p>
+              )}
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={apriPortaleAbbonamento}
+              disabled={aperturaPortale}
+              className="font-bold flex items-center gap-2 shrink-0"
+            >
+              <ExternalLink size={16} />
+              {aperturaPortale ? 'Apertura...' : 'Gestisci abbonamento'}
+            </Button>
           </div>
         </div>
 

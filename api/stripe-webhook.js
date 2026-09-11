@@ -171,10 +171,13 @@ async function trovaUtente(supabase, event, { subscription, session }) {
 // un'eccezione: l'handler risponde 500, Stripe riprova, e la riga finisce
 // nei log di Vercel. Meglio un errore rumoroso che un cliente che paga e
 // resta chiuso fuori senza che nessuno se ne accorga.
-async function aggiornaProfilo(supabase, event, { userId, piano, scadenza }) {
+async function aggiornaProfilo(supabase, event, { userId, piano, scadenza, clienteStripe }) {
   const modifiche = {};
   if (piano) modifiche.plan = piano;
   if (scadenza) modifiche.trial_ends_at = scadenza;
+  // Serve ad aprire il Portale Clienti dalle Impostazioni senza doverlo
+  // ricercare per email ogni volta.
+  if (clienteStripe) modifiche.stripe_customer_id = clienteStripe;
 
   if (Object.keys(modifiche).length === 0) {
     throw new Error('Nessun dato da scrivere sul profilo (piano e scadenza entrambi assenti)');
@@ -223,7 +226,12 @@ async function allineaDaAbbonamento(supabase, event, subscription, session = nul
   }
 
   const piano = getPlanForProductId(prodottoAbbonamento(subscription), event);
-  return aggiornaProfilo(supabase, event, { userId, piano, scadenza });
+  return aggiornaProfilo(supabase, event, {
+    userId,
+    piano,
+    scadenza,
+    clienteStripe: idDi(subscription?.customer),
+  });
 }
 
 async function elaboraEvento(supabase, event) {
@@ -288,6 +296,9 @@ async function elaboraEvento(supabase, event) {
       userId,
       piano: PIANO_SENZA_ABBONAMENTO,
       scadenza: scadenza || new Date().toISOString(),
+      // Lo teniamo anche dopo la disdetta: serve a riaprire il portale per
+      // scaricare le vecchie fatture o per riabbonarsi.
+      clienteStripe: idDi(subscription?.customer),
     });
   }
 
