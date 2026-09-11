@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings2, Plus, Ruler, Palette } from 'lucide-react';
 import { getFrameColorHex, getAccessoriHex } from '../../utils/colors';
+import { isClientePuntoAlluminio } from '../../lib/personalizzazioni';
 
 export default function ItemConfigurator({
   itemType,
@@ -22,10 +23,7 @@ export default function ItemConfigurator({
 }) {
   const [showAdvanced, setShowAdvanced] = React.useState(false);
   const isCustomImageEnabled = ['domenicopanico0303@gmail.com'].includes(userEmail);
-  // Modalita' su misura per Punto Alluminio: prezzo a corpo, niente Prezzo Base.
-  // Qui va SOLO il cliente che l'ha chiesta: tenerci dentro un account di prova
-  // significa provare SerraDesk in una versione che nessun altro cliente vede.
-  const isPuntoAlluminio = ['info@puntoalluminio.com'].includes(userEmail);
+  const isPuntoAlluminio = isClientePuntoAlluminio(userEmail);
 
   React.useEffect(() => {
     if (isPuntoAlluminio && newItem.calcType !== 'fisso') {

@@ -24,6 +24,7 @@ import AIPdfImporter from '../components/AIPdfImporter';
 
 import { FileText, Bot } from 'lucide-react';
 import SEOManager from '../components/SEOManager';
+import { isClientePuntoAlluminio } from '../lib/personalizzazioni';
 
 export default function PreventiviPage() {
   const navigate = useNavigate();
@@ -419,7 +420,7 @@ export default function PreventiviPage() {
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
     
-    if (['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail) && p.clientName) {
+    if (isClientePuntoAlluminio(userEmail) && p.clientName) {
       let baseName = p.clientName;
       let nextLetter = 'A';
       

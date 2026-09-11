@@ -5,6 +5,7 @@ import CassonettoPreview from './CassonettoPreview';
 import BlindataPreview from './BlindataPreview';
 import PulsarPreviewPage from './preventivi/PulsarPreviewPage';
 import { calculateItemMq } from '../hooks/usePricingEngine';
+import { isClientePuntoAlluminio } from '../lib/personalizzazioni';
 
 export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, isExporting, includeRecap }) {
   const {
@@ -473,9 +474,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                   </div>
                 )}
             </div>
-            <div className={`text-[10px] space-y-[2px] ${['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail) ? 'text-gray-800 font-bold' : 'text-gray-500'}`}>
+            <div className={`text-[10px] space-y-[2px] ${isClientePuntoAlluminio(userEmail) ? 'text-gray-800 font-bold' : 'text-gray-500'}`}>
               <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">
-                {['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
+                {isClientePuntoAlluminio(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
               </h1>
               <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
               {userSettings?.legal_address && <p>Sede Legale: {userSettings.legal_address}</p>}
@@ -701,9 +702,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                         </div>
                       )}
                   </div>
-                  <div className={`text-[10px] space-y-[2px] ${['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail) ? 'text-gray-800 font-bold' : 'text-gray-500'}`}>
+                  <div className={`text-[10px] space-y-[2px] ${isClientePuntoAlluminio(userEmail) ? 'text-gray-800 font-bold' : 'text-gray-500'}`}>
                     <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">
-                      {['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
+                      {isClientePuntoAlluminio(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
                     </h1>
                     <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
                     {userSettings?.legal_address && <p>Sede Legale: {userSettings.legal_address}</p>}
