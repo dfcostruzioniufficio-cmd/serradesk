@@ -129,16 +129,35 @@ async function trovaUtente(supabase, event, { subscription, session }) {
   }
 
   if (email) {
+    // ilike non e' solo "ignora le maiuscole": interpreta _ e % come
+    // caratteri jolly. Un'email con un underscore (mario_rossi@...)
+    // aggancerebbe anche marioxrossi@..., assegnando un piano pagato al
+    // profilo sbagliato - verificato sul database. PostgREST traduce
+    // inoltre * in %. Qui li rendiamo tutti caratteri letterali.
+    const motivoDiRicerca = email.replace(/[\\%_*]/g, (carattere) => '\\' + carattere);
+
     const { data, error } = await supabase
       .from('profiles')
-      .select('user_id')
-      .ilike('email', email)
-      .maybeSingle();
+      .select('user_id, email')
+      .ilike('email', motivoDiRicerca)
+      .limit(2);
+
     if (error) {
       logError(event, 'ricerca_per_email_fallita', error, { email });
-    } else if (data?.user_id) {
-      logStep(event, 'user_id_da_email', { email, user_id: data.user_id });
-      return data.user_id;
+    } else {
+      // Seconda rete: si confronta il valore vero, non il motivo di
+      // ricerca. Cosi' anche un jolly sfuggito non puo' agganciare
+      // un'email diversa da quella del cliente che ha pagato.
+      const esatti = (data || []).filter(
+        (riga) => (riga.email || '').toLowerCase() === email.toLowerCase()
+      );
+      if (esatti.length === 1) {
+        logStep(event, 'user_id_da_email', { email, user_id: esatti[0].user_id });
+        return esatti[0].user_id;
+      }
+      if (esatti.length > 1) {
+        logError(event, 'email_condivisa_da_piu_profili', null, { email, quanti: esatti.length });
+      }
     }
   }
 
