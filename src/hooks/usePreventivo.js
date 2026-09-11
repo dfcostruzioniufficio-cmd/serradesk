@@ -81,6 +81,15 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     }));
   }, [newItem.numAnte]);
 
+  // Scrive piu' campi in un colpo solo, SENZA far ripartire il calcolo.
+  // Serve dove un campo ne alimenta un altro mentre l'utente sta ancora
+  // digitando: passando da due updateItemField in fila, il ricalcolo
+  // riscriveva il campo formattato con due decimali a ogni tasto e il ".00"
+  // finale si mangiava le cifre successive (impossibile scrivere "500").
+  const updateItemFields = (patch) => {
+    setNewItem(prevItem => ({ ...prevItem, ...patch }));
+  };
+
   const updateItemField = (field, value) => {
     setNewItem(prevItem => {
       let updatedItem = { ...prevItem, [field]: value };
@@ -367,7 +376,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
     sistemiCam, handleAddItem, handleEditItem, handleCancelEdit, removeItem,
-    updateItemField, defaultNewItem, imponibile, scontoAmount, imponibileScontato,
+    updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,
     totaleIva, totalePreventivo, handleSpalmaQuadratura, handleCambiaProfiloGlobale
   };
 }

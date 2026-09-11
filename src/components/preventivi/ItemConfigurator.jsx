@@ -10,6 +10,7 @@ export default function ItemConfigurator({
   setItemType,
   newItem,
   updateItemField,
+  updateItemFields,
   sistemiCam,
   editingIndex,
   handleCancelEdit,
@@ -253,7 +254,15 @@ export default function ItemConfigurator({
 
           <div className={`col-span-2 ${isPuntoAlluminio ? 'md:col-span-2' : 'md:col-span-1'}`}>
             <Label className="font-semibold text-gray-700">Totale Finestra (€)</Label>
-            <Input type="number" step="0.01" value={newItem.unitPrice} onChange={e => { updateItemField('unitPrice', e.target.value.replace(/^0+(?=\d)/, '')); if(isPuntoAlluminio) updateItemField('basePrice', e.target.value.replace(/^0+(?=\d)/, '')); }} className="mt-1.5 h-11 rounded-xl font-bold text-green-700 bg-green-50 border-green-200" />
+            <Input type="number" step="0.01" value={newItem.unitPrice} onChange={e => {
+              const valore = e.target.value.replace(/^0+(?=\d)/, '');
+              // Dove il totale vale anche come prezzo base, i due campi vanno
+              // scritti insieme: due chiamate in fila facevano ripartire il
+              // calcolo a ogni tasto, che riscriveva "5.00" e impediva di
+              // arrivare a "500".
+              if (isPuntoAlluminio) updateItemFields({ unitPrice: valore, basePrice: valore, isManualBasePrice: true });
+              else updateItemField('unitPrice', valore);
+            }} className="mt-1.5 h-11 rounded-xl font-bold text-green-700 bg-green-50 border-green-200" />
           </div>
 
           {/* Toggle Opzioni Avanzate */}

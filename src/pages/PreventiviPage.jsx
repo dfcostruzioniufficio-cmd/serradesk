@@ -664,7 +664,7 @@ export default function PreventiviPage() {
          <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
             <ItemConfigurator 
               itemType={p.itemType} setItemType={p.setItemType}
-              newItem={p.newItem} updateItemField={p.updateItemField}
+              newItem={p.newItem} updateItemField={p.updateItemField} updateItemFields={p.updateItemFields}
               sistemiCam={p.sistemiCam} editingIndex={p.editingIndex}
               handleCancelEdit={p.handleCancelEdit} handleAddItem={p.handleAddItem}
               setShowConfigurator={p.setShowConfigurator}
