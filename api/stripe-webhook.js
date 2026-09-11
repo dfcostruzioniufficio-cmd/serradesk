@@ -17,6 +17,11 @@ const PLAN_BY_PRODUCT_ID = {
   'prod_UYGZTINilm9bCH': 'pro',       // Pro Annuale
 };
 
+// Piano di chi non ha un abbonamento attivo. is_active_paid_user() sul
+// database richiede un piano fra starter/standard/pro/business, quindi
+// 'free' equivale a "niente accesso".
+const PIANO_SENZA_ABBONAMENTO = 'free';
+
 function getPlanForProductId(productId, event) {
   const plan = PLAN_BY_PRODUCT_ID[productId];
   if (!plan) {
@@ -50,6 +55,223 @@ function logError(event, step, err, extra = {}) {
   }));
 }
 
+/* ------------------------------------------------------------------ *
+ * Lettura dei dati dagli oggetti Stripe
+ *
+ * I campi qui sotto hanno cambiato posizione fra le versioni dell'API e
+ * sono la causa del guasto dell'11/09/2026: `current_period_end` non sta
+ * più sull'abbonamento ma sui suoi elementi, quindi valeva `undefined`,
+ * `new Date(NaN).toISOString()` sollevava un'eccezione e l'aggiornamento
+ * del profilo non veniva mai eseguito. Leggiamo la posizione nuova e poi
+ * quella vecchia, e restituiamo null invece di lanciare.
+ * ------------------------------------------------------------------ */
+
+export function scadenzaAbbonamento(subscription) {
+  const posizioni = [
+    subscription?.items?.data?.[0]?.current_period_end,
+    subscription?.current_period_end,
+  ];
+  for (const valore of posizioni) {
+    const secondi = Number(valore);
+    if (Number.isFinite(secondi) && secondi > 0) {
+      return new Date(secondi * 1000).toISOString();
+    }
+  }
+  return null;
+}
+
+export function prodottoAbbonamento(subscription) {
+  const item = subscription?.items?.data?.[0];
+  return item?.price?.product || item?.plan?.product || null;
+}
+
+// Un campo Stripe che può arrivare come stringa o come oggetto espanso.
+function idDi(valore) {
+  if (!valore) return null;
+  return typeof valore === 'string' ? valore : valore.id || null;
+}
+
+export function idAbbonamentoDaFattura(invoice) {
+  return idDi(invoice?.subscription)
+    || idDi(invoice?.parent?.subscription_details?.subscription)
+    || idDi(invoice?.lines?.data?.[0]?.subscription)
+    || null;
+}
+
+/* ------------------------------------------------------------------ */
+
+// Da quale utente di SerraDesk viene questo pagamento. In ordine di
+// affidabilità: i metadati dell'abbonamento (che scriviamo noi al primo
+// pagamento), il riferimento della sessione di checkout, e come ultima
+// risorsa l'email del cliente Stripe - che copre gli abbonamenti creati a
+// mano dal pannello Stripe, dove le prime due non esistono.
+async function trovaUtente(supabase, event, { subscription, session }) {
+  const daMetadati = subscription?.metadata?.user_id;
+  if (daMetadati) return daMetadati;
+
+  const daSessione = session?.client_reference_id;
+  if (daSessione) {
+    logStep(event, 'user_id_da_client_reference_id', { user_id: daSessione });
+    return daSessione;
+  }
+
+  let email = session?.customer_details?.email || null;
+  if (!email) {
+    const customerId = idDi(subscription?.customer);
+    if (customerId) {
+      try {
+        const customer = await stripe.customers.retrieve(customerId);
+        if (!customer?.deleted) email = customer?.email || null;
+      } catch (err) {
+        logError(event, 'lettura_cliente_fallita', err, { customer_id: customerId });
+      }
+    }
+  }
+
+  if (email) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .ilike('email', email)
+      .maybeSingle();
+    if (error) {
+      logError(event, 'ricerca_per_email_fallita', error, { email });
+    } else if (data?.user_id) {
+      logStep(event, 'user_id_da_email', { email, user_id: data.user_id });
+      return data.user_id;
+    }
+  }
+
+  return null;
+}
+
+// Scrive piano e scadenza sul profilo. Qualsiasi problema qui diventa
+// un'eccezione: l'handler risponde 500, Stripe riprova, e la riga finisce
+// nei log di Vercel. Meglio un errore rumoroso che un cliente che paga e
+// resta chiuso fuori senza che nessuno se ne accorga.
+async function aggiornaProfilo(supabase, event, { userId, piano, scadenza }) {
+  const modifiche = {};
+  if (piano) modifiche.plan = piano;
+  if (scadenza) modifiche.trial_ends_at = scadenza;
+
+  if (Object.keys(modifiche).length === 0) {
+    throw new Error('Nessun dato da scrivere sul profilo (piano e scadenza entrambi assenti)');
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(modifiche)
+    .eq('user_id', userId)
+    .select('user_id');
+
+  if (error) {
+    logError(event, 'profile_update_failed', error, { user_id: userId, ...modifiche });
+    throw new Error(`Aggiornamento profilo fallito: ${error.message}`);
+  }
+
+  // update() senza righe corrispondenti non è un errore per Supabase: senza
+  // questo controllo un user_id sbagliato passerebbe per un successo.
+  if (!data || data.length === 0) {
+    logError(event, 'profilo_non_trovato', null, { user_id: userId, ...modifiche });
+    throw new Error(`Nessun profilo con user_id ${userId}`);
+  }
+
+  logStep(event, 'profilo_aggiornato', { user_id: userId, ...modifiche });
+  return modifiche;
+}
+
+// Dato un abbonamento Stripe, porta il profilo allineato.
+async function allineaDaAbbonamento(supabase, event, subscription, session = null) {
+  const userId = await trovaUtente(supabase, event, { subscription, session });
+  if (!userId) {
+    logError(event, 'user_id_non_trovato', null, {
+      subscription_id: subscription?.id,
+      customer_id: idDi(subscription?.customer),
+    });
+    throw new Error(`Impossibile risalire all'utente per l'abbonamento ${subscription?.id}`);
+  }
+
+  const scadenza = scadenzaAbbonamento(subscription);
+  if (!scadenza) {
+    logError(event, 'scadenza_non_leggibile', null, {
+      subscription_id: subscription?.id,
+      user_id: userId,
+    });
+    throw new Error(`Scadenza non leggibile sull'abbonamento ${subscription?.id}`);
+  }
+
+  const piano = getPlanForProductId(prodottoAbbonamento(subscription), event);
+  return aggiornaProfilo(supabase, event, { userId, piano, scadenza });
+}
+
+async function elaboraEvento(supabase, event) {
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const subscriptionId = idDi(session.subscription);
+
+    if (session.mode !== 'subscription' || !subscriptionId) {
+      return { ignorato: true, motivo: 'pagamento_non_ricorrente' };
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    // Scriviamo l'user_id nei metadati per ritrovarlo ai rinnovi, dove la
+    // sessione di checkout non c'è più. Se fallisce non blocchiamo lo
+    // sblocco dell'utente: l'email resta come via di riserva.
+    const userId = await trovaUtente(supabase, event, { subscription, session });
+    if (userId && !subscription.metadata?.user_id) {
+      try {
+        await stripe.subscriptions.update(subscriptionId, { metadata: { user_id: userId } });
+        subscription.metadata = { ...(subscription.metadata || {}), user_id: userId };
+      } catch (err) {
+        logError(event, 'scrittura_metadati_fallita', err, { user_id: userId });
+      }
+    }
+
+    return allineaDaAbbonamento(supabase, event, subscription, session);
+  }
+
+  if (event.type === 'customer.subscription.updated') {
+    return allineaDaAbbonamento(supabase, event, event.data.object);
+  }
+
+  // Rinnovo andato a buon fine: sposta in avanti la scadenza. Arriva anche
+  // quando customer.subscription.updated non scatta, quindi i due si coprono
+  // a vicenda - ed essendo idempotenti scrivere due volte non fa danno.
+  if (event.type === 'invoice.payment_succeeded' || event.type === 'invoice.paid') {
+    const invoice = event.data.object;
+    const subscriptionId = idAbbonamentoDaFattura(invoice);
+    if (!subscriptionId) {
+      return { ignorato: true, motivo: 'fattura_senza_abbonamento' };
+    }
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    return allineaDaAbbonamento(supabase, event, subscription);
+  }
+
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    const userId = await trovaUtente(supabase, event, { subscription });
+    if (!userId) {
+      logError(event, 'user_id_non_trovato', null, { subscription_id: subscription?.id });
+      throw new Error(`Impossibile risalire all'utente per l'abbonamento ${subscription?.id}`);
+    }
+
+    // L'abbonamento è finito davvero: Stripe manda questo evento alla
+    // scadenza del periodo pagato, non nel momento in cui il cliente
+    // chiede la disdetta (quella arriva come subscription.updated con
+    // cancel_at_period_end). Riportiamo comunque anche la data, così sul
+    // profilo resta scritto fino a quando aveva pagato.
+    const scadenza = scadenzaAbbonamento(subscription);
+    return aggiornaProfilo(supabase, event, {
+      userId,
+      piano: PIANO_SENZA_ABBONAMENTO,
+      scadenza: scadenza || new Date().toISOString(),
+    });
+  }
+
+  return { ignorato: true, motivo: 'evento_non_gestito' };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -68,100 +290,49 @@ export default async function handler(req, res) {
 
   logStep(event, 'received');
 
-    // Inizializza il client Supabase una sola volta per tutto l'handler
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Idempotenza: Stripe puo' reinviare lo stesso evento (es. se la risposta
-    // e' lenta). Registriamo l'event.id e usciamo subito se e' un duplicato,
-    // cosi' non rieseguiamo due volte l'aggiornamento del piano.
-    const { error: dedupeError } = await supabase
-      .from('stripe_webhook_events')
-      .insert({ event_id: event.id });
+  // Idempotenza: Stripe puo' reinviare lo stesso evento (es. se la risposta
+  // e' lenta). Registriamo l'event.id e usciamo subito se e' un duplicato,
+  // cosi' non rieseguiamo due volte l'aggiornamento del piano.
+  const { error: dedupeError } = await supabase
+    .from('stripe_webhook_events')
+    .insert({ event_id: event.id });
 
-    if (dedupeError) {
-      if (dedupeError.code === '23505') {
-        logStep(event, 'duplicate_skipped');
-        return res.json({ received: true, duplicate: true });
-      }
-      logError(event, 'dedupe_insert_failed', dedupeError);
-      // Non blocchiamo l'elaborazione del pagamento per un errore di logging
+  if (dedupeError) {
+    if (dedupeError.code === '23505') {
+      logStep(event, 'duplicate_skipped');
+      return res.json({ received: true, duplicate: true });
     }
-
-  // Handle the checkout completion
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const userId = session.client_reference_id;
-
-    if (userId && session.mode === 'subscription' && session.subscription) {
-      try {
-        // Recuperiamo i dettagli dell'abbonamento da Stripe
-        const subscription = await stripe.subscriptions.retrieve(session.subscription);
-        
-        // Salviamo l'user_id nei metadati di Stripe, così lo ritroveremo nei rinnovi futuri
-        await stripe.subscriptions.update(session.subscription, {
-          metadata: { user_id: userId }
-        });
-
-        // current_period_end è in secondi (UNIX timestamp). Lo convertiamo in data esatta
-        // NB: trial_ends_at è usato come data di scadenza dell'accesso per QUALSIASI piano
-        // (anche quelli pagati, non solo il trial gratuito) - vedi UserContext.isSubscriptionActive
-        const endDate = new Date(subscription.current_period_end * 1000).toISOString();
-        
-        // Recuperiamo il Prodotto per capire che piano hanno comprato
-        const productId = subscription.items.data[0].price.product;
-        const assignedPlan = getPlanForProductId(productId, event);
-
-        const profileUpdate = { trial_ends_at: endDate };
-        if (assignedPlan) profileUpdate.plan = assignedPlan;
-
-        const { error } = await supabase
-          .from('profiles')
-          .update(profileUpdate)
-          .eq('user_id', userId);
-
-        if (error) {
-          logError(event, 'profile_update_failed', error, { user_id: userId });
-          return res.status(500).json({ error: 'Database update failed' });
-        } else {
-          logStep(event, 'checkout_completed', { user_id: userId, plan: assignedPlan, expires_at: endDate });
-        }
-      } catch (err) {
-        logError(event, 'checkout_completed_exception', err, { user_id: userId });
-      }
-    }
+    logError(event, 'dedupe_insert_failed', dedupeError);
+    // Non blocchiamo l'elaborazione del pagamento per un errore di logging
   }
+  const idempotenzaRegistrata = !dedupeError;
 
-  // Gestione dei rinnovi mensili/annuali o disdette
-  if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-    const subscription = event.data.object;
-    const userId = subscription.metadata?.user_id;
+  try {
+    const esito = await elaboraEvento(supabase, event);
+    logStep(event, esito?.ignorato ? 'ignorato' : 'handled', esito || {});
+    return res.json({ received: true });
+  } catch (err) {
+    logError(event, 'elaborazione_fallita', err);
 
-    if (userId) {
-      const endDate = new Date(subscription.current_period_end * 1000).toISOString();
-      // Se è un aggiornamento, ricontrolliamo il prodotto nel caso abbiano cambiato piano
-      const productId = subscription.items.data[0]?.price?.product;
-      const assignedPlan = productId ? getPlanForProductId(productId, event) : null;
-
-      const updateData = { trial_ends_at: endDate };
-      if (assignedPlan && event.type !== 'customer.subscription.deleted') {
-        updateData.plan = assignedPlan;
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('user_id', userId);
-
-      if (error) {
-        logError(event, 'subscription_update_failed', error, { user_id: userId });
-      } else {
-        logStep(event, 'subscription_updated', { user_id: userId, plan: assignedPlan, expires_at: endDate });
-      }
+    // Senza questa pulizia il rinvio automatico di Stripe verrebbe scartato
+    // come duplicato e l'utente resterebbe bloccato per sempre: e' quello
+    // che e' successo l'11/09/2026, quando il profilo ha dovuto essere
+    // sistemato a mano.
+    if (idempotenzaRegistrata) {
+      const { error: pulizia } = await supabase
+        .from('stripe_webhook_events')
+        .delete()
+        .eq('event_id', event.id);
+      if (pulizia) logError(event, 'pulizia_idempotenza_fallita', pulizia);
     }
-  }
 
-  logStep(event, 'handled');
-  res.json({ received: true });
+    // 500 => Stripe riprova per giorni e segnala l'endpoint come in errore
+    // nel suo pannello. Prima rispondevamo 200 anche quando non avevamo
+    // fatto nulla, quindi il guasto era invisibile da entrambe le parti.
+    return res.status(500).json({ error: 'Elaborazione fallita' });
+  }
 }
 
 // Vercel specific config to get the raw body for Stripe signature validation
@@ -171,16 +342,14 @@ export const config = {
   },
 };
 
-// Helper function to read raw body
+// Il corpo va raccolto come byte: concatenarlo come stringa puo' spezzare un
+// carattere multi-byte a cavallo fra due blocchi e far fallire la verifica
+// della firma in modo intermittente.
 async function getRawBody(req) {
   return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      resolve(body);
-    });
+    const blocchi = [];
+    req.on('data', chunk => blocchi.push(Buffer.from(chunk)));
+    req.on('end', () => resolve(Buffer.concat(blocchi)));
     req.on('error', reject);
   });
 }
