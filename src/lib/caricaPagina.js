@@ -21,7 +21,13 @@ function leggiSegno() {
   try {
     return sessionStorage.getItem(CHIAVE) === '1';
   } catch {
-    return false; // navigazione privata: meglio riprovare che arrendersi
+    // Se non possiamo nemmeno leggere il segno, non possiamo garantire che
+    // il ricaricamento avvenga una volta sola: rispondiamo "gia' fatto" e
+    // rinunciamo. Meglio mostrare l'errore una volta che rischiare un ciclo
+    // di ricaricamenti da cui l'utente non esce piu'. Succede davvero dentro
+    // il preventivatore incorporato nei siti dei clienti, dove il browser
+    // puo' negare l'accesso alla memoria.
+    return true;
   }
 }
 
