@@ -53,12 +53,21 @@ export default async function handler(req, res) {
         // Se ci sono più schede cliente per la stessa email (succede quando
         // un pagamento viene ritentato) prendiamo quella che ha davvero un
         // abbonamento, non semplicemente la più recente.
-        let scelto = null;
+        // Si preferisce la scheda con un abbonamento ancora in corso; se non
+        // c'e', una con un abbonamento passato (serve per le fatture); solo
+        // come ultima spiaggia la prima disponibile.
+        let conAbbonamentoAttivo = null;
+        let conAbbonamentoPassato = null;
         for (const cliente of clienti.data) {
-          const abbonamenti = await stripe.subscriptions.list({ customer: cliente.id, status: 'all', limit: 1 });
-          if (abbonamenti.data.length > 0) { scelto = cliente.id; break; }
+          const abbonamenti = await stripe.subscriptions.list({ customer: cliente.id, status: 'all', limit: 10 });
+          if (abbonamenti.data.length === 0) continue;
+          const inCorso = abbonamenti.data.some((a) =>
+            ['active', 'trialing', 'past_due', 'unpaid'].includes(a.status)
+          );
+          if (inCorso) { conAbbonamentoAttivo = cliente.id; break; }
+          if (!conAbbonamentoPassato) conAbbonamentoPassato = cliente.id;
         }
-        customerId = scelto || clienti.data[0]?.id || null;
+        customerId = conAbbonamentoAttivo || conAbbonamentoPassato || clienti.data[0]?.id || null;
       }
 
       if (customerId) {
