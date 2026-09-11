@@ -12,27 +12,28 @@ import LoginPage from './pages/LoginPage';
 // Tutto il resto viene scaricato solo quando si apre davvero quella
 // pagina: prima il browser si portava dietro anche pannello admin,
 // grafici e importatore PDF a chiunque aprisse il configuratore.
-const PreventiviPage = lazy(() => import('./pages/PreventiviPage'));
-const ArchivioPage = lazy(() => import('./pages/ArchivioPage'));
-const OrdiniPage = lazy(() => import('./pages/OrdiniPage'));
-const RubricaPage = lazy(() => import('./pages/RubricaPage'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const UpdatePasswordPage = lazy(() => import('./pages/UpdatePasswordPage'));
-const AdminPage = lazy(() => import('./pages/AdminPage'));
-const PaywallPage = lazy(() => import('./pages/PaywallPage'));
-const GuidaPage = lazy(() => import('./pages/GuidaPage'));
-const ArticlePage = lazy(() => import('./pages/ArticlePage'));
-const DistintaPage = lazy(() => import('./pages/DistintaPage'));
-const SchedaRilievoPage = lazy(() => import('./pages/SchedaRilievoPage'));
-const TerminiPage = lazy(() => import('./pages/TerminiPage'));
-const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
-const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
-const WidgetWebPage = lazy(() => import('./pages/WidgetWebPage'));
+const PreventiviPage = lazy(caricaPagina(() => import('./pages/PreventiviPage')));
+const ArchivioPage = lazy(caricaPagina(() => import('./pages/ArchivioPage')));
+const OrdiniPage = lazy(caricaPagina(() => import('./pages/OrdiniPage')));
+const RubricaPage = lazy(caricaPagina(() => import('./pages/RubricaPage')));
+const DashboardPage = lazy(caricaPagina(() => import('./pages/DashboardPage')));
+const SettingsPage = lazy(caricaPagina(() => import('./pages/SettingsPage')));
+const UpdatePasswordPage = lazy(caricaPagina(() => import('./pages/UpdatePasswordPage')));
+const AdminPage = lazy(caricaPagina(() => import('./pages/AdminPage')));
+const PaywallPage = lazy(caricaPagina(() => import('./pages/PaywallPage')));
+const GuidaPage = lazy(caricaPagina(() => import('./pages/GuidaPage')));
+const ArticlePage = lazy(caricaPagina(() => import('./pages/ArticlePage')));
+const DistintaPage = lazy(caricaPagina(() => import('./pages/DistintaPage')));
+const SchedaRilievoPage = lazy(caricaPagina(() => import('./pages/SchedaRilievoPage')));
+const TerminiPage = lazy(caricaPagina(() => import('./pages/TerminiPage')));
+const PrivacyPage = lazy(caricaPagina(() => import('./pages/PrivacyPage')));
+const OnboardingPage = lazy(caricaPagina(() => import('./pages/OnboardingPage')));
+const WidgetWebPage = lazy(caricaPagina(() => import('./pages/WidgetWebPage')));
 
 import AppShell from './components/AppShell';
 import { supabase } from './lib/supabaseClient';
 import { UserProvider, useUser } from './contexts/UserContext';
+import { caricaPagina } from './lib/caricaPagina';
 
 function PageLoader() {
   return (
