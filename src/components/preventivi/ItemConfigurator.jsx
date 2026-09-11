@@ -22,7 +22,10 @@ export default function ItemConfigurator({
 }) {
   const [showAdvanced, setShowAdvanced] = React.useState(false);
   const isCustomImageEnabled = ['domenicopanico0303@gmail.com'].includes(userEmail);
-  const isPuntoAlluminio = ['info@puntoalluminio.com', 'domenicopanico0303@gmail.com'].includes(userEmail);
+  // Modalita' su misura per Punto Alluminio: prezzo a corpo, niente Prezzo Base.
+  // Qui va SOLO il cliente che l'ha chiesta: tenerci dentro un account di prova
+  // significa provare SerraDesk in una versione che nessun altro cliente vede.
+  const isPuntoAlluminio = ['info@puntoalluminio.com'].includes(userEmail);
 
   React.useEffect(() => {
     if (isPuntoAlluminio && newItem.calcType !== 'fisso') {
