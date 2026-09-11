@@ -1,4 +1,5 @@
 import React from 'react';
+import { dimensioniDisegno } from '../lib/scalaDisegno';
 
 export default function CassonettoPreview({
   width = 1000,
@@ -16,16 +17,13 @@ export default function CassonettoPreview({
   let renderW, renderH;
 
   if (maxQuoteWidth && maxQuoteHeight) {
-    const maxSafeW = Number(maxQuoteWidth) || 1000;
-    const maxSafeH = Number(maxQuoteHeight) || 1000;
-    const maxScale = Math.min(MAX_W / Math.max(1, maxSafeW), MAX_H / Math.max(1, maxSafeH));
-    
-    // Scale everything relative to the max object
-    renderW = w * maxScale;
-    renderH = h * maxScale;
-    
-    renderW = Math.max(50, renderW);
-    renderH = Math.max(20, renderH); // Cassonetti can be very short
+    // minLato basso: un cassonetto e' per sua natura molto piu' largo che
+    // alto, alzarne il lato corto lo farebbe sbordare dal riquadro.
+    ({ dW: renderW, dH: renderH } = dimensioniDisegno({
+      width: w, height: h, maxQuoteWidth, maxQuoteHeight,
+      maxW: MAX_W, maxH: MAX_H, minLato: 16,
+      larghezzaPredefinita: 1000, altezzaPredefinita: 400
+    }));
   } else {
     const scale = Math.min(MAX_W / Math.max(1, w), MAX_H / Math.max(1, h));
     renderW = w * scale;

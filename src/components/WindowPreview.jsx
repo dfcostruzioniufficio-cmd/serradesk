@@ -1,5 +1,6 @@
 import React from 'react';
 import { getFrameColorHex, getAccessoriHex } from '../utils/colors';
+import { dimensioniDisegno } from '../lib/scalaDisegno';
 
 /**
  * WindowPreview — Finestra PVC iper-realistica con:
@@ -42,34 +43,11 @@ export default function WindowPreview({
   const safeH = Number(height) || 1000;
   const ratio = safeW / safeH;
 
-  let dW, dH;
-
-  if (maxQuoteWidth && maxQuoteHeight) {
-    const maxSafeW = Number(maxQuoteWidth) || 1000;
-    const maxSafeH = Number(maxQuoteHeight) || 1000;
-    const maxRatio = maxSafeW / maxSafeH;
-    
-    let maxBoundingW, maxBoundingH;
-    if (maxRatio > MAX_W / MAX_H) { 
-      maxBoundingW = MAX_W; 
-      maxBoundingH = MAX_W / maxRatio; 
-    } else { 
-      maxBoundingH = MAX_H; 
-      maxBoundingW = MAX_H * maxRatio; 
-    }
-
-    dW = maxBoundingW * (safeW / maxSafeW);
-    dH = maxBoundingH * (safeH / maxSafeH);
-    
-    // Prevent elements from becoming too small
-    dW = Math.max(50, dW);
-    dH = Math.max(50, dH);
-  } else {
-    if (ratio > MAX_W / MAX_H) { dW = MAX_W; dH = MAX_W / ratio; }
-    else { dH = MAX_H; dW = MAX_H * ratio; }
-    dW = Math.max(60, dW);
-    dH = Math.max(60, dH);
-  }
+  const { dW, dH } = dimensioniDisegno({
+    width, height, maxQuoteWidth, maxQuoteHeight,
+    maxW: MAX_W, maxH: MAX_H,
+    larghezzaPredefinita: 1000, altezzaPredefinita: 1000
+  });
 
   const getOpeningInfo = (i) => {
     if (apertura === 'Fisso') return { openingEdge: null, hasHandle: false };
@@ -135,8 +113,6 @@ export default function WindowPreview({
   const accDark = darken(accHex, 60);
   const accLight = lighten(accHex, 40);
 
-  dW = Math.round(dW);
-  dH = Math.round(dH);
 
   const FT = Math.max(7, Math.round(dW * 0.055)); 
   const AT = Math.max(5, Math.round(dW * 0.042));

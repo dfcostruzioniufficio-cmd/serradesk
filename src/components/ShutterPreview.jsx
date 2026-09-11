@@ -1,5 +1,6 @@
 import React from 'react';
 import { getFrameColorHex, getAccessoriHex } from '../utils/colors';
+import { dimensioniDisegno } from '../lib/scalaDisegno';
 
 /**
  * ShutterPreview — Persiana con stecche orizzontali (SVG realistico)
@@ -29,33 +30,11 @@ export default function ShutterPreview({
   const safeH = Number(height) || 1200;
   const ratio = safeW / safeH;
 
-  let dW, dH;
-
-  if (maxQuoteWidth && maxQuoteHeight) {
-    const maxSafeW = Number(maxQuoteWidth) || 1000;
-    const maxSafeH = Number(maxQuoteHeight) || 1000;
-    const maxRatio = maxSafeW / maxSafeH;
-    
-    let maxBoundingW, maxBoundingH;
-    if (maxRatio > MAX_W / MAX_H) { 
-      maxBoundingW = MAX_W; 
-      maxBoundingH = MAX_W / maxRatio; 
-    } else { 
-      maxBoundingH = MAX_H; 
-      maxBoundingW = MAX_H * maxRatio; 
-    }
-
-    dW = maxBoundingW * (safeW / maxSafeW);
-    dH = maxBoundingH * (safeH / maxSafeH);
-    
-    dW = Math.max(50, dW);
-    dH = Math.max(50, dH);
-  } else {
-    if (ratio > MAX_W / MAX_H) { dW = MAX_W; dH = MAX_W / ratio; }
-    else { dH = MAX_H; dW = MAX_H * ratio; }
-    dW = Math.max(50, dW);
-    dH = Math.max(60, dH);
-  }
+  const { dW, dH } = dimensioniDisegno({
+    width, height, maxQuoteWidth, maxQuoteHeight,
+    maxW: MAX_W, maxH: MAX_H,
+    larghezzaPredefinita: 1000, altezzaPredefinita: 1200
+  });
 
   const getEdge = (i) => {
     if (paneConfigs && paneConfigs[i]) return paneConfigs[i].handleEdge || null;
@@ -113,8 +92,6 @@ export default function ShutterPreview({
   const totalRaw = rawWidths.reduce((s, w) => s + w, 0);
   const scaledWidths = rawWidths.map(w => (w / totalRaw) * (innerW - ST * (anteCount - 1)));
 
-  dW = Math.round(dW);
-  dH = Math.round(dH);
 
   // Numero di stecche per anta
   const slatSpacing = Math.max(4, Math.round(dH * 0.065));

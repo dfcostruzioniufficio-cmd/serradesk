@@ -1,5 +1,6 @@
 import React from 'react';
 import { getFrameColorHex } from '../utils/colors';
+import { dimensioniDisegno } from '../lib/scalaDisegno';
 
 /**
  * BlindataPreview — Porta Blindata realistica in SVG
@@ -21,36 +22,12 @@ export default function BlindataPreview({
   const safeH = Number(height) || 2100;
   const ratio = safeW / safeH;
 
-  let dW, dH;
+  const { dW, dH } = dimensioniDisegno({
+    width, height, maxQuoteWidth, maxQuoteHeight,
+    maxW: MAX_W, maxH: MAX_H,
+    larghezzaPredefinita: 900, altezzaPredefinita: 2100
+  });
 
-  if (maxQuoteWidth && maxQuoteHeight) {
-    const maxSafeW = Number(maxQuoteWidth) || 1000;
-    const maxSafeH = Number(maxQuoteHeight) || 1000;
-    const maxRatio = maxSafeW / maxSafeH;
-    
-    let maxBoundingW, maxBoundingH;
-    if (maxRatio > MAX_W / MAX_H) { 
-      maxBoundingW = MAX_W; 
-      maxBoundingH = MAX_W / maxRatio; 
-    } else { 
-      maxBoundingH = MAX_H; 
-      maxBoundingW = MAX_H * maxRatio; 
-    }
-
-    dW = maxBoundingW * (safeW / maxSafeW);
-    dH = maxBoundingH * (safeH / maxSafeH);
-    
-    dW = Math.max(50, dW);
-    dH = Math.max(60, dH);
-  } else {
-    if (ratio > MAX_W / MAX_H) { dW = MAX_W; dH = MAX_W / ratio; }
-    else { dH = MAX_H; dW = MAX_H * ratio; }
-    dW = Math.max(50, dW);
-    dH = Math.max(60, dH);
-  }
-
-  dW = Math.round(dW);
-  dH = Math.round(dH);
 
   // Spessore del telaio esterno fisso
   const FT = Math.max(6, Math.round(dW * 0.04));
