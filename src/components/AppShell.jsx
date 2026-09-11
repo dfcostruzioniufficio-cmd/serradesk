@@ -14,7 +14,8 @@ import {
   LayoutDashboard,
   Users,
   Save,
-  ClipboardList
+  ClipboardList,
+  Layers
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../lib/supabaseClient';
@@ -28,7 +29,9 @@ const BASE_NAV = [
   { name: 'Scheda Rilievo', path: '/scheda-rilievo', icon: ClipboardList },
   { name: 'Rubrica Clienti', path: '/rubrica', icon: Users },
   { name: 'Archivio Ordini', path: '/ordini', icon: FolderOpen },
-  { name: 'Archivio Sistemi', path: '/archivio', icon: Settings },
+  // Layers e non Settings: l'ingranaggio e' gia' quello di Impostazioni, e
+  // due voci con la stessa icona non si distinguono a colpo d'occhio.
+  { name: 'Archivio Sistemi', path: '/archivio', icon: Layers },
   { name: 'Distinta Taglio', path: '/distinta', icon: Scissors },
   { name: 'Impostazioni', path: '/settings', icon: Settings },
   { name: 'Guida', path: '/guida', icon: BookOpen },
