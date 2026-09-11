@@ -132,8 +132,11 @@ async function trovaUtente(supabase, event, { subscription, session }) {
     // ilike non e' solo "ignora le maiuscole": interpreta _ e % come
     // caratteri jolly. Un'email con un underscore (mario_rossi@...)
     // aggancerebbe anche marioxrossi@..., assegnando un piano pagato al
-    // profilo sbagliato - verificato sul database. PostgREST traduce
-    // inoltre * in %. Qui li rendiamo tutti caratteri letterali.
+    // profilo sbagliato - verificato sul database. Qui _ % e \ diventano
+    // caratteri letterali. L'asterisco invece PostgREST lo traduce in %
+    // senza guardare l'escape, quindi un'email che ne contenesse uno non
+    // verrebbe trovata: un mancato aggancio, mai uno sbagliato, ed e'
+    // comunque un carattere che nessun servizio di posta accetta.
     const motivoDiRicerca = email.replace(/[\\%_*]/g, (carattere) => '\\' + carattere);
 
     const { data, error } = await supabase
