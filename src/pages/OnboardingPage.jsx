@@ -75,18 +75,25 @@ export default function OnboardingPage() {
 
     const user = session.user;
 
+    const daSalvare = {
+      user_id: user.id,
+      company_name: data.company_name,
+      vat_number: data.vat_number,
+      address: data.address,
+      phone: data.phone,
+      email: data.email,
+      updated_at: new Date().toISOString()
+    };
+
+    // Il logo si tocca solo se ne è stato scelto uno adesso. Scrivere null
+    // quando il campo è vuoto cancellava il logo già caricato: bastava che
+    // questa pagina ricomparisse per sbaglio e l'utente la ricompilasse per
+    // ritrovarsi i preventivi senza intestazione.
+    if (logoBase64) daSalvare.logo_base64 = logoBase64;
+
     const { error } = await supabase
       .from('user_settings')
-      .upsert({
-        user_id: user.id,
-        company_name: data.company_name,
-        vat_number: data.vat_number,
-        address: data.address,
-        phone: data.phone,
-        email: data.email,
-        logo_base64: logoBase64 || null,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      .upsert(daSalvare, { onConflict: 'user_id' });
 
     if (error) {
       console.error("Errore salvataggio:", error);

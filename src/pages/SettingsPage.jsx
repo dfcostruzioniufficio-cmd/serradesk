@@ -25,6 +25,8 @@ export default function SettingsPage() {
     logo_base64: ''
   });
 
+  const [caricamentoFallito, setCaricamentoFallito] = useState(false);
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -41,6 +43,18 @@ export default function SettingsPage() {
         .eq('user_id', user.id)
         .single();
       
+      // Stessa distinzione fatta nel context: PGRST116 vuol dire che la riga
+      // non esiste (utente nuovo), qualsiasi altro errore è un guasto. Con il
+      // modulo vuoto per un guasto, un salvataggio riscriverebbe a vuoto sopra
+      // i dati veri, logo compreso.
+      if (error && error.code !== 'PGRST116') {
+        console.error(error);
+        setCaricamentoFallito(true);
+        setMessage({ type: 'error', text: 'Non sono riuscito a leggere i tuoi dati. Ricarica la pagina: se salvi adesso rischi di sovrascriverli.' });
+      } else {
+        setCaricamentoFallito(false);
+      }
+
       if (data && !error) {
         setFormData({
           company_name: data.company_name || '',
@@ -76,6 +90,10 @@ export default function SettingsPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!userId) return;
+    if (caricamentoFallito) {
+      setMessage({ type: 'error', text: 'I dati non sono stati caricati: ricarica la pagina prima di salvare.' });
+      return;
+    }
     setIsSaving(true);
     setMessage(null);
 

@@ -141,15 +141,19 @@ export default function AppShell({ children }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { session, userProfile, userSettings, isLoadingSettings } = useUser();
+  const { session, userProfile, userSettings, isLoadingSettings, settingsLoadFailed } = useUser();
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    // Dipendiamo dalla sessione (Auth) che è immediata, non dal profilo (DB trigger) per evitare race condition
-    if (session?.user && !isLoadingSettings && !userSettings?.company_name) {
+    // Dipendiamo dalla sessione (Auth) che è immediata, non dal profilo (DB trigger) per evitare race condition.
+    // settingsLoadFailed: se la lettura delle impostazioni è fallita non sappiamo
+    // se l'utente è nuovo o se il database era solo irraggiungibile. Nel dubbio
+    // non lo mandiamo all'onboarding: rimostrarlo a chi i dati li ha già lo
+    // porta a ricompilarlo, e il salvataggio gli cancella il logo.
+    if (session?.user && !isLoadingSettings && !settingsLoadFailed && !userSettings?.company_name) {
       navigate('/onboarding');
     }
-  }, [session, userSettings, isLoadingSettings, navigate]);
+  }, [session, userSettings, isLoadingSettings, settingsLoadFailed, navigate]);
 
   const baseFilteredNav = userProfile 
     ? BASE_NAV 
