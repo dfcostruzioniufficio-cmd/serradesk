@@ -165,7 +165,15 @@ export function runCamEngine(items, barLength = 6500) {
     // e traversi interni appartengono a una singola anta, quindi devono
     // seguire la sua larghezza e non la media.
     let larghezzeAnte = [];
-    if (!isFisso && rebate > 0) {
+    // Un sistema puo' descrivere l'anta in due modi: con battuta e sormonto,
+    // oppure con le detrazioni prese dalla distinta del produttore. Basta uno
+    // dei due: chiedere per forza la battuta escludeva le serie caricate
+    // copiando i numeri dal catalogo.
+    const haDatiAnta = rebate > 0
+      || ant.detrazione_larghezza_mm !== undefined
+      || ant.detrazione_altezza_mm !== undefined;
+
+    if (!isFisso && haDatiAnta) {
       // Calcolo larghezza anta per multi-anta (nodo centrale)
       // Quanto costa in larghezza ogni anta oltre la prima. I sistemi si
       // comportano in modo opposto: dove le ante si sormontano fra loro si
@@ -178,7 +186,19 @@ export function runCamEngine(items, barLength = 6500) {
         ? Number(ant.detrazione_nodo_mm)
         : (giocoCentrale > 0 ? giocoCentrale : -sormonto);
 
-      const sw_totale = fw - (rebate * 2) + (sormonto * 2) - ((numAnte - 1) * detrazioneNodo);
+      // Detrazioni prese di peso dalla distinta di taglio della serie. Sono
+      // due numeri DIVERSI: i cataloghi detraggono in larghezza e in altezza
+      // quantita' differenti. Sapa R40: 38 in larghezza, 52 in altezza. Nella
+      // R72TT erano entrambe 40, una coincidenza che nascondeva il problema.
+      // Quando non ci sono si ricavano da battuta e sormonto, come prima.
+      const detrLarghezza = ant.detrazione_larghezza_mm !== undefined
+        ? Number(ant.detrazione_larghezza_mm)
+        : (rebate * 2) - (sormonto * 2);
+      const detrAltezza = ant.detrazione_altezza_mm !== undefined
+        ? Number(ant.detrazione_altezza_mm)
+        : (rebate * 2) - (sormonto * 2);
+
+      const sw_totale = fw - detrLarghezza - ((numAnte - 1) * detrazioneNodo);
       // Ante asimmetriche: la larghezza totale va ripartita secondo le
       // proporzioni scelte nel preventivo, non in parti uguali. Dividendo
       // sempre a meta' si tagliavano due pezzi troppo corti e due troppo
@@ -200,7 +220,7 @@ export function runCamEngine(items, barLength = 6500) {
 
       // Se c'è un sopraluce, l'altezza utile per le ante si riduce
       const effectiveFh = item.hasSopraluce ? fh - (Number(item.sopraluceHeight) || 400) : fh;
-      sh = effectiveFh - (rebate * 2) + (sormonto * 2);
+      sh = effectiveFh - detrAltezza;
 
       for (let a = 0; a < numAnte; a++) {
         const swA = Math.round(larghezzeAnte[a]);
@@ -254,7 +274,7 @@ export function runCamEngine(items, barLength = 6500) {
                );
              }
          }
-      } else if (rebate > 0) {
+      } else if (haDatiAnta) {
          const ingombroVista = Number(ant.ingombro_vista_mm) || 70;
          const fvH = sh - (ingombroVista * 2);
          // Il fermavetro appartiene a una singola anta: si misura sulla
