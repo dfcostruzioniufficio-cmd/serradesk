@@ -104,8 +104,15 @@ export function runCamEngine(items, barLength = 6500) {
     const alettaLat  = ts.aletta_mm !== undefined ? Number(ts.aletta_mm) : 30;
     const alettaInf  = ti.aletta_mm !== undefined ? Number(ti.aletta_mm) : 0;
     const tolleranza = ts.tolleranza_mm !== undefined ? Number(ts.tolleranza_mm) : 5;
-    const saldTel    = ts.saldatura_mm !== undefined ? Number(ts.saldatura_mm) : 6;
-    const saldAnta   = ant.saldatura_mm !== undefined ? Number(ant.saldatura_mm) : 6;
+    // L'alluminio non si salda: i profili si assemblano con squadrette, quindi
+    // il sovrametallo di saldatura e' sempre zero. Il valore predefinito di
+    // 6 mm viene dal PVC, dove i profili si saldano davvero. Lasciarlo
+    // applicare a un sistema in alluminio allunga OGNI pezzo di 6 mm.
+    const materialeSistema = String(sys?.specs?.materiale || sys?.materiale || '').toLowerCase();
+    const eAlluminio = materialeSistema.includes('allumin');
+
+    const saldTel  = eAlluminio ? 0 : (ts.saldatura_mm  !== undefined ? Number(ts.saldatura_mm)  : 6);
+    const saldAnta = eAlluminio ? 0 : (ant.saldatura_mm !== undefined ? Number(ant.saldatura_mm) : 6);
     const rebate     = ant.rebate_mm !== undefined ? Number(ant.rebate_mm) : (Number(item.rebateDepth) || 64);
     const sormonto   = ant.sormonto_mm !== undefined ? Number(ant.sormonto_mm) : 20;
     const giocoCentrale = ant.gioco_centrale_mm !== undefined ? Number(ant.gioco_centrale_mm) : 0;
