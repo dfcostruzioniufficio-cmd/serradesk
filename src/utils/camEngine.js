@@ -167,14 +167,18 @@ export function runCamEngine(items, barLength = 6500) {
     let larghezzeAnte = [];
     if (!isFisso && rebate > 0) {
       // Calcolo larghezza anta per multi-anta (nodo centrale)
-      let sw_totale;
-      if (giocoCentrale > 0) {
-        // Logica a giunto aperto / gioco aria centrale
-        sw_totale = fw - (rebate * 2) + (sormonto * 2) - ((numAnte - 1) * giocoCentrale);
-      } else {
-        // Logica standard (sormonto anche al centro)
-        sw_totale = fw - (rebate * 2) + (sormonto * 2) + ((numAnte - 1) * sormonto);
-      }
+      // Quanto costa in larghezza ogni anta oltre la prima. I sistemi si
+      // comportano in modo opposto: dove le ante si sormontano fra loro si
+      // guadagna larghezza, dove c'e' un riporto centrale se ne perde.
+      // Il valore corretto sta nella tabella di taglio della serie: per la
+      // Sapa R72TT e' 4 mm (1 anta = L-40, 2 ante = L/2-22, cioe' L-44).
+      // Senza il dato si mantiene il comportamento storico, cosi' i sistemi
+      // gia' caricati non cambiano di un millimetro.
+      const detrazioneNodo = ant.detrazione_nodo_mm !== undefined
+        ? Number(ant.detrazione_nodo_mm)
+        : (giocoCentrale > 0 ? giocoCentrale : -sormonto);
+
+      const sw_totale = fw - (rebate * 2) + (sormonto * 2) - ((numAnte - 1) * detrazioneNodo);
       // Ante asimmetriche: la larghezza totale va ripartita secondo le
       // proporzioni scelte nel preventivo, non in parti uguali. Dividendo
       // sempre a meta' si tagliavano due pezzi troppo corti e due troppo

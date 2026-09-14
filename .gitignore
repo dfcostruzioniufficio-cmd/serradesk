@@ -6,3 +6,9 @@ dist
 *.log
 contatti.csv
 sent_cold_emails.json
+
+# Cataloghi e manuali tecnici dei clienti: restano sul computer, non
+# vanno pubblicati sul sito ne' caricati su GitHub. Sono documenti dei
+# fornitori, spesso pesanti e non nostri da distribuire.
+cataloghi/
+*.rar
