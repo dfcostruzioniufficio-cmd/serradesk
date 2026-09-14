@@ -69,7 +69,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
           {userSettings?.address && <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#444' }}>Sede Operativa: {userSettings.address}</p>}
           {userSettings?.legal_address && <p style={{ margin: '1px 0 0', fontSize: '9px', color: '#666' }}>Sede Legale: {userSettings.legal_address}</p>}
           <h2 style={{ margin: '4px 0 0', fontSize: '13px', color: '#c0392b', fontWeight: 700, textTransform: 'uppercase' }}>
-            ⚠ DISTINTA DI TAGLIO — DOCUMENTO INTERNO
+            DISTINTA DI TAGLIO — DOCUMENTO INTERNO
           </h2>
           <p style={{ margin: '2px 0 0', color: '#888' }}>NON ALLEGARE AL PREVENTIVO CLIENTE</p>
         </div>
@@ -96,7 +96,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
       {/* ─── RIEPILOGO BARRE DA ORDINARE ─── */}
       <div style={{ background: '#fff3cd', border: '2px solid #f0a500', borderRadius: '6px', padding: '12px 16px', marginBottom: '20px' }}>
         <div style={{ fontSize: '13px', fontWeight: 900, color: '#7d4e00', marginBottom: '10px', textTransform: 'uppercase' }}>
-          📋 RIEPILOGO — BARRE DA ORDINARE (Intero Ordine)
+          RIEPILOGO — BARRE DA ORDINARE (Intero Ordine)
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -105,7 +105,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
               <th style={{ ...TH2, textAlign: 'left', color: '#fff' }}>Descrizione</th>
               <th style={{ ...TH2, color: '#fff' }}>N° Pezzi Totali</th>
               <th style={{ ...TH2, color: '#fff' }}>ML Tagliati</th>
-              <th style={{ ...TH2, color: '#fff', fontSize: '13px' }}>🔲 BARRE NECESSARIE</th>
+              <th style={{ ...TH2, color: '#fff', fontSize: '13px' }}>BARRE NECESSARIE</th>
             </tr>
           </thead>
           <tbody>
@@ -307,7 +307,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
                       <span style={{ background: '#ddd', padding: '1px 4px', border: '1px solid #bbb' }}>IT 20</span>
                       {bar.cuts_mm.map((cut, ci) => (
                         <React.Fragment key={ci}>
-                          <span style={{ color: '#888', fontSize: '7px' }}>✂4</span>
+                          <span style={{ color: '#888', fontSize: '7px' }}>4</span>
                           <span style={{ background: ci%2===0?'#444':'#999', color: ci%2===0?'#fff':'#000', padding: '1px 5px', fontWeight: 700, border: '1px solid #333' }}>
                             {cut}
                           </span>
@@ -334,10 +334,10 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
           <div className="html2pdf__page-break" style={{ pageBreakBefore: 'always', breakBefore: 'always' }} />
           <div style={{ marginTop: '10px' }}>
             <h3 style={{ color: '#000', borderBottom: '2px solid #000', paddingBottom: '4px', margin: '0 0 16px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px', fontFamily: 'Arial, sans-serif' }}>
-              🔩 Stima Ferramenta — Riepilogo Ordine
+              Stima Ferramenta — Riepilogo Ordine
             </h3>
             <p style={{ fontSize: '9px', color: '#888', marginBottom: '12px', fontStyle: 'italic' }}>
-              ⚠ Stima indicativa calcolata automaticamente. Verificare le quantità in base alla ferramenta specifica utilizzata (Maico, Roto, Siegenia, ecc.)
+              Stima indicativa calcolata automaticamente. Verificare le quantità in base alla ferramenta specifica utilizzata (Maico, Roto, Siegenia, ecc.)
             </p>
 
             {/* Dettaglio per articolo */}
@@ -358,7 +358,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
                     <tbody>
                       {item.ferramenta.map((f, i) => (
                         <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f6faf6' }}>
-                          <td style={{ ...TD, fontWeight: 600 }}>{f.icona} {f.nome}</td>
+                          <td style={{ ...TD, fontWeight: 600 }}>{f.nome}</td>
                           <td style={{ ...TD, textAlign: 'center', fontWeight: 700, color: '#2d6a4f', fontSize: '11px' }}>{f.qta}</td>
                           <td style={{ ...TD, textAlign: 'center', color: '#666' }}>{f.unitaMisura}</td>
                         </tr>
@@ -372,7 +372,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
             {/* Riepilogo Totale Ferramenta */}
             <div style={{ marginTop: '16px', background: '#e8f5e9', border: '2px solid #2d6a4f', borderRadius: '6px', padding: '12px 16px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
               <div style={{ fontSize: '13px', fontWeight: 900, color: '#1b5e20', marginBottom: '10px', textTransform: 'uppercase' }}>
-                📋 RIEPILOGO TOTALE FERRAMENTA (Intero Ordine)
+                RIEPILOGO TOTALE FERRAMENTA (Intero Ordine)
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -385,7 +385,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
                 <tbody>
                   {ferramentaRiepilogo.map((f, i) => (
                     <tr key={i} style={{ background: i % 2 === 0 ? '#f1f8e9' : '#e8f5e9' }}>
-                      <td style={{ ...TD2, fontWeight: 700 }}>{f.icona} {f.nome}</td>
+                      <td style={{ ...TD2, fontWeight: 700 }}>{f.nome}</td>
                       <td style={{ ...TD2, textAlign: 'center', fontSize: '16px', fontWeight: 900, color: '#1b5e20' }}>{f.qtaTotale}</td>
                       <td style={{ ...TD2, textAlign: 'center', color: '#555' }}>{f.unitaMisura}</td>
                     </tr>

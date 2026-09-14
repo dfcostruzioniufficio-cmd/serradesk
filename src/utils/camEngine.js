@@ -411,9 +411,9 @@ function calcFerramenta(item, fw, fh, sw, sh, numAnte, isFisso, qty) {
   if (isFisso) {
     // Finestra fissa: solo guarnizione e squadrette telaio
     const perimetroTelaio = ((fw + fh) * 2) / 1000;
-    lista.push({ nome: 'Guarnizione Telaio', qta: Math.round(perimetroTelaio * qty * 100) / 100, unitaMisura: 'ml', icona: '🔲' });
-    lista.push({ nome: 'Squadrette Angolo Telaio', qta: 4 * qty, unitaMisura: 'pz', icona: '📐' });
-    lista.push({ nome: 'Tappi Drenaggio', qta: 2 * qty, unitaMisura: 'pz', icona: '🔘' });
+    lista.push({ nome: 'Guarnizione Telaio', qta: Math.round(perimetroTelaio * qty * 100) / 100, unitaMisura: 'ml' });
+    lista.push({ nome: 'Squadrette Angolo Telaio', qta: 4 * qty, unitaMisura: 'pz' });
+    lista.push({ nome: 'Tappi Drenaggio', qta: 2 * qty, unitaMisura: 'pz' });
     return lista;
   }
 
@@ -423,39 +423,39 @@ function calcFerramenta(item, fw, fh, sw, sh, numAnte, isFisso, qty) {
   const anteApribili = numAnte; // tutte le ante sono apribili nel battente standard
 
   // Cerniere
-  lista.push({ nome: 'Cerniere', qta: cernierePerAnta * anteApribili * qty, unitaMisura: 'pz', icona: '🔩' });
+  lista.push({ nome: 'Cerniere', qta: cernierePerAnta * anteApribili * qty, unitaMisura: 'pz' });
 
   // Maniglie (1 per anta master, le altre hanno solo la cremonese)
   const numManiglie = numAnte <= 2 ? 1 : Math.ceil(numAnte / 2);
-  lista.push({ nome: 'Maniglie / Cremonesi', qta: numManiglie * qty, unitaMisura: 'pz', icona: '🚪' });
+  lista.push({ nome: 'Maniglie / Cremonesi', qta: numManiglie * qty, unitaMisura: 'pz' });
 
   // Incontri (punti di chiusura)
   const incontriPerAnta = hMm > 1200 ? 3 : 2;
-  lista.push({ nome: 'Incontri Chiusura', qta: incontriPerAnta * anteApribili * qty, unitaMisura: 'pz', icona: '🔒' });
+  lista.push({ nome: 'Incontri Chiusura', qta: incontriPerAnta * anteApribili * qty, unitaMisura: 'pz' });
 
   // Aste di chiusura (cremonese) — 1 per anta apribile
-  lista.push({ nome: 'Aste Cremonese', qta: anteApribili * qty, unitaMisura: 'pz', icona: '📏' });
+  lista.push({ nome: 'Aste Cremonese', qta: anteApribili * qty, unitaMisura: 'pz' });
 
   // Guarnizione Interna (perimetro anta × numero ante)
   if (sw > 0 && sh > 0) {
     const perimetroAnta = ((sw + sh) * 2) / 1000;
-    lista.push({ nome: 'Guarnizione Interna (anta)', qta: Math.round(perimetroAnta * anteApribili * qty * 100) / 100, unitaMisura: 'ml', icona: '⬛' });
+    lista.push({ nome: 'Guarnizione Interna (anta)', qta: Math.round(perimetroAnta * anteApribili * qty * 100) / 100, unitaMisura: 'ml' });
   }
 
   // Guarnizione Esterna (perimetro telaio)
   const perimetroTelaio = ((fw + fh) * 2) / 1000;
-  lista.push({ nome: 'Guarnizione Esterna (telaio)', qta: Math.round(perimetroTelaio * qty * 100) / 100, unitaMisura: 'ml', icona: '🔲' });
+  lista.push({ nome: 'Guarnizione Esterna (telaio)', qta: Math.round(perimetroTelaio * qty * 100) / 100, unitaMisura: 'ml' });
 
   // Squadrette angolo (4 per telaio + 4 per ogni anta)
-  lista.push({ nome: 'Squadrette Angolo', qta: (4 + 4 * anteApribili) * qty, unitaMisura: 'pz', icona: '📐' });
+  lista.push({ nome: 'Squadrette Angolo', qta: (4 + 4 * anteApribili) * qty, unitaMisura: 'pz' });
 
   // Tappi drenaggio
-  lista.push({ nome: 'Tappi Drenaggio', qta: 4 * qty, unitaMisura: 'pz', icona: '🔘' });
+  lista.push({ nome: 'Tappi Drenaggio', qta: 4 * qty, unitaMisura: 'pz' });
 
   // Alzante: aggiungi carrelli se scorrevole
   if (item.apertura === 'Scorrevole') {
-    lista.push({ nome: 'Carrelli / Ruote Scorrevole', qta: 2 * anteApribili * qty, unitaMisura: 'pz', icona: '🛞' });
-    lista.push({ nome: 'Guida Inferiore', qta: Math.round((fw / 1000) * qty * 100) / 100, unitaMisura: 'ml', icona: '➖' });
+    lista.push({ nome: 'Carrelli / Ruote Scorrevole', qta: 2 * anteApribili * qty, unitaMisura: 'pz' });
+    lista.push({ nome: 'Guida Inferiore', qta: Math.round((fw / 1000) * qty * 100) / 100, unitaMisura: 'ml' });
   }
 
   return lista;
