@@ -170,6 +170,30 @@ export default function DistintaPage() {
 
   return (
     <div className="space-y-6">
+      {/* Articoli esclusi perche' il loro sistema non ha i dati del profilo.
+          Vanno detti a voce alta: un articolo che sparisce senza spiegazione
+          e' quasi pericoloso quanto un taglio sbagliato. */}
+      {camResult?.sistemiIncompleti?.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <h2 className="font-bold text-amber-900 flex items-center gap-2 mb-2">
+            <Lock size={18} /> Alcuni articoli non hanno la distinta
+          </h2>
+          <p className="text-sm text-amber-800 mb-3">
+            Per calcolare i tagli servono le misure del profilo che usi. Senza, i tagli
+            sarebbero calcolati su un profilo diverso dal tuo: preferiamo non darteli.
+            Completa questi sistemi in <strong>Archivio Sistemi</strong>.
+          </p>
+          <ul className="space-y-1.5">
+            {camResult.sistemiIncompleti.map((sc, i) => (
+              <li key={i} className="text-sm text-amber-900">
+                <strong>{sc.marca ? `${sc.marca} ` : ''}{sc.sistema}</strong>
+                {' — mancano: '}{sc.mancano.join('; ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Distinta di Taglio</h1>

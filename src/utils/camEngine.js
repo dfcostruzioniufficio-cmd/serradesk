@@ -55,6 +55,8 @@ export function runCamEngine(items, barLength = 6500) {
   const allBom      = [];
   const itemResults = [];
   const profileLabels = {};
+  // Articoli scartati perche' il loro sistema non ha i dati del profilo.
+  const sistemiIncompleti = [];
 
   for (const item of items) {
     if (item.type === 'custom' || item.type === 'complemento') continue;
@@ -72,9 +74,29 @@ export function runCamEngine(items, barLength = 6500) {
     // Se non c'è un sistema CAM (inserimento manuale o legacy), non calcoliamo i tagli
     if (!sys) continue;
 
-    const ts  = sys?.profilo_lati  || sys?.telaio_std || DEF.profilo_lati;
+    // Senza i dati geometrici del profilo NON si producono tagli. Prima si
+    // ripiegava su valori di riferimento scritti qui sotto (DEF): usciva una
+    // distinta completa e credibile, calcolata pero' sulla geometria di un
+    // profilo diverso da quello dell'utente. Chi tagliava, buttava i profili.
+    const tsReale  = sys?.profilo_lati  || sys?.telaio_std || null;
+    const antReale = sys?.profilo_anta  || sys?.anta       || null;
+    const servonoAnte = !isFisso;
+    if (!tsReale || (servonoAnte && !antReale)) {
+      sistemiIncompleti.push({
+        itemId: item.id,
+        sistema: sys?.nome || 'Sistema senza nome',
+        marca: sys?.marca || '',
+        mancano: [
+          !tsReale ? 'dati del telaio (aletta, saldatura, tolleranza)' : null,
+          (servonoAnte && !antReale) ? 'dati dell\'anta (battuta, sormonto, ingombro vista)' : null,
+        ].filter(Boolean),
+      });
+      continue;
+    }
+
+    const ts  = tsReale;
     const ti  = sys?.profilo_basso || sys?.telaio_inf || DEF.profilo_basso;
-    const ant = sys?.profilo_anta  || sys?.anta       || DEF.profilo_anta;
+    const ant = antReale || DEF.profilo_anta;
     const rip = sys?.profilo_riporto || sys?.riporto  || sys?.specs?.riporto || DEF.profilo_riporto;
     const fv  = sys?.profilo_fermavetro || sys?.fermavetro || sys?.specs?.fermavetro || DEF.profilo_fermavetro;
 
@@ -126,16 +148,34 @@ export function runCamEngine(items, barLength = 6500) {
         // Logica standard (sormonto anche al centro)
         sw_totale = fw - (rebate * 2) + (sormonto * 2) + ((numAnte - 1) * sormonto);
       }
+      // Ante asimmetriche: la larghezza totale va ripartita secondo le
+      // proporzioni scelte nel preventivo, non in parti uguali. Dividendo
+      // sempre a meta' si tagliavano due pezzi troppo corti e due troppo
+      // lunghi, senza che l'utente avesse modo di accorgersene.
+      const proporzioni = (item.anteAsimmetriche && Array.isArray(item.anteWidths)
+        && item.anteWidths.length === numAnte
+        && item.anteWidths.every(v => Number(v) > 0))
+        ? item.anteWidths.map(Number)
+        : null;
+      const sommaProporzioni = proporzioni ? proporzioni.reduce((a, b) => a + b, 0) : 0;
+
+      const larghezzeAnte = Array.from({ length: numAnte }, (_, a) =>
+        proporzioni && sommaProporzioni > 0
+          ? sw_totale * (proporzioni[a] / sommaProporzioni)
+          : sw_totale / numAnte
+      );
+      // sw resta la larghezza rappresentativa (la media) per il riepilogo.
       sw = sw_totale / numAnte;
-      
+
       // Se c'è un sopraluce, l'altezza utile per le ante si riduce
       const effectiveFh = item.hasSopraluce ? fh - (Number(item.sopraluceHeight) || 400) : fh;
       sh = effectiveFh - (rebate * 2) + (sormonto * 2);
-      
+
       for (let a = 0; a < numAnte; a++) {
+        const swA = Math.round(larghezzeAnte[a]);
         sashPieces.push(
-          { part: `anta_${a+1}_top`,    profile: cAnta, mm: sw + saldAnta, sald: saldAnta },
-          { part: `anta_${a+1}_bottom`, profile: cAnta, mm: sw + saldAnta, sald: saldAnta },
+          { part: `anta_${a+1}_top`,    profile: cAnta, mm: swA + saldAnta, sald: saldAnta },
+          { part: `anta_${a+1}_bottom`, profile: cAnta, mm: swA + saldAnta, sald: saldAnta },
           { part: `anta_${a+1}_left`,   profile: cAnta, mm: sh + saldAnta, sald: saldAnta },
           { part: `anta_${a+1}_right`,  profile: cAnta, mm: sh + saldAnta, sald: saldAnta },
         );
@@ -290,7 +330,7 @@ export function runCamEngine(items, barLength = 6500) {
   }
   const ferramentaRiepilogo = Object.values(ferramentaTotale);
 
-  return { itemResults, nesting, ferramentaRiepilogo };
+  return { itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti };
 }
 
 /**
