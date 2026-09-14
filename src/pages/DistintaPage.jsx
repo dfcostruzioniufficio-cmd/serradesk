@@ -106,7 +106,10 @@ export default function DistintaPage() {
         scrollX: 0,
         scrollY: 0,
         logging: false,
-        windowWidth: 1024,
+        // Deve essere almeno quanto il modello (281mm ~ 1062px), altrimenti
+        // html2canvas ritaglia via tutto quello che sta oltre: e' il motivo
+        // per cui le barre del piano di taglio uscivano tagliate a destra.
+        windowWidth: 1200,
         onclone: (clonedDoc) => {
           // Vedi PreventiviPage.jsx: gli SVG con width/height="100%" (qui,
           // il disegno del piano di taglio) perdono le dimensioni corrette
@@ -285,7 +288,7 @@ export default function DistintaPage() {
               </p>
             </div>
           </div>
-          <div id="distinta-template-wrapper" className="p-6" style={{ background: '#ffffff', width: '297mm', boxSizing: 'border-box' }}>
+          <div id="distinta-template-wrapper" className="p-6" style={{ background: '#ffffff', width: '281mm', boxSizing: 'border-box' }}>
             <DistintaPDFTemplate
               clientName={selectedOrder.cliente}
               items={orderItems}

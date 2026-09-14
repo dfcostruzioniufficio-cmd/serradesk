@@ -10,13 +10,42 @@ const PART_IT = {
   traverso_2:   'Traverso Intermedio 2',
 };
 
+const LATI = { top: 'Traversa SUP.', bottom: 'Traversa INF.', left: 'Montante SX', right: 'Montante DX' };
+// Fermavetri di una finestra con traverso: sopra e sotto la traversa.
+const LATI_FERM = {
+  top: 'Traversa SUP.', bottom: 'Traversa INF.',
+  left: 'Montante SX', right: 'Montante DX',
+  mid_top: 'Traversa centrale ALTA', mid_bot: 'Traversa centrale BASSA',
+  left_sup: 'Montante SX superiore', right_sup: 'Montante DX superiore',
+  left_inf: 'Montante SX inferiore', right_inf: 'Montante DX inferiore',
+};
+
+// Ogni pezzo della distinta va in officina: deve avere un nome che un
+// serramentista legge, non il nome interno del programma.
 const partLabel = (part) => {
   if (PART_IT[part]) return PART_IT[part];
-  const m = part.match(/anta_(\d+)_(top|bottom|left|right)/);
-  if (m) {
-    const sides = { top: 'Traversa SUP.', bottom: 'Traversa INF.', left: 'Montante SX', right: 'Montante DX' };
-    return `Anta ${m[1]} — ${sides[m[2]]}`;
+
+  const anta = part.match(/^anta_(\d+)_(top|bottom|left|right)$/);
+  if (anta) return `Anta ${anta[1]} — ${LATI[anta[2]]}`;
+
+  const riporto = part.match(/^riporto_centrale_(\d+)$/);
+  if (riporto) return `Riporto centrale ${riporto[1]}`;
+
+  const fermAnta = part.match(/^ferm_(\d+)_(.+)$/);
+  if (fermAnta && LATI_FERM[fermAnta[2]]) {
+    return `Fermavetro Anta ${fermAnta[1]} — ${LATI_FERM[fermAnta[2]]}`;
   }
+
+  const fermFisso = part.match(/^ferm_fisso_(.+)$/);
+  if (fermFisso && LATI_FERM[fermFisso[1]]) {
+    return `Fermavetro — ${LATI_FERM[fermFisso[1]]}`;
+  }
+
+  const travAnta = part.match(/^traverso_anta_(\d+)$/);
+  if (travAnta) return `Traverso Anta ${travAnta[1]}`;
+  if (part === 'traverso_centrale') return 'Traverso centrale';
+  if (part === 'traverso_sopraluce') return 'Traverso sopraluce';
+
   return part;
 };
 
@@ -31,7 +60,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
   const today = new Date().toLocaleDateString('it-IT');
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#111', padding: '20px', width: '297mm', boxSizing: 'border-box', margin: '0 auto' }}>
+    <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#111', padding: '14px', width: '281mm', boxSizing: 'border-box', margin: '0 auto' }}>
 
       {/* ─── HEADER ─── */}
       <div style={{ borderBottom: '3px solid #1e3a5f', paddingBottom: '10px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -109,7 +138,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
         <div key={item.id} style={{ marginBottom: '18px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <div style={{ background: '#1e3a5f', color: '#fff', padding: '4px 10px', borderRadius: '3px 3px 0 0', display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 700 }}>#{item.id} — {item.description}</span>
-            <span>Qtà: {item.qty} pz | Vano: {item.width}×{item.height} mm</span>
+            <span>Qtà: {item.qty} pz | Misure inserite: {item.width}×{item.height} mm</span>
           </div>
           <div style={{ display: 'flex', gap: '24px', background: '#e8f0fe', padding: '5px 10px', borderLeft: '2px solid #1e3a5f', borderRight: '2px solid #1e3a5f' }}>
             <div><b>Telaio finito:</b> {item.frame.width} × {item.frame.height} mm</div>
@@ -158,7 +187,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
           const scale    = SVG_W / BAR_TOTAL;
 
           return (
-            <div key={ni} style={{ marginBottom: '30px', pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakBefore: ni > 0 ? 'always' : 'auto', breakBefore: ni > 0 ? 'always' : 'auto' }}>
+            <div key={ni} style={{ marginBottom: '30px', pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakBefore: 'auto', breakBefore: 'auto' }}>
 
               {/* Header profilo — nero */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#222', color: '#fff', padding: '5px 10px', fontWeight: 700, fontSize: '10px' }}>
