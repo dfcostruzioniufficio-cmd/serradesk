@@ -170,8 +170,8 @@ export function runCamEngine(items, barLength = 6500) {
     // dei due: chiedere per forza la battuta escludeva le serie caricate
     // copiando i numeri dal catalogo.
     const haDatiAnta = rebate > 0
-      || ant.detrazione_larghezza_mm !== undefined
-      || ant.detrazione_altezza_mm !== undefined;
+      || Number.isFinite(Number(ant.detrazione_larghezza_mm))
+      || Number.isFinite(Number(ant.detrazione_altezza_mm));
 
     if (!isFisso && haDatiAnta) {
       // Calcolo larghezza anta per multi-anta (nodo centrale)
@@ -191,12 +191,15 @@ export function runCamEngine(items, barLength = 6500) {
       // quantita' differenti. Sapa R40: 38 in larghezza, 52 in altezza. Nella
       // R72TT erano entrambe 40, una coincidenza che nascondeva il problema.
       // Quando non ci sono si ricavano da battuta e sormonto, come prima.
-      const detrLarghezza = ant.detrazione_larghezza_mm !== undefined
-        ? Number(ant.detrazione_larghezza_mm)
-        : (rebate * 2) - (sormonto * 2);
-      const detrAltezza = ant.detrazione_altezza_mm !== undefined
-        ? Number(ant.detrazione_altezza_mm)
-        : (rebate * 2) - (sormonto * 2);
+      const daBattutaESormonto = (rebate * 2) - (sormonto * 2);
+      // Number.isFinite e non "!== undefined": un campo vuoto salvato come
+      // null diventerebbe zero, e l'anta uscirebbe alta quanto tutto il
+      // telaio senza nessun avviso.
+      const numeroValido = (v) => Number.isFinite(Number(v)) && v !== null && v !== '';
+      const detrLarghezza = numeroValido(ant.detrazione_larghezza_mm)
+        ? Number(ant.detrazione_larghezza_mm) : daBattutaESormonto;
+      const detrAltezza = numeroValido(ant.detrazione_altezza_mm)
+        ? Number(ant.detrazione_altezza_mm) : daBattutaESormonto;
 
       const sw_totale = fw - detrLarghezza - ((numAnte - 1) * detrazioneNodo);
       // Ante asimmetriche: la larghezza totale va ripartita secondo le
@@ -353,7 +356,7 @@ export function runCamEngine(items, barLength = 6500) {
       description: item.model || `${item.apertura} ${item.numAnte} ante`,
       width, height, qty,
       frame: { width: fw, height: fh },
-      sash:  !isFisso && rebate > 0 ? { width: sw, height: sh } : null,
+      sash:  !isFisso && haDatiAnta ? { width: sw, height: sh } : null,
       bom:   pieces,
       // Stima Ferramenta (protetto da crash)
       ferramenta: (() => { try { return calcFerramenta(item, fw, fh, sw, sh, numAnte, isFisso, qty); } catch(e) { console.error('Errore calcFerramenta:', e); return []; } })(),
