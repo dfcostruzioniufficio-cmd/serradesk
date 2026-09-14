@@ -169,9 +169,15 @@ export function runCamEngine(items, barLength = 6500) {
     // oppure con le detrazioni prese dalla distinta del produttore. Basta uno
     // dei due: chiedere per forza la battuta escludeva le serie caricate
     // copiando i numeri dal catalogo.
+    // Un solo controllo per tutti: Number.isFinite da solo non basta, perche'
+    // Number(null) vale 0 e passerebbe. Usato in due modi diversi sullo stesso
+    // dato, un campo nullo attivava questo ramo ma veniva poi rifiutato piu'
+    // sotto, e l'anta usciva piu' grande del telaio.
+    const numeroValido = (v) => v !== null && v !== '' && Number.isFinite(Number(v));
+
     const haDatiAnta = rebate > 0
-      || Number.isFinite(Number(ant.detrazione_larghezza_mm))
-      || Number.isFinite(Number(ant.detrazione_altezza_mm));
+      || numeroValido(ant.detrazione_larghezza_mm)
+      || numeroValido(ant.detrazione_altezza_mm);
 
     if (!isFisso && haDatiAnta) {
       // Calcolo larghezza anta per multi-anta (nodo centrale)
@@ -192,10 +198,6 @@ export function runCamEngine(items, barLength = 6500) {
       // R72TT erano entrambe 40, una coincidenza che nascondeva il problema.
       // Quando non ci sono si ricavano da battuta e sormonto, come prima.
       const daBattutaESormonto = (rebate * 2) - (sormonto * 2);
-      // Number.isFinite e non "!== undefined": un campo vuoto salvato come
-      // null diventerebbe zero, e l'anta uscirebbe alta quanto tutto il
-      // telaio senza nessun avviso.
-      const numeroValido = (v) => Number.isFinite(Number(v)) && v !== null && v !== '';
       const detrLarghezza = numeroValido(ant.detrazione_larghezza_mm)
         ? Number(ant.detrazione_larghezza_mm) : daBattutaESormonto;
       const detrAltezza = numeroValido(ant.detrazione_altezza_mm)
