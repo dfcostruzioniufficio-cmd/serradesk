@@ -1,6 +1,17 @@
 import React from 'react';
 import { PROFILE_LABELS } from '../utils/camEngine';
 
+/**
+ * Distinta di taglio per l'officina.
+ *
+ * L'ordine delle sezioni segue come si lavora davvero: prima cosa ordinare,
+ * poi cosa tagliare profilo per profilo (si imposta la troncatrice una volta
+ * sola e si scende dal pezzo piu' lungo al piu' corto), poi come disporre i
+ * pezzi sulle barre, e in fondo le schede dei singoli serramenti per il
+ * controllo. La versione precedente elencava pezzo per pezzo e articolo per
+ * articolo: costringeva a saltare fra le pagine a ogni cambio di profilo.
+ */
+
 const PART_IT = {
   frame_top:    'Traversa SUP. Telaio',
   frame_bottom: 'Traversa INF. Telaio',
@@ -11,7 +22,6 @@ const PART_IT = {
 };
 
 const LATI = { top: 'Traversa SUP.', bottom: 'Traversa INF.', left: 'Montante SX', right: 'Montante DX' };
-// Fermavetri di una finestra con traverso: sopra e sotto la traversa.
 const LATI_FERM = {
   top: 'Traversa SUP.', bottom: 'Traversa INF.',
   left: 'Montante SX', right: 'Montante DX',
@@ -20,8 +30,6 @@ const LATI_FERM = {
   left_inf: 'Montante SX inferiore', right_inf: 'Montante DX inferiore',
 };
 
-// Ogni pezzo della distinta va in officina: deve avere un nome che un
-// serramentista legge, non il nome interno del programma.
 const partLabel = (part) => {
   if (PART_IT[part]) return PART_IT[part];
 
@@ -32,14 +40,10 @@ const partLabel = (part) => {
   if (riporto) return `Riporto centrale ${riporto[1]}`;
 
   const fermAnta = part.match(/^ferm_(\d+)_(.+)$/);
-  if (fermAnta && LATI_FERM[fermAnta[2]]) {
-    return `Fermavetro Anta ${fermAnta[1]} — ${LATI_FERM[fermAnta[2]]}`;
-  }
+  if (fermAnta && LATI_FERM[fermAnta[2]]) return `Fermavetro Anta ${fermAnta[1]} — ${LATI_FERM[fermAnta[2]]}`;
 
   const fermFisso = part.match(/^ferm_fisso_(.+)$/);
-  if (fermFisso && LATI_FERM[fermFisso[1]]) {
-    return `Fermavetro — ${LATI_FERM[fermFisso[1]]}`;
-  }
+  if (fermFisso && LATI_FERM[fermFisso[1]]) return `Fermavetro — ${LATI_FERM[fermFisso[1]]}`;
 
   const travAnta = part.match(/^traverso_anta_(\d+)$/);
   if (travAnta) return `Traverso Anta ${travAnta[1]}`;
@@ -49,366 +53,318 @@ const partLabel = (part) => {
   return part;
 };
 
-const profileColor = (code) => {
-  const colors = { 'TEL-Z30': '#1e3a5f', 'TEL-INF-DRN': '#2d6a4f', 'ANT-T70': '#7b2d8b' };
-  return colors[code] || '#333';
-};
+// Nome corto per la lista di taglio, dove la colonna e' stretta e il
+// riferimento al serramento dice gia' di quale pezzo si tratta.
+const partLabelCorto = (part) => partLabel(part)
+  .replace(/^Anta \d+ — /, '')
+  .replace(/^Fermavetro Anta \d+ — /, 'Fermav. ')
+  .replace(/^Fermavetro — /, 'Fermav. ')
+  .replace(/ Telaio$/, '');
+
+// Numero d'ordine del serramento: e' il riferimento che l'operaio scrive a
+// matita sul pezzo appena tagliato.
+const rif = (i) => `#${String(i + 1).padStart(2, '0')}`;
+
+/**
+ * Raggruppa tutti i tagli per profilo e per misura. E' il cuore del
+ * documento: alla troncatrice non serve sapere che il pezzo si chiama
+ * "Anta 1 - Montante SX", serve sapere che di quel profilo servono quattro
+ * pezzi da 1360.
+ */
+function listaDiTaglio(itemResults) {
+  const perProfilo = new Map();
+
+  itemResults.forEach((it, idx) => {
+    const quante = Number(it.qty) || 1;
+    for (const pezzo of it.bom) {
+      if (!perProfilo.has(pezzo.profile)) perProfilo.set(pezzo.profile, new Map());
+      const misure = perProfilo.get(pezzo.profile);
+      const chiave = Math.round(pezzo.mm);
+      if (!misure.has(chiave)) misure.set(chiave, { mm: chiave, qta: 0, da: new Map(), esempio: pezzo.part });
+      const riga = misure.get(chiave);
+      riga.qta += quante;
+      riga.da.set(rif(idx), (riga.da.get(rif(idx)) || 0) + quante);
+    }
+  });
+
+  return [...perProfilo.entries()].map(([codice, misure]) => ({
+    codice,
+    etichetta: PROFILE_LABELS[codice] || codice,
+    righe: [...misure.values()].sort((a, b) => b.mm - a.mm),
+    pezzi: [...misure.values()].reduce((s, r) => s + r.qta, 0),
+  }));
+}
 
 export default function DistintaPDFTemplate({ clientName, items, camResult, userSettings, barLength }) {
   if (!camResult || !camResult.itemResults) return null;
   const { itemResults, nesting, ferramentaRiepilogo } = camResult;
   const today = new Date().toLocaleDateString('it-IT');
+  const gruppi = listaDiTaglio(itemResults);
+  const barreTotali = (nesting || []).reduce((s, n) => s + n.bars_required, 0);
+  const barra = barLength || 6500;
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#111', padding: '14px', width: '281mm', boxSizing: 'border-box', margin: '0 auto' }}>
+    <div style={FOGLIO}>
 
-      {/* ─── HEADER ─── */}
-      <div style={{ borderBottom: '3px solid #1e3a5f', paddingBottom: '10px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      {/* ═══ TESTATA ═══ */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                    borderBottom: `2px solid ${BLU}`, paddingBottom: '7px', marginBottom: '4px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '18px', color: '#1e3a5f', fontWeight: 900, textTransform: 'uppercase' }}>{userSettings?.company_name || 'SISTEMI CAM SAAS'}</h1>
-          {userSettings?.address && <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#444' }}>Sede Operativa: {userSettings.address}</p>}
-          {userSettings?.legal_address && <p style={{ margin: '1px 0 0', fontSize: '9px', color: '#666' }}>Sede Legale: {userSettings.legal_address}</p>}
-          <h2 style={{ margin: '4px 0 0', fontSize: '13px', color: '#c0392b', fontWeight: 700, textTransform: 'uppercase' }}>
-            DISTINTA DI TAGLIO — DOCUMENTO INTERNO
-          </h2>
-          <p style={{ margin: '2px 0 0', color: '#888' }}>NON ALLEGARE AL PREVENTIVO CLIENTE</p>
+          <div style={{ fontSize: '15px', fontWeight: 800, color: BLU, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            {userSettings?.company_name || 'SerraDesk'}
+          </div>
+          <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '2px' }}>Distinta di taglio</div>
+          <div style={{ fontSize: '8px', color: GRIGIO, marginTop: '1px' }}>
+            Documento di officina — non allegare al preventivo del cliente
+          </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ margin: 0 }}><b>Cliente:</b> {clientName || '—'}</p>
-          <p style={{ margin: 0 }}><b>Data:</b> {today}</p>
-          <p style={{ margin: 0 }}><b>Articoli:</b> {items.length}</p>
-        </div>
-      </div>
-
-      {/* ─── COSTANTI DI PRODUZIONE ─── */}
-      <div style={{ background: '#f0f4f8', border: '1px solid #ccd', borderRadius: '4px', padding: '6px 10px', marginBottom: '16px', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        {[
-          ['Barra grezza', `${(barLength || 6500) / 1000} m`],
-          ['Kerf lama', '4 mm'],
-          ['Intestazione', '20 mm/barra'],
-          ['Sormonto battuta', '20 mm/lato'],
-          ['Tolleranza posa', '5 mm/lato'],
-        ].map(([k, v]) => (
-          <div key={k}><span style={{ color: '#555' }}>{k}: </span><b>{v}</b></div>
-        ))}
-      </div>
-
-      {/* ─── RIEPILOGO BARRE DA ORDINARE ─── */}
-      <div style={{ background: '#fff3cd', border: '2px solid #f0a500', borderRadius: '6px', padding: '12px 16px', marginBottom: '20px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 900, color: '#7d4e00', marginBottom: '10px', textTransform: 'uppercase' }}>
-          RIEPILOGO — BARRE DA ORDINARE (Intero Ordine)
-        </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f0a500' }}>
-              <th style={{ ...TH2, textAlign: 'left', color: '#fff' }}>Codice Profilo</th>
-              <th style={{ ...TH2, textAlign: 'left', color: '#fff' }}>Descrizione</th>
-              <th style={{ ...TH2, color: '#fff' }}>N° Pezzi Totali</th>
-              <th style={{ ...TH2, color: '#fff' }}>ML Tagliati</th>
-              <th style={{ ...TH2, color: '#fff', fontSize: '13px' }}>BARRE NECESSARIE</th>
-            </tr>
-          </thead>
+        <table style={{ borderCollapse: 'collapse', fontSize: '9px' }}>
           <tbody>
-            {nesting.map((n, i) => (
-              <tr key={i} style={{ background: i % 2 === 0 ? '#fffdf0' : '#fff8e1', borderLeft: `4px solid ${profileColor(n.profile_code)}` }}>
-                <td style={{ ...TD2, fontWeight: 900, color: profileColor(n.profile_code), fontSize: '11px' }}>{n.profile_code}</td>
-                <td style={TD2}>{n.profile_label}</td>
-                <td style={{ ...TD2, textAlign: 'center' }}>{n.pieces_count} pz</td>
-                <td style={{ ...TD2, textAlign: 'center' }}>{(n.total_mm_cut / 1000).toFixed(2)} ml</td>
-                <td style={{ ...TD2, textAlign: 'center', fontSize: '20px', fontWeight: 900, color: '#c0392b' }}>{n.bars_required}</td>
-              </tr>
-            ))}
+            <tr><td style={ETI}>Cliente</td><td style={VAL}>{clientName || '—'}</td></tr>
+            <tr><td style={ETI}>Data</td><td style={VAL}>{today}</td></tr>
+            <tr><td style={ETI}>Serramenti</td><td style={VAL}>{items.length}</td></tr>
+            <tr><td style={ETI}>Barra</td><td style={VAL}>{(barra / 1000).toFixed(1)} m · kerf 4 mm</td></tr>
           </tbody>
-          <tfoot>
-            <tr style={{ background: '#7d4e00' }}>
-              <td colSpan={4} style={{ ...TD2, color: '#fff', fontWeight: 700, textAlign: 'right' }}>TOTALE BARRE DA ORDINARE:</td>
-              <td style={{ ...TD2, textAlign: 'center', fontSize: '22px', fontWeight: 900, color: '#ffe082' }}>
-                {nesting.reduce((s, n) => s + n.bars_required, 0)}
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </div>
 
-      {/* SALTO PAGINA */}
-      <div className="html2pdf__page-break" style={{ pageBreakBefore: 'always', breakBefore: 'always' }} />
-
-      {/* ─── DETTAGLIO PER ARTICOLO ─── */}
-      {itemResults.map((item, idx) => (
-        <div key={item.id} style={{ marginBottom: '18px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          <div style={{ background: '#1e3a5f', color: '#fff', padding: '4px 10px', borderRadius: '3px 3px 0 0', display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 700 }}>#{item.id} — {item.description}</span>
-            <span>Qtà: {item.qty} pz | Misure inserite: {item.width}×{item.height} mm</span>
-          </div>
-          <div style={{ display: 'flex', gap: '24px', background: '#e8f0fe', padding: '5px 10px', borderLeft: '2px solid #1e3a5f', borderRight: '2px solid #1e3a5f' }}>
-            <div><b>Telaio finito:</b> {item.frame.width} × {item.frame.height} mm</div>
-            {item.sash && <div><b>Anta finita:</b> {item.sash.width} × {item.sash.height} mm</div>}
-            {!item.sash && <div style={{ color: '#888' }}>Fisso — nessuna anta</div>}
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ccd', fontSize: '9.5px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            <thead>
-              <tr style={{ background: '#e8eaf0' }}>
-                <th style={{ ...TH, textAlign: 'left' }}>Pezzo</th>
-                <th style={TH}>Profilo</th>
-                <th style={TH}>mm Finiti</th>
-                <th style={TH}>mm Taglio (+sald.)</th>
+      {/* ═══ 1. BARRE DA ORDINARE ═══ */}
+      <Sezione n="1" titolo="Barre da ordinare" />
+      <div style={{ ...BLOCCO, width: '60%' }}>
+        <table style={TABELLA}>
+          <thead>
+            <tr>
+              <th style={{ ...TH, textAlign: 'left', width: '22%' }}>Profilo</th>
+              <th style={{ ...TH, textAlign: 'left' }}>Descrizione</th>
+              <th style={{ ...TH, width: '11%' }}>Pezzi</th>
+              <th style={{ ...TH, width: '13%' }}>Metri</th>
+              <th style={{ ...TH, width: '13%' }}>Barre</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(nesting || []).map((n) => (
+              <tr key={n.profile_code}>
+                <td style={{ ...TD, fontWeight: 700, fontFamily: MONO }}>{n.profile_code}</td>
+                <td style={TD}>{n.profile_label}</td>
+                <td style={{ ...TD, textAlign: 'center' }}>{n.pieces_count}</td>
+                <td style={{ ...TD, textAlign: 'center' }}>{(n.total_mm_cut / 1000).toFixed(2)}</td>
+                <td style={{ ...TD, textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>{n.bars_required}</td>
               </tr>
-            </thead>
-            <tbody>
-              {item.bom.map((b, i) => (
-                <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9', borderLeft: `4px solid ${profileColor(b.profile)}` }}>
-                  <td style={{ ...TD, fontWeight: 600 }}>{partLabel(b.part)}</td>
-                  <td style={{ ...TD, textAlign: 'center', fontWeight: 700, color: profileColor(b.profile), fontSize: '10px' }}>{b.profile}</td>
-                  <td style={{ ...TD, textAlign: 'center' }}>{b.mm - (b.sald || 0)} mm</td>
-                  <td style={{ ...TD, textAlign: 'center', fontWeight: 700, color: '#c0392b' }}>{b.mm} mm</td>
+            ))}
+            <tr style={{ background: '#eef2f6' }}>
+              <td colSpan={4} style={{ ...TD, textAlign: 'right', fontWeight: 700 }}>Totale barre da ordinare</td>
+              <td style={{ ...TD, textAlign: 'center', fontWeight: 900, fontSize: '14px' }}>{barreTotali}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* ═══ 2. LISTA DI TAGLIO ═══ */}
+      <Sezione n="2" titolo="Lista di taglio"
+               nota="Un profilo alla volta, dal pezzo più lungo al più corto. Il riferimento indica su quale serramento va segnato il pezzo." />
+      <div style={COLONNE}>
+        {gruppi.map((g) => (
+          <div key={g.codice} style={{ ...BLOCCO, ...META }}>
+            <div style={INTESTAZIONE_BLOCCO}>
+              <span style={{ fontFamily: MONO, fontWeight: 800 }}>{g.codice}</span>
+              <span style={{ color: '#5a6b7d' }}> · {g.etichetta}</span>
+              <span style={{ float: 'right', color: '#5a6b7d' }}>{g.pezzi} pezzi</span>
+            </div>
+            <table style={TABELLA}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, width: '28%' }}>Misura</th>
+                  <th style={{ ...TH, width: '13%' }}>Q.tà</th>
+                  <th style={{ ...TH, textAlign: 'left' }}>Riferimento</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {g.righe.map((r) => (
+                  <tr key={r.mm}>
+                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 800, fontSize: '11px' }}>{r.mm} mm</td>
+                    <td style={{ ...TD, textAlign: 'center', fontWeight: 700 }}>{r.qta}</td>
+                    <td style={{ ...TD, fontSize: '8.5px', color: '#445' }}>
+                      {[...r.da.entries()].map(([k, v]) => (v > 1 ? `${k}×${v}` : k)).join(' ')}
+                      <span style={{ color: '#8a97a4' }}> · {partLabelCorto(r.esempio)}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+
+      {/* ═══ 3. PIANO DI TAGLIO ═══ */}
+      <Sezione n="3" titolo="Piano di taglio"
+               nota="Disposizione dei pezzi su ogni barra, calcolata per ridurre lo sfrido." />
+      {(nesting || []).map((n) => (
+        <div key={n.profile_code} style={{ ...BLOCCO, width: '100%' }}>
+          <div style={INTESTAZIONE_BLOCCO}>
+            <span style={{ fontFamily: MONO, fontWeight: 800 }}>{n.profile_code}</span>
+            <span style={{ color: '#5a6b7d' }}> · {n.profile_label}</span>
+            <span style={{ float: 'right', color: '#5a6b7d' }}>{n.bars_required} barre</span>
+          </div>
+          <div style={{ padding: '6px 8px' }}>
+            {n.bars.map((bar, bi) => {
+              const usati = bar.cuts_mm.reduce((s, c) => s + c, 0);
+              return (
+                <div key={bi} style={{ marginBottom: bi === n.bars.length - 1 ? 0 : '6px', breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', color: GRIGIO, marginBottom: '2px' }}>
+                    <span><b style={{ color: '#111' }}>Barra {bi + 1}</b> di {n.bars_required}</span>
+                    <span>usato {Math.round((usati / barra) * 100)}% · sfrido {bar.waste_mm} mm</span>
+                  </div>
+                  <div style={{ display: 'flex', width: '100%', height: '18px', border: '1px solid #94a3b8', boxSizing: 'border-box' }}>
+                    {bar.cuts_mm.map((cut, ci) => (
+                      <div key={ci} style={{
+                        width: `${(cut / barra) * 100}%`,
+                        background: ci % 2 === 0 ? '#dde5ed' : '#eef2f6',
+                        borderRight: '1px solid #94a3b8',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: MONO, fontSize: '8px', fontWeight: 700,
+                        overflow: 'hidden', whiteSpace: 'nowrap',
+                      }}>{cut}</div>
+                    ))}
+                    {bar.waste_mm > 0 && (
+                      <div style={{
+                        width: `${(bar.waste_mm / barra) * 100}%`,
+                        background: 'repeating-linear-gradient(45deg,#f7f9fb,#f7f9fb 3px,#e8edf2 3px,#e8edf2 6px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '7.5px', color: '#94a3b8', overflow: 'hidden', whiteSpace: 'nowrap',
+                      }}>sfrido</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ))}
 
-      {/* SALTO PAGINA */}
-      <div className="html2pdf__page-break" style={{ pageBreakBefore: 'always', breakBefore: 'always' }} />
-
-      {/* ─── PIANO DI NESTING — STILE TECNICO B&N ─── */}
-      <div style={{ marginTop: '10px' }}>
-        <h3 style={{ color: '#000', borderBottom: '2px solid #000', paddingBottom: '4px', margin: '0 0 16px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px', fontFamily: 'Arial, sans-serif' }}>
-          Piano di Nesting — Ottimizzazione Barre (aggregato ordine)
-        </h3>
-
-        {nesting.map((n, ni) => {
-          const BAR_TOTAL = barLength || 6500;
-          const SVG_W    = 800;
-          const QUOTA_H  = 20;
-          const BAR_H    = 30;
-          const SEQ_H    = 4;
-          const SVG_H    = QUOTA_H + BAR_H + SEQ_H;
-          const scale    = SVG_W / BAR_TOTAL;
-
-          return (
-            <div key={ni} style={{ marginBottom: '30px', pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakBefore: 'auto', breakBefore: 'auto' }}>
-
-              {/* Header profilo — nero */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#222', color: '#fff', padding: '5px 10px', fontWeight: 700, fontSize: '10px' }}>
-                <span>{n.profile_code} — {n.profile_label}</span>
-                <span style={{ fontWeight: 400, fontSize: '9px' }}>
-                  {n.bars_required} barre × {BAR_TOTAL}mm &nbsp;·&nbsp; {n.pieces_count} pezzi &nbsp;·&nbsp; {Math.round(n.total_mm_cut / 10) / 100} m lineari
-                </span>
-              </div>
-
-              {n.bars.map((bar, bi) => {
-                const totalCut = bar.cuts_mm.reduce((s, c) => s + c, 0);
-                const kerf     = 4 * bar.cuts_mm.length;
-                const endTrim  = 20;
-                const usedMm   = totalCut + kerf + endTrim;
-                const wasteMm  = BAR_TOTAL - usedMm;
-                const usedPct  = Math.round((usedMm / BAR_TOTAL) * 100);
-
-                // Costruisce segmenti
-                let cursor = endTrim;
-                const segs = [];
-                segs.push({ x: 0, w: endTrim, tipo: 'header' });
-                bar.cuts_mm.forEach((cut, ci) => {
-                  if (ci > 0) { segs.push({ x: cursor, w: 4, tipo: 'kerf' }); cursor += 4; }
-                  segs.push({ x: cursor, w: cut, tipo: 'pezzo', idx: ci });
-                  cursor += cut;
-                });
-                if (wasteMm > 0) segs.push({ x: cursor, w: wasteMm, tipo: 'scarto' });
-
-                // B&N: alterna grigio scuro / grigio chiaro
-                const fillPezzo = (idx) => idx % 2 === 0 ? '#444' : '#999';
-                const textPezzo = (idx) => idx % 2 === 0 ? '#fff' : '#000';
-
-                return (
-                  <div key={bi} style={{ border: '1px solid #ccc', borderTop: 'none', padding: '8px 10px', background: '#fff', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-
-                    {/* Info riga */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', marginBottom: '5px', color: '#333' }}>
-                      <b style={{ fontSize: '10px', fontFamily: 'monospace' }}>BARRA {bi + 1} / {n.bars_required}</b>
-                      <span>
-                        Usato: <b>{usedPct}%</b>
-                        &nbsp;·&nbsp;Scarto: <b style={{ textDecoration: wasteMm > 1200 ? 'underline' : 'none' }}>{wasteMm} mm</b>
-                        &nbsp;·&nbsp;N° tagli: <b>{bar.cuts_mm.length}</b>
-                      </span>
-                    </div>
-
-                    {/* SVG piano tecnico */}
-                    <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_H}`} style={{ display: 'block' }}>
-                      <defs>
-                        <pattern id={`hatch${ni}_${bi}`} patternUnits="userSpaceOnUse" width="6" height="6">
-                          <rect width="6" height="6" fill="#e8e8e8"/>
-                          <line x1="0" y1="6" x2="6" y2="0" stroke="#aaa" strokeWidth="0.8"/>
-                        </pattern>
-                      </defs>
-
-                      {segs.map((seg, si) => {
-                        const sx = seg.x * scale;
-                        const sw = Math.max(seg.w * scale, 0.5);
-                        const by = QUOTA_H;
-
-                        let fill, strokeCol;
-                        if (seg.tipo === 'header')  { fill = '#ccc';  strokeCol = '#888'; }
-                        else if (seg.tipo === 'kerf'){ fill = '#000';  strokeCol = '#000'; }
-                        else if (seg.tipo === 'scarto') { fill = `url(#hatch${ni}_${bi})`; strokeCol = '#666'; }
-                        else { fill = fillPezzo(seg.idx); strokeCol = '#222'; }
-
-                        return (
-                          <g key={si}>
-                            <rect x={sx} y={by} width={sw} height={BAR_H}
-                              fill={fill} stroke={strokeCol} strokeWidth="0.5"/>
-
-                            {/* Testo dentro la barra */}
-                            {seg.tipo === 'pezzo' && sw > 28 && (
-                              <text x={sx + sw/2} y={by + BAR_H/2 + 4}
-                                textAnchor="middle" fill={textPezzo(seg.idx)}
-                                fontSize="8" fontWeight="bold" fontFamily="monospace">
-                                {seg.w}
-                              </text>
-                            )}
-                            {seg.tipo === 'header' && (
-                              <text x={sx + sw/2} y={by + BAR_H/2 + 3}
-                                textAnchor="middle" fill="#444" fontSize="6" fontFamily="monospace">IT</text>
-                            )}
-                            {seg.tipo === 'scarto' && sw > 50 && (
-                              <text x={sx + sw/2} y={by + BAR_H/2 + 3}
-                                textAnchor="middle" fill="#666" fontSize="7" fontFamily="monospace">
-                                SCARTO {seg.w}mm
-                              </text>
-                            )}
-
-                            {/* Quote sopra (solo pezzi con spazio) */}
-                            {seg.tipo === 'pezzo' && sw > 22 && (
-                              <>
-                                <line x1={sx+0.5} y1={by-1} x2={sx+0.5} y2={by-QUOTA_H+5} stroke="#000" strokeWidth="0.6"/>
-                                <line x1={sx+sw-0.5} y1={by-1} x2={sx+sw-0.5} y2={by-QUOTA_H+5} stroke="#000" strokeWidth="0.6"/>
-                                <line x1={sx+2} y1={by-QUOTA_H+9} x2={sx+sw-2} y2={by-QUOTA_H+9} stroke="#000" strokeWidth="0.6"/>
-                                {sw > 45 && (
-                                  <text x={sx+sw/2} y={by-QUOTA_H+7}
-                                    textAnchor="middle" fontSize="7" fontWeight="bold"
-                                    fill="#000" fontFamily="monospace">
-                                    {seg.w} mm
-                                  </text>
-                                )}
-                              </>
-                            )}
-                          </g>
-                        );
-                      })}
-
-                      {/* Bordo esterno */}
-                      <rect x="0" y={QUOTA_H} width={SVG_W} height={BAR_H}
-                        fill="none" stroke="#000" strokeWidth="1"/>
-                    </svg>
-
-                    {/* Sequenza tagli testuale */}
-                    <div style={{ marginTop: '5px', fontSize: '8px', color: '#333', display: 'flex', flexWrap: 'wrap', gap: '3px', alignItems: 'center', fontFamily: 'monospace' }}>
-                      <span style={{ fontWeight: 700, fontSize: '8px', marginRight: '2px' }}>Sequenza:</span>
-                      <span style={{ background: '#ddd', padding: '1px 4px', border: '1px solid #bbb' }}>IT 20</span>
-                      {bar.cuts_mm.map((cut, ci) => (
-                        <React.Fragment key={ci}>
-                          {/* Lo spessore della lama fra un pezzo e il successivo.
-                              Prima era una forbice; un numero da solo non si
-                              capisce, il documento chiama questa quota "kerf". */}
-                          <span style={{ color: '#888', fontSize: '7px' }}>kerf 4</span>
-                          <span style={{ background: ci%2===0?'#444':'#999', color: ci%2===0?'#fff':'#000', padding: '1px 5px', fontWeight: 700, border: '1px solid #333' }}>
-                            {cut}
-                          </span>
-                        </React.Fragment>
-                      ))}
-                      {wasteMm > 0 && (
-                        <>
-                          <span style={{ color: '#888', fontSize: '7px' }}>→</span>
-                          <span style={{ background: '#eee', border: '1px dashed #aaa', padding: '1px 4px', color: '#666' }}>scarto {wasteMm}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+      {/* ═══ 4. SCHEDE SERRAMENTI ═══ */}
+      <Sezione n="4" titolo="Schede serramenti"
+               nota="Misure finite di ogni serramento, per il controllo prima del montaggio." />
+      <div style={COLONNE}>
+        {itemResults.map((it, idx) => (
+          <div key={it.id} style={{ ...BLOCCO, ...META }}>
+            <div style={INTESTAZIONE_BLOCCO}>
+              <span style={{ fontWeight: 800 }}>{rif(idx)}</span>
+              <span> · {it.description}</span>
+              <span style={{ float: 'right', color: '#5a6b7d' }}>{it.qty} pz</span>
             </div>
-          );
-        })}
+            <div style={{ padding: '4px 8px', fontSize: '8.5px', display: 'flex', gap: '12px', flexWrap: 'wrap', borderBottom: '1px solid #e6ebf0' }}>
+              <span><span style={{ color: GRIGIO }}>Inserite </span><b>{it.width}×{it.height}</b></span>
+              <span><span style={{ color: GRIGIO }}>Telaio finito </span><b>{it.frame.width}×{it.frame.height}</b></span>
+              {it.sash && <span><span style={{ color: GRIGIO }}>Anta finita </span><b>{it.sash.width}×{it.sash.height}</b></span>}
+            </div>
+            <table style={TABELLA}>
+              <tbody>
+                {it.bom.map((b, bi) => (
+                  <tr key={bi}>
+                    <td style={{ ...TD, fontSize: '8.5px' }}>{partLabel(b.part)}</td>
+                    <td style={{ ...TD, fontFamily: MONO, fontSize: '8px', color: '#5a6b7d', width: '24%' }}>{b.profile}</td>
+                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 700, width: '20%' }}>{b.mm}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </div>
 
-      {/* ─── STIMA FERRAMENTA ─── */}
-      {ferramentaRiepilogo && ferramentaRiepilogo.length > 0 && (
+      {/* ═══ 5. FERRAMENTA ═══ */}
+      {ferramentaRiepilogo?.length > 0 && (
         <>
-          <div className="html2pdf__page-break" style={{ pageBreakBefore: 'always', breakBefore: 'always' }} />
-          <div style={{ marginTop: '10px' }}>
-            <h3 style={{ color: '#000', borderBottom: '2px solid #000', paddingBottom: '4px', margin: '0 0 16px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px', fontFamily: 'Arial, sans-serif' }}>
-              Stima Ferramenta — Riepilogo Ordine
-            </h3>
-            <p style={{ fontSize: '9px', color: '#888', marginBottom: '12px', fontStyle: 'italic' }}>
-              Stima indicativa calcolata automaticamente. Verificare le quantità in base alla ferramenta specifica utilizzata (Maico, Roto, Siegenia, ecc.)
-            </p>
-
-            {/* Dettaglio per articolo */}
-            {itemResults.map((item, idx) => (
-              item.ferramenta && item.ferramenta.length > 0 && (
-                <div key={item.id} style={{ marginBottom: '14px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                  <div style={{ background: '#2d6a4f', color: '#fff', padding: '4px 10px', borderRadius: '3px 3px 0 0', fontSize: '10px', fontWeight: 700 }}>
-                    #{item.id} — {item.description} — {item.width}×{item.height} mm × {item.qty} pz
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ccd', fontSize: '9.5px' }}>
-                    <thead>
-                      <tr style={{ background: '#e8f0e8' }}>
-                        <th style={{ ...TH, textAlign: 'left' }}>Componente</th>
-                        <th style={{ ...TH, width: '100px' }}>Quantità</th>
-                        <th style={{ ...TH, width: '60px' }}>U.M.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {item.ferramenta.map((f, i) => (
-                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f6faf6' }}>
-                          <td style={{ ...TD, fontWeight: 600 }}>{f.nome}</td>
-                          <td style={{ ...TD, textAlign: 'center', fontWeight: 700, color: '#2d6a4f', fontSize: '11px' }}>{f.qta}</td>
-                          <td style={{ ...TD, textAlign: 'center', color: '#666' }}>{f.unitaMisura}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            ))}
-
-            {/* Riepilogo Totale Ferramenta */}
-            <div style={{ marginTop: '16px', background: '#e8f5e9', border: '2px solid #2d6a4f', borderRadius: '6px', padding: '12px 16px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-              <div style={{ fontSize: '13px', fontWeight: 900, color: '#1b5e20', marginBottom: '10px', textTransform: 'uppercase' }}>
-                RIEPILOGO TOTALE FERRAMENTA (Intero Ordine)
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#2d6a4f' }}>
-                    <th style={{ ...TH2, textAlign: 'left', color: '#fff' }}>Componente</th>
-                    <th style={{ ...TH2, color: '#fff', width: '120px' }}>Quantità Totale</th>
-                    <th style={{ ...TH2, color: '#fff', width: '80px' }}>U.M.</th>
+          <Sezione n="5" titolo="Ferramenta"
+                   nota="Stima automatica: verificare le quantità sulla ferramenta effettivamente usata." />
+          <div style={{ ...BLOCCO, width: '48%' }}>
+            <table style={TABELLA}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, textAlign: 'left' }}>Componente</th>
+                  <th style={{ ...TH, width: '28%' }}>Quantità</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ferramentaRiepilogo.map((f) => (
+                  <tr key={f.nome}>
+                    <td style={TD}>{f.nome}</td>
+                    <td style={{ ...TD, textAlign: 'center', fontWeight: 700 }}>{f.qtaTotale} {f.unitaMisura}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {ferramentaRiepilogo.map((f, i) => (
-                    <tr key={i} style={{ background: i % 2 === 0 ? '#f1f8e9' : '#e8f5e9' }}>
-                      <td style={{ ...TD2, fontWeight: 700 }}>{f.nome}</td>
-                      <td style={{ ...TD2, textAlign: 'center', fontSize: '16px', fontWeight: 900, color: '#1b5e20' }}>{f.qtaTotale}</td>
-                      <td style={{ ...TD2, textAlign: 'center', color: '#555' }}>{f.unitaMisura}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </>
       )}
 
-      {/* ─── FOOTER ─── */}
-      <div style={{ marginTop: '24px', borderTop: '1px solid #ccc', paddingTop: '6px', textAlign: 'center', color: '#aaa', fontSize: '8px' }}>
-        {userSettings?.company_name || 'Azienda'} — Software Preventivi Interno — Documento generato automaticamente il {today}
+      <div style={{ marginTop: '10px', paddingTop: '5px', borderTop: '1px solid #d8e0e8',
+                    fontSize: '7.5px', color: '#8a97a4', textAlign: 'center' }}>
+        Le misure derivano dai parametri del profilo impostati in archivio.
+        Verificare i profilati prima di tagliare in serie. · SerraDesk · {today}
       </div>
     </div>
   );
 }
 
-const TH  = { padding: '4px 8px', border: '1px solid #ccd', textAlign: 'center', fontWeight: 700 };
-const TD  = { padding: '3px 8px', border: '1px solid #eee' };
-const TH2 = { padding: '8px 10px', border: '1px solid #d48a00', fontWeight: 700 };
-const TD2 = { padding: '8px 10px', border: '1px solid #f0d080' };
+function Sezione({ n, titolo, nota }) {
+  return (
+    // breakAfter avoid: un titolo di sezione non deve restare solo in fondo
+    // a una pagina con il contenuto che comincia in quella dopo.
+    <div style={{ marginTop: '13px', marginBottom: '5px', breakAfter: 'avoid', pageBreakAfter: 'avoid' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', borderBottom: `1px solid ${BLU}`, paddingBottom: '2px' }}>
+        <span style={{ background: BLU, color: '#fff', fontSize: '8px', fontWeight: 800, padding: '1px 5px', borderRadius: '2px' }}>{n}</span>
+        <span style={{ fontSize: '11.5px', fontWeight: 800, color: BLU, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{titolo}</span>
+      </div>
+      {nota && <div style={{ fontSize: '8px', color: GRIGIO, marginTop: '3px' }}>{nota}</div>}
+    </div>
+  );
+}
+
+const BLU = '#1e3a5f';
+const GRIGIO = '#6b7a89';
+const MONO = "'Courier New', Courier, monospace";
+
+const FOGLIO = {
+  fontFamily: 'Arial, Helvetica, sans-serif',
+  fontSize: '9.5px',
+  color: '#111',
+  padding: '10px',
+  width: '281mm',
+  boxSizing: 'border-box',
+  margin: '0 auto',
+  background: '#fff',
+};
+
+// Due colonne affiancate: su un A4 orizzontale ci stanno comode e si
+// dimezzano le pagine. I blocchi non si spezzano mai a meta'.
+const COLONNE = { display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' };
+// 49% e non calc(50% - gap): il calcolo esatto lascia scarti di uno o due
+// pixel per arrotondamento e il secondo blocco va a capo, lasciando la
+// pagina a colonna singola. Il 2% di aria in meno non si nota.
+const META = { width: '49%' };
+
+const BLOCCO = {
+  border: '1px solid #d8e0e8',
+  borderRadius: '3px',
+  overflow: 'hidden',
+  marginBottom: '8px',
+  breakInside: 'avoid',
+  pageBreakInside: 'avoid',
+  background: '#fff',
+};
+
+const INTESTAZIONE_BLOCCO = {
+  background: '#eef2f6',
+  borderBottom: '1px solid #d8e0e8',
+  padding: '4px 8px',
+  fontSize: '9.5px',
+};
+
+const TABELLA = { width: '100%', borderCollapse: 'collapse' };
+const TH = { padding: '3px 7px', background: '#f7f9fb', borderBottom: '1px solid #d8e0e8',
+             textAlign: 'center', fontWeight: 700, fontSize: '8px', color: '#44576b',
+             textTransform: 'uppercase', letterSpacing: '0.2px' };
+const TD = { padding: '2.5px 7px', borderBottom: '1px solid #eef2f6' };
+const ETI = { padding: '1px 6px 1px 0', color: GRIGIO, textAlign: 'right' };
+const VAL = { padding: '1px 0', fontWeight: 700 };
