@@ -1,5 +1,4 @@
 import React from 'react';
-import { PROFILE_LABELS } from '../utils/camEngine';
 
 /**
  * Distinta di taglio per l'officina.
@@ -71,7 +70,7 @@ const rif = (i) => `#${String(i + 1).padStart(2, '0')}`;
  * "Anta 1 - Montante SX", serve sapere che di quel profilo servono quattro
  * pezzi da 1360.
  */
-function listaDiTaglio(itemResults) {
+function listaDiTaglio(itemResults, nesting) {
   const perProfilo = new Map();
 
   itemResults.forEach((it, idx) => {
@@ -87,9 +86,16 @@ function listaDiTaglio(itemResults) {
     }
   });
 
+  // La descrizione va presa da nesting, che la ricava dal sistema caricato
+  // dall'utente. PROFILE_LABELS contiene solo i cinque profili di riserva del
+  // motore: usandola, chi ha i propri profili vedeva il codice ripetuto due
+  // volte proprio nella pagina che porta alla troncatrice.
+  const descrizione = (codice) =>
+    (nesting || []).find((n) => n.profile_code === codice)?.profile_label || codice;
+
   return [...perProfilo.entries()].map(([codice, misure]) => ({
     codice,
-    etichetta: PROFILE_LABELS[codice] || codice,
+    etichetta: descrizione(codice),
     righe: [...misure.values()].sort((a, b) => b.mm - a.mm),
     pezzi: [...misure.values()].reduce((s, r) => s + r.qta, 0),
   }));
@@ -99,7 +105,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
   if (!camResult || !camResult.itemResults) return null;
   const { itemResults, nesting, ferramentaRiepilogo } = camResult;
   const today = new Date().toLocaleDateString('it-IT');
-  const gruppi = listaDiTaglio(itemResults);
+  const gruppi = listaDiTaglio(itemResults, nesting);
   const barreTotali = (nesting || []).reduce((s, n) => s + n.bars_required, 0);
   const barra = barLength || 6500;
 
@@ -258,6 +264,13 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
               {it.sash && <span><span style={{ color: GRIGIO }}>Anta finita </span><b>{it.sash.width}×{it.sash.height}</b></span>}
             </div>
             <table style={TABELLA}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, textAlign: 'left' }}>Pezzo</th>
+                  <th style={{ ...TH, textAlign: 'left', width: '24%' }}>Profilo</th>
+                  <th style={{ ...TH, width: '20%' }}>mm taglio</th>
+                </tr>
+              </thead>
               <tbody>
                 {it.bom.map((b, bi) => (
                   <tr key={bi}>
