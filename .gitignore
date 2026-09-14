@@ -12,3 +12,6 @@ sent_cold_emails.json
 # fornitori, spesso pesanti e non nostri da distribuire.
 cataloghi/
 *.rar
+
+# File di sistema macOS
+.DS_Store
