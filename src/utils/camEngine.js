@@ -138,6 +138,10 @@ export function runCamEngine(items, barLength = 6500) {
     // BOM anta
     const sashPieces = [];
     let sw = 0, sh = 0;
+    // Larghezza di OGNI anta. Serve anche fuori da questo blocco: fermavetri
+    // e traversi interni appartengono a una singola anta, quindi devono
+    // seguire la sua larghezza e non la media.
+    let larghezzeAnte = [];
     if (!isFisso && rebate > 0) {
       // Calcolo larghezza anta per multi-anta (nodo centrale)
       let sw_totale;
@@ -159,7 +163,7 @@ export function runCamEngine(items, barLength = 6500) {
         : null;
       const sommaProporzioni = proporzioni ? proporzioni.reduce((a, b) => a + b, 0) : 0;
 
-      const larghezzeAnte = Array.from({ length: numAnte }, (_, a) =>
+      larghezzeAnte = Array.from({ length: numAnte }, (_, a) =>
         proporzioni && sommaProporzioni > 0
           ? sw_totale * (proporzioni[a] / sommaProporzioni)
           : sw_totale / numAnte
@@ -225,14 +229,23 @@ export function runCamEngine(items, barLength = 6500) {
          }
       } else if (rebate > 0) {
          const ingombroVista = Number(ant.ingombro_vista_mm) || 70;
-         const fvW = sw - (ingombroVista * 2);
          const fvH = sh - (ingombroVista * 2);
-         
+         // Il fermavetro appartiene a una singola anta: si misura sulla
+         // larghezza di QUELLA anta. Usando la media, con ante asimmetriche
+         // uscivano tutti uguali - troppo lunghi per l'anta stretta (non
+         // entrano) e troppo corti per la larga (non tengono il vetro).
+         const larghezzaFermavetro = (a) => {
+           const base = Number.isFinite(larghezzeAnte[a]) ? larghezzeAnte[a] : sw;
+           return Math.round(base) - (ingombroVista * 2);
+         };
+
          if (item.hasTraverso) {
              const ingombroTraverso = 50;
              const fvH_mezzo = (fvH - ingombroTraverso) / 2;
-             if (fvW > 0 && fvH_mezzo > 0) {
+             if (fvH_mezzo > 0) {
                for (let a = 0; a < numAnte; a++) {
+                 const fvW = larghezzaFermavetro(a);
+                 if (fvW <= 0) continue;
                  fermavetroPieces.push(
                    { part: `ferm_${a+1}_top`,       profile: fv.codice, mm: fvW },
                    { part: `ferm_${a+1}_mid_top`,   profile: fv.codice, mm: fvW },
@@ -246,8 +259,10 @@ export function runCamEngine(items, barLength = 6500) {
                }
              }
          } else {
-             if (fvW > 0 && fvH > 0) {
+             if (fvH > 0) {
                for (let a = 0; a < numAnte; a++) {
+                const fvW = larghezzaFermavetro(a);
+                if (fvW <= 0) continue;
                 fermavetroPieces.push(
                   { part: `ferm_${a+1}_top`,    profile: fv.codice, mm: fvW },
                   { part: `ferm_${a+1}_bottom`, profile: fv.codice, mm: fvW },
@@ -269,7 +284,9 @@ export function runCamEngine(items, barLength = 6500) {
       } else {
         // Se ci sono le ante, il traverso sta dentro ogni singola anta
         for (let a = 0; a < numAnte; a++) {
-          traversoPieces.push({ part: `traverso_anta_${a+1}`, profile: 'TRAV-GEN', mm: sw + saldAnta });
+          // Anche il traverso sta dentro una singola anta: stessa ragione.
+          const swA = Number.isFinite(larghezzeAnte[a]) ? Math.round(larghezzeAnte[a]) : sw;
+          traversoPieces.push({ part: `traverso_anta_${a+1}`, profile: 'TRAV-GEN', mm: swA + saldAnta });
         }
       }
     }
