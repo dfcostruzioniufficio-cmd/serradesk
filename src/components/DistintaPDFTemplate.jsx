@@ -307,7 +307,10 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
                       <span style={{ background: '#ddd', padding: '1px 4px', border: '1px solid #bbb' }}>IT 20</span>
                       {bar.cuts_mm.map((cut, ci) => (
                         <React.Fragment key={ci}>
-                          <span style={{ color: '#888', fontSize: '7px' }}>4</span>
+                          {/* Lo spessore della lama fra un pezzo e il successivo.
+                              Prima era una forbice; un numero da solo non si
+                              capisce, il documento chiama questa quota "kerf". */}
+                          <span style={{ color: '#888', fontSize: '7px' }}>kerf 4</span>
                           <span style={{ background: ci%2===0?'#444':'#999', color: ci%2===0?'#fff':'#000', padding: '1px 5px', fontWeight: 700, border: '1px solid #333' }}>
                             {cut}
                           </span>
