@@ -57,6 +57,9 @@ export function runCamEngine(items, barLength = 6500) {
   const profileLabels = {};
   // Articoli scartati perche' il loro sistema non ha i dati del profilo.
   const sistemiIncompleti = [];
+  // Articoli scartati perche' la loro tipologia non ha ancora un calcolo
+  // dedicato (oggi: gli scorrevoli).
+  const apertureNonSupportate = [];
 
   for (const item of items) {
     if (item.type === 'custom' || item.type === 'complemento') continue;
@@ -73,6 +76,19 @@ export function runCamEngine(items, barLength = 6500) {
     
     // Se non c'è un sistema CAM (inserimento manuale o legacy), non calcoliamo i tagli
     if (!sys) continue;
+
+    // Uno scorrevole non si costruisce come un battente: le ante non
+    // sormontano il telaio allo stesso modo, si sormontano fra loro al nodo
+    // centrale, e l'altezza dipende dal binario. Applicare qui la formula del
+    // battente produrrebbe misure sbagliate con l'aria di essere giuste.
+    if (String(item.apertura || '').toLowerCase().includes('scorrev')) {
+      apertureNonSupportate.push({
+        itemId: item.id,
+        apertura: item.apertura,
+        descrizione: item.model || `${item.apertura} ${numAnte} ante`,
+      });
+      continue;
+    }
 
     // Senza i dati geometrici del profilo NON si producono tagli. Prima si
     // ripiegava su valori di riferimento scritti qui sotto (DEF): usciva una
@@ -354,7 +370,7 @@ export function runCamEngine(items, barLength = 6500) {
   }
   const ferramentaRiepilogo = Object.values(ferramentaTotale);
 
-  return { itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti };
+  return { itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti, apertureNonSupportate };
 }
 
 /**

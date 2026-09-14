@@ -194,6 +194,24 @@ export default function DistintaPage() {
         </div>
       )}
 
+      {camResult?.apertureNonSupportate?.length > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+          <h2 className="font-bold text-slate-800 flex items-center gap-2 mb-2">
+            <Lock size={18} /> Scorrevoli esclusi dalla distinta
+          </h2>
+          <p className="text-sm text-slate-600 mb-3">
+            Uno scorrevole non si costruisce come un battente: le ante si sormontano
+            fra loro e l&#39;altezza dipende dal binario. Il calcolo dedicato non c&#39;è
+            ancora, e preferiamo non darti misure che sembrano giuste e non lo sono.
+          </p>
+          <ul className="space-y-1.5">
+            {camResult.apertureNonSupportate.map((a, i) => (
+              <li key={i} className="text-sm text-slate-700">{a.descrizione}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Distinta di Taglio</h1>
