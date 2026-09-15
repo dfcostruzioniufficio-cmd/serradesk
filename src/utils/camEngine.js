@@ -60,6 +60,11 @@ export function runCamEngine(items, barLength = 6500) {
   // Articoli scartati perche' la loro tipologia non ha ancora un calcolo
   // dedicato (oggi: gli scorrevoli).
   const apertureNonSupportate = [];
+  // Pezzi che non si possono calcolare con le misure inserite (per esempio
+  // un traverso cosi' alto o basso da non lasciare spazio al fermavetro).
+  // Vanno mostrati: una distinta a cui mancano pezzi in silenzio fa
+  // scoprire il problema in officina.
+  const pezziNonCalcolati = [];
 
   for (const item of items) {
     if (item.type === 'custom' || item.type === 'complemento') continue;
@@ -334,6 +339,12 @@ export function runCamEngine(items, barLength = 6500) {
              const htCatalogo = (Number(item.traversoHeight) || 1000) - (Number(pb.quota_traverso_da_fondo_mm) || 0);
              const fvSopra = Math.round(sh - htCatalogo - Number(pb.fermavetro?.sopra_mm || 0));
              const fvSotto = Math.round(htCatalogo - Number(pb.fermavetro?.sotto_mm || 0));
+             if (!(fvSopra > 0 && fvSotto > 0)) {
+               pezziNonCalcolati.push({
+                 itemId: item.id,
+                 descrizione: `${item.model || `${item.apertura} ${numAnte} ante`} ${width}x${height}: traverso a ${Number(item.traversoHeight) || 1000} mm troppo ${fvSopra > 0 ? 'basso' : 'alto'}, i fermavetri dell'anta non sono calcolati`,
+               });
+             }
              if (fvSopra > 0 && fvSotto > 0) {
                for (let a = 0; a < numAnte; a++) {
                  const fvW = larghezzaFermavetro(a);
@@ -474,7 +485,7 @@ export function runCamEngine(items, barLength = 6500) {
   }
   const ferramentaRiepilogo = Object.values(ferramentaTotale);
 
-  return { itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti, apertureNonSupportate };
+  return { itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti, apertureNonSupportate, pezziNonCalcolati };
 }
 
 /**

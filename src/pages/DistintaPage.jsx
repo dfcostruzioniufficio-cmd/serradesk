@@ -224,6 +224,23 @@ export default function DistintaPage() {
         </div>
       )}
 
+      {camResult?.pezziNonCalcolati?.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+          <h2 className="font-bold text-red-800 flex items-center gap-2 mb-2">
+            <Lock size={18} /> Pezzi mancanti nella distinta
+          </h2>
+          <p className="text-sm text-red-700 mb-3">
+            Con queste misure alcuni pezzi non si possono calcolare e non compaiono
+            nella distinta. Correggi l&#39;ordine prima di tagliare.
+          </p>
+          <ul className="space-y-1.5">
+            {camResult.pezziNonCalcolati.map((a, i) => (
+              <li key={i} className="text-sm text-red-800">{a.descrizione}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Distinta di Taglio</h1>
