@@ -212,7 +212,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const anteText = `${newItem.numAnte} ANT${newItem.numAnte > 1 ? 'E' : 'A'}`;
       let desc2 = `${newItem.apertura.toUpperCase()} ${anteText}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
       if (newItem.hasSopraluce) desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm`;
-      if (newItem.maniglioneAntipanico) desc2 += ' CON MANIGLIONE ANTIPANICO';
+      if (newItem.maniglioneAntipanico) {
+        const anteMan = Array.isArray(newItem.maniglioneAnte) ? [...newItem.maniglioneAnte].sort((a, b) => a - b) : null;
+        desc2 += ' CON MANIGLIONE ANTIPANICO';
+        if (Number(newItem.numAnte) > 1 && anteMan && anteMan.length && anteMan.length < Number(newItem.numAnte)) {
+          desc2 += ` SU ANT${anteMan.length > 1 ? 'E' : 'A'} ${anteMan.map(i => i + 1).join(' E ')}`;
+        }
+      }
       
       const sistemaCam = sistemiCam.find(s => s.id === newItem.sistemaCamId) || null;
       const isPersiana = newItem.apertura.toLowerCase().includes('persiana');
@@ -229,6 +235,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // La spunta si vedeva nell'anteprima ma non veniva copiata
         // nell'articolo: nel preventivo e nel PDF tornava la maniglia normale.
         maniglioneAntipanico: !!newItem.maniglioneAntipanico,
+        maniglioneAnte: Array.isArray(newItem.maniglioneAnte) ? newItem.maniglioneAnte.filter(i => i < Number(newItem.numAnte)) : null,
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(newItem.unitPrice),
         frameColor: newItem.frameColor, colorName: newItem.colorName,

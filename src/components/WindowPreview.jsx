@@ -28,6 +28,8 @@ export default function WindowPreview({
   paneConfigs = {},
   anteWidths = null,
   maniglioneAntipanico = false,
+  // Indici delle ante con il maniglione. Assente (articoli vecchi): tutte.
+  maniglioneAnte = null,
   maxQuoteWidth = null,
   maxQuoteHeight = null,
   isExporting = false
@@ -255,6 +257,8 @@ export default function WindowPreview({
         {/* ── ANTE ── */}
         {ante.map((_, i) => {
           const { openingEdge: edge, hasHandle } = getOpeningInfo(i);
+          const conManiglione = maniglioneAntipanico
+            && (Array.isArray(maniglioneAnte) ? maniglioneAnte.includes(i) : true);
           const showRibalta = antaRibalta && edge && (edge === 'left' || edge === 'right') && hasHandle;
           const innerW = dW - FT * 2;
 
@@ -429,7 +433,7 @@ export default function WindowPreview({
               })()}
 
               {/* ── MANIGLIA CREMONESE 3D ── */}
-              {edge && hasHandle && (() => {
+              {edge && hasHandle && !conManiglione && (() => {
                 const isV = edge === 'right' || edge === 'left';
                 const hx = edge === 'right' ? ax + aw - AT - 2
                          : edge === 'left'  ? ax + AT - 4
@@ -475,53 +479,44 @@ export default function WindowPreview({
                 );
               })()}
 
-              {/* ── MANIGLIONE ANTIPANICO (Design Tecnico CISA/Savio) ── */}
-              {maniglioneAntipanico && (() => {
-                const pY = ay + ah * 0.6;
-                const bracketW = Math.max(8, Math.min(14, aw * 0.1));
-                const bracketH = 46;
-                
-                // Centriamo le basi sui montanti dell'anta
-                const bx1 = ax + AT * 0.5 - bracketW / 2;
-                const bx2 = ax + aw - AT * 0.5 - bracketW / 2;
-                
-                // Estensione dei bracci proporzionale
-                const armExt = Math.min(bracketW * 1.5, aw * 0.15);
-                const barX1 = bx1 + bracketW + armExt;
-                const barX2 = bx2 - armExt;
-                const barW = Math.max(2, barX2 - barX1);
-                const barH = 10;
-                
+              {/* ── MANIGLIONE ANTIPANICO ──
+                  Barra a spinta orizzontale fra due scatole di testa, all'altezza
+                  di circa un metro. Sull'anta col maniglione la maniglia normale
+                  non si disegna: nella realta' il maniglione la sostituisce. */}
+              {conManiglione && aw > AT * 2 + 12 && (() => {
+                const interno0 = ax + AT;
+                const interno1 = ax + aw - AT;
+                // Con il traverso il maniglione si monta li', circa a un metro.
+                const pY = hasTraverso ? traversoY : ay + ah * 0.56;
+                const scala = Math.max(0.7, Math.min(1.2, ah / 200));
+                const barH = 5 * scala;
+                const testaW = 7 * scala;
+                const testaHCerniera = 16 * scala;
+                const testaHSerratura = 24 * scala;
+                // La scatola della serratura sta sul lato che apre.
+                const serraturaDestra = edge !== 'left';
+                const hSx = serraturaDestra ? testaHCerniera : testaHSerratura;
+                const hDx = serraturaDestra ? testaHSerratura : testaHCerniera;
+                const xSx = interno0 + 1;
+                const xDx = interno1 - 1 - testaW;
+                const barX = xSx + testaW - 1;
+                const barW = Math.max(4, xDx - barX + 1);
+                const scatola = (x, h) => (
+                  <g>
+                    <rect x={x} y={pY - h / 2} width={testaW} height={h} rx={testaW * 0.45}
+                      fill={`url(#metalCilinder_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.6"/>
+                    <rect x={x + testaW * 0.3} y={pY - h / 2 + 2} width={testaW * 0.4} height={h - 4} rx={testaW * 0.2}
+                      fill="rgba(255,255,255,0.35)"/>
+                  </g>
+                );
                 return (
-                  <g filter="drop-shadow(0px 2px 2px rgba(0,0,0,0.3))">
-                    {/* Barra Orizzontale Centrale */}
-                    <rect x={barX1} y={pY - barH/2} width={barW} height={barH} fill="#f8fafc" stroke="#1e293b" strokeWidth="1"/>
-
-                    {/* Supporto Sinistro (Base + Braccio curvo) */}
-                    <rect x={bx1} y={pY - bracketH/2} width={bracketW} height={bracketH} fill="#475569" stroke="#1e293b" strokeWidth="1"/>
-                    <path d={`
-                      M ${bx1+bracketW} ${pY - bracketH*0.15} 
-                      C ${bx1+bracketW + armExt*0.6} ${pY - bracketH*0.15}, 
-                        ${barX1 - armExt*0.2} ${pY - barH/2}, 
-                        ${barX1} ${pY - barH/2} 
-                      L ${barX1} ${pY + barH/2} 
-                      L ${bx1+bracketW} ${pY + barH/2} 
-                      Z
-                    `} fill="#475569" stroke="#1e293b" strokeWidth="1"/>
-                    {/* Dettaglio serratura */}
-                    <rect x={bx1 + bracketW*0.2} y={pY - bracketH*0.3} width={bracketW*0.6} height={bracketW*0.6} fill="none" stroke="#94a3b8" strokeWidth="0.5" strokeDasharray="1,1"/>
-
-                    {/* Supporto Destro (Base + Braccio curvo) */}
-                    <rect x={bx2} y={pY - bracketH/2} width={bracketW} height={bracketH} fill="#475569" stroke="#1e293b" strokeWidth="1"/>
-                    <path d={`
-                      M ${bx2} ${pY - bracketH*0.15} 
-                      C ${bx2 - armExt*0.6} ${pY - bracketH*0.15}, 
-                        ${barX2 + armExt*0.2} ${pY - barH/2}, 
-                        ${barX2} ${pY - barH/2} 
-                      L ${barX2} ${pY + barH/2} 
-                      L ${bx2} ${pY + barH/2} 
-                      Z
-                    `} fill="#475569" stroke="#1e293b" strokeWidth="1"/>
+                  <g filter="drop-shadow(1px 2px 2px rgba(0,0,0,0.35))">
+                    <rect x={barX} y={pY - barH / 2} width={barW} height={barH} rx={barH / 2}
+                      fill={`url(#metalCilinderV_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.6"/>
+                    <line x1={barX + 3} y1={pY - barH * 0.18} x2={barX + barW - 3} y2={pY - barH * 0.18}
+                      stroke="rgba(255,255,255,0.75)" strokeWidth={Math.max(0.8, barH * 0.22)} strokeLinecap="round"/>
+                    {scatola(xSx, hSx)}
+                    {scatola(xDx, hDx)}
                   </g>
                 );
               })()}

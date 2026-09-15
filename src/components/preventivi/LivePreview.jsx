@@ -82,6 +82,7 @@ export default function LivePreview({ newItem, paneConfigs }) {
             paneConfigs={paneConfigs}
             anteWidths={newItem.anteAsimmetriche ? newItem.anteWidths : null}
             maniglioneAntipanico={newItem.maniglioneAntipanico}
+            maniglioneAnte={newItem.maniglioneAnte}
           />
         )}
       </div>

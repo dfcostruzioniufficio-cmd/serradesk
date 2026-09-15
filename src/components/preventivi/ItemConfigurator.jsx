@@ -44,6 +44,17 @@ export default function ItemConfigurator({
     }
   };
 
+
+  // Accendendo il maniglione si parte dall'anta che ha la maniglia (quella
+  // che apre per prima): e' quasi sempre li' che va, e si puo' cambiare.
+  const attivaManiglione = (acceso) => {
+    updateItemField('maniglioneAntipanico', acceso);
+    if (acceso) {
+      const ante = Math.max(1, Number(newItem.numAnte) || 1);
+      updateItemField('maniglioneAnte', [newItem.handlePosition === 'left' ? 0 : ante - 1]);
+    }
+  };
+
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <div className="flex flex-wrap gap-2 md:gap-4 border-b pb-3 mb-6">
@@ -319,8 +330,8 @@ export default function ItemConfigurator({
               <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
                 <input 
                   type="checkbox" 
-                  checked={newItem.maniglioneAntipanico} 
-                  onChange={e => updateItemField('maniglioneAntipanico', e.target.checked)} 
+                  checked={!!newItem.maniglioneAntipanico} 
+                  onChange={e => attivaManiglione(e.target.checked)} 
                   disabled={newItem.apertura?.toLowerCase() !== 'porta blindata'} 
                   className="w-4 h-4 rounded text-blue-600" 
                 />
@@ -366,9 +377,26 @@ export default function ItemConfigurator({
                 <span className="text-sm font-medium text-gray-700">Ante Asimmetriche</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
-                <input type="checkbox" checked={!!newItem.maniglioneAntipanico} onChange={e => updateItemField('maniglioneAntipanico', e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+                <input type="checkbox" checked={!!newItem.maniglioneAntipanico} onChange={e => attivaManiglione(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
                 <span className="text-sm font-medium text-gray-700">Maniglione Antipanico</span>
               </label>
+              {newItem.maniglioneAntipanico && Number(newItem.numAnte) > 1 && (
+                // Su quale anta: di solito solo quella che apre per prima.
+                <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                  <span className="text-sm font-medium text-gray-700">Su anta:</span>
+                  {Array.from({ length: Number(newItem.numAnte) }, (_, i) => {
+                    const scelte = Array.isArray(newItem.maniglioneAnte) ? newItem.maniglioneAnte : [];
+                    const attiva = scelte.includes(i);
+                    return (
+                      <button key={i} type="button"
+                        onClick={() => updateItemField('maniglioneAnte', attiva ? scelte.filter(x => x !== i) : [...scelte, i])}
+                        className={`h-8 min-w-8 px-2.5 rounded-md text-sm font-bold border transition-colors ${attiva ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        {i + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {newItem.anteAsimmetriche && (
