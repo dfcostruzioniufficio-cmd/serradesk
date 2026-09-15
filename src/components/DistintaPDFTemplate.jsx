@@ -47,6 +47,8 @@ const partLabel = (part) => {
 
   const travAnta = part.match(/^traverso_anta_(\d+)$/);
   if (travAnta) return `Traverso Anta ${travAnta[1]}`;
+  const travAntaProfilo = part.match(/^traverso_anta_(\d+)_p(\d+)$/);
+  if (travAntaProfilo) return `Traverso Anta ${travAntaProfilo[1]} (profilo ${travAntaProfilo[2]})`;
   if (part === 'traverso_centrale') return 'Traverso centrale';
   if (part === 'traverso_sopraluce') return 'Traverso sopraluce';
 

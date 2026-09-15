@@ -162,8 +162,18 @@ export function runCamEngine(items, barLength = 6500) {
     // traversa inferiore restava lunga quanto il telaio e la soglia mancava
     // del tutto dalla distinta. Campi facoltativi: gli altri sistemi non
     // cambiano.
-    const detrTraversaInf = numeroValido(ti.detrazione_mm) ? Number(ti.detrazione_mm) : 0;
-    const soglia = ti.soglia && ti.soglia.codice ? ti.soglia : null;
+    // Porta balcone: un'anta con il traverso. Nei cataloghi ha una distinta
+    // sua (Sapa R40 pag.120, R72TT pag.113-114): il telaio non ha soglia, la
+    // traversa inferiore e' quella bassa senza aletta, il traverso dell'anta
+    // e' fatto di due profili dedicati e il fermavetro si spezza sopra e
+    // sotto il traverso secondo la sua altezza. I dati stanno nel sistema
+    // (specs.porta_balcone); senza, il traverso resta calcolato come prima.
+    const pb = (!isFisso && item.hasTraverso && !item.hasSopraluce && sys?.specs?.porta_balcone)
+      ? sys.specs.porta_balcone : null;
+    const detrTraversaInf = pb && numeroValido(pb.traversa_inf_detrazione_mm)
+      ? Number(pb.traversa_inf_detrazione_mm)
+      : (numeroValido(ti.detrazione_mm) ? Number(ti.detrazione_mm) : 0);
+    const soglia = (!(pb && pb.senza_soglia) && ti.soglia && ti.soglia.codice) ? ti.soglia : null;
     if (soglia) profileLabels[soglia.codice] = soglia.descrizione || soglia.codice;
     const framepieces = [
       { part: 'frame_top',    profile: cTelStd, mm: fw + saldTel, sald: saldTel },
@@ -316,7 +326,31 @@ export function runCamEngine(items, barLength = 6500) {
            return Math.round(base) - detrFermavetroL;
          };
 
-         if (item.hasTraverso) {
+         if (pb) {
+             // Quote della distinta del produttore. HT e' l'altezza dell'asse
+             // del traverso misurata dalla linea H del catalogo, che sta
+             // quota_traverso_da_fondo_mm sopra il fondo del telaio: nel
+             // preventivo l'altezza del traverso si misura dal fondo.
+             const htCatalogo = (Number(item.traversoHeight) || 1000) - (Number(pb.quota_traverso_da_fondo_mm) || 0);
+             const fvSopra = Math.round(sh - htCatalogo - Number(pb.fermavetro?.sopra_mm || 0));
+             const fvSotto = Math.round(htCatalogo - Number(pb.fermavetro?.sotto_mm || 0));
+             if (fvSopra > 0 && fvSotto > 0) {
+               for (let a = 0; a < numAnte; a++) {
+                 const fvW = larghezzaFermavetro(a);
+                 if (fvW <= 0) continue;
+                 fermavetroPieces.push(
+                   { part: `ferm_${a+1}_top`,       profile: fv.codice, mm: fvW },
+                   { part: `ferm_${a+1}_mid_top`,   profile: fv.codice, mm: fvW },
+                   { part: `ferm_${a+1}_left_sup`,  profile: fv.codice, mm: fvSopra },
+                   { part: `ferm_${a+1}_right_sup`, profile: fv.codice, mm: fvSopra },
+                   { part: `ferm_${a+1}_mid_bot`,   profile: fv.codice, mm: fvW },
+                   { part: `ferm_${a+1}_bottom`,    profile: fv.codice, mm: fvW },
+                   { part: `ferm_${a+1}_left_inf`,  profile: fv.codice, mm: fvSotto },
+                   { part: `ferm_${a+1}_right_inf`, profile: fv.codice, mm: fvSotto }
+                 );
+               }
+             }
+         } else if (item.hasTraverso) {
              const ingombroTraverso = 50;
              const fvH_mezzo = (fvH - ingombroTraverso) / 2;
              if (fvH_mezzo > 0) {
@@ -358,6 +392,22 @@ export function runCamEngine(items, barLength = 6500) {
       if (isFisso) {
         // Se è fisso, il traverso taglia il telaio ed è unico
         traversoPieces.push({ part: 'traverso_centrale', profile: 'TRAV-GEN', mm: fw + saldTel });
+      } else if (pb && Array.isArray(pb.traverso) && pb.traverso.length) {
+        // Traverso della porta balcone: ogni profilo della distinta, uno per
+        // anta, tagliato alla larghezza di quell'anta meno la sua detrazione.
+        pb.traverso.forEach((t) => {
+          if (t.codice) profileLabels[t.codice] = t.descrizione || t.codice;
+        });
+        for (let a = 0; a < numAnte; a++) {
+          const swA = Number.isFinite(larghezzeAnte[a]) ? Math.round(larghezzeAnte[a]) : sw;
+          pb.traverso.forEach((t, k) => {
+            traversoPieces.push({
+              part: k === 0 ? `traverso_anta_${a+1}` : `traverso_anta_${a+1}_p${k+1}`,
+              profile: t.codice || 'TRAV-GEN',
+              mm: Math.round(swA - (Number(t.detrazione_mm) || 0)),
+            });
+          });
+        }
       } else {
         // Se ci sono le ante, il traverso sta dentro ogni singola anta
         for (let a = 0; a < numAnte; a++) {
