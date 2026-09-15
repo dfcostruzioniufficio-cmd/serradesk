@@ -50,6 +50,13 @@ const partLabel = (part) => {
   const travAntaProfilo = part.match(/^traverso_anta_(\d+)_p(\d+)$/);
   if (travAntaProfilo) return `Traverso Anta ${travAntaProfilo[1]} (profilo ${travAntaProfilo[2]})`;
   if (part === 'traverso_centrale') return 'Traverso centrale';
+
+  const riempimento = part.match(/^(lamelle|doghe)_(\d+)$/);
+  if (riempimento) return `${riempimento[1] === 'lamelle' ? 'Lamelle' : 'Doghe'} Anta ${riempimento[2]}`;
+  const compensatore = part.match(/^compensatore_(\d+)$/);
+  if (compensatore) return `Compensatore Anta ${compensatore[1]}`;
+  const asta = part.match(/^asta_(\d+)$/);
+  if (asta) return `Asta di comando Anta ${asta[1]}`;
   if (part === 'traverso_sopraluce') return 'Traverso sopraluce';
 
   return part;
@@ -84,8 +91,10 @@ function listaDiTaglio(itemResults, nesting) {
       const chiave = Math.round(pezzo.mm);
       if (!misure.has(chiave)) misure.set(chiave, { mm: chiave, qta: 0, da: new Map(), esempio: pezzo.part });
       const riga = misure.get(chiave);
-      riga.qta += quante;
-      riga.da.set(rif(idx), (riga.da.get(rif(idx)) || 0) + quante);
+      // n: pezzi uguali descritti una volta sola (le lamelle di un'anta).
+      const pezziQui = quante * (Number(pezzo.n) || 1);
+      riga.qta += pezziQui;
+      riga.da.set(rif(idx), (riga.da.get(rif(idx)) || 0) + pezziQui);
     }
   });
 
@@ -295,6 +304,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
               <span><span style={{ color: GRIGIO }}>Inserite </span><b>{it.width}×{it.height}</b></span>
               <span><span style={{ color: GRIGIO }}>Telaio finito </span><b>{it.frame.width}×{it.frame.height}</b></span>
               {it.sash && <span><span style={{ color: GRIGIO }}>Anta finita </span><b>{it.sash.width}×{it.sash.height}</b></span>}
+              {it.persiana && <span><span style={{ color: GRIGIO }}>{it.persiana.tipo === 'doghe' ? 'Doghe' : 'Lamelle'} per anta </span><b>{it.persiana.perAnta}</b><span style={{ color: GRIGIO }}> · passo {it.persiana.passo} mm</span></span>}
             </div>
             <table style={TABELLA}>
               <thead>
@@ -307,7 +317,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
               <tbody>
                 {it.bom.map((b, bi) => (
                   <tr key={bi}>
-                    <td style={{ ...TD, fontSize: '8.5px' }}>{partLabel(b.part)}</td>
+                    <td style={{ ...TD, fontSize: '8.5px' }}>{partLabel(b.part)}{Number(b.n) > 1 && <b> × {b.n}</b>}</td>
                     <td style={{ ...TD, fontFamily: MONO, fontSize: '8px', color: '#5a6b7d', width: '24%' }}>{b.profile}</td>
                     <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 700, width: '20%' }}>{b.mm}</td>
                   </tr>

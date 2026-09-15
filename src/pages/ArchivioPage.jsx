@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import AIPdfImporter from '../components/AIPdfImporter';
+import PersianaTaglioForm from '../components/archivio/PersianaTaglioForm';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
 export const DEFAULT_SISTEMI = [
@@ -481,7 +482,21 @@ export default function ArchivioPage() {
                   </div>
                 )}
 
-                {formTab === 'taglio' && (
+                {formTab === 'taglio' && form.tipologia === 'PERSIANA' && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                    {/* Una persiana non ha vetro, battuta ne' fermavetro: i campi
+                        della finestra qui sarebbero solo fuorvianti. */}
+                    <PersianaTaglioForm
+                      value={form.specs?.persiana}
+                      onChange={(persiana) => setForm((p) => ({ ...p, specs: { ...p.specs, persiana } }))}
+                    />
+                    <Button onClick={() => setFormTab('commerciale')} variant="ghost" className="w-full mt-2 text-gray-500">
+                      ← Torna ai Dati Commerciali
+                    </Button>
+                  </div>
+                )}
+
+                {formTab === 'taglio' && form.tipologia !== 'PERSIANA' && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div className="flex justify-between items-center bg-orange-50 p-3 rounded-xl border border-orange-200">
                       <div>

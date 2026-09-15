@@ -7,6 +7,8 @@
  * Solo BAR_MM, KERF, END_TRIM sono costanti macchina.
  */
 
+import { ePersiana, calcolaPersiana, datiMancantiPersiana, ferramentaPersiana } from './persianaEngine.js';
+
 const KERF     = 4;
 const END_TRIM = 20;
 const DOUBLE_TRIM = END_TRIM * 2; // Sbucciatura per difetti su ambo i lati
@@ -91,6 +93,40 @@ export function runCamEngine(items, barLength = 6500) {
         itemId: item.id,
         apertura: item.apertura,
         descrizione: item.model || `${item.apertura} ${numAnte} ante`,
+      });
+      continue;
+    }
+
+    // Persiane e scuroni hanno un calcolo loro (niente vetro, lamelle o
+    // doghe a passo): vedi persianaEngine.js.
+    if (ePersiana(item, sys)) {
+      const mancano = datiMancantiPersiana(sys?.specs?.persiana);
+      if (mancano.length) {
+        sistemiIncompleti.push({
+          itemId: item.id,
+          sistema: sys?.nome || 'Sistema senza nome',
+          marca: sys?.marca || '',
+          mancano,
+        });
+        continue;
+      }
+      const ris = calcolaPersiana(item, sys);
+      Object.assign(profileLabels, ris.etichette);
+      ris.avvisi.forEach((descrizione) => pezziNonCalcolati.push({ itemId: item.id, descrizione }));
+      for (let q = 0; q < qty; q++) {
+        for (const pz of ris.pezzi) {
+          for (let k = 0; k < (pz.n || 1); k++) allBom.push({ ...pz, itemId: item.id, qty });
+        }
+      }
+      itemResults.push({
+        id: item.id,
+        description: item.model || `${item.apertura} ${numAnte} ante`,
+        width, height, qty,
+        frame: ris.frame,
+        sash: ris.sash,
+        persiana: ris.dettaglio,
+        bom: ris.pezzi,
+        ferramenta: ferramentaPersiana(item, numAnte, qty, ris.dettaglio?.conTelaio),
       });
       continue;
     }
