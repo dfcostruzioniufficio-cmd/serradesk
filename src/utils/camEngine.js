@@ -110,6 +110,10 @@ export function runCamEngine(items, barLength = 6500) {
       continue;
     }
 
+    // Un solo controllo per tutti i campi numerici facoltativi: Number.isFinite
+    // da solo non basta, perche' Number(null) vale 0 e passerebbe.
+    const numeroValido = (v) => v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v));
+
     const ts  = tsReale;
     const ti  = sys?.profilo_basso || sys?.telaio_inf || DEF.profilo_basso;
     const ant = antReale || DEF.profilo_anta;
@@ -151,11 +155,23 @@ export function runCamEngine(items, barLength = 6500) {
     const fh = height - tolleranza + alettaLat + alettaInf;
 
     // BOM telaio
+    // Non tutte le serie chiudono il telaio con quattro pezzi uguali. Nella
+    // Sapa R40 la traversa inferiore (900226) e' un profilo senza aletta e si
+    // taglia a L, cioe' 44 mm meno del telaio finito, e sotto va una soglia
+    // (900273) tagliata dritta a tutta larghezza. Senza questi dati la
+    // traversa inferiore restava lunga quanto il telaio e la soglia mancava
+    // del tutto dalla distinta. Campi facoltativi: gli altri sistemi non
+    // cambiano.
+    const detrTraversaInf = numeroValido(ti.detrazione_mm) ? Number(ti.detrazione_mm) : 0;
+    const soglia = ti.soglia && ti.soglia.codice ? ti.soglia : null;
+    if (soglia) profileLabels[soglia.codice] = soglia.descrizione || soglia.codice;
     const framepieces = [
       { part: 'frame_top',    profile: cTelStd, mm: fw + saldTel, sald: saldTel },
-      { part: 'frame_bottom', profile: cTelInf, mm: fw + saldTel, sald: saldTel },
+      { part: 'frame_bottom', profile: cTelInf, mm: fw - detrTraversaInf + saldTel, sald: saldTel },
       { part: 'frame_left',   profile: cTelStd, mm: fh + saldTel, sald: saldTel },
       { part: 'frame_right',  profile: cTelStd, mm: fh + saldTel, sald: saldTel },
+      ...(soglia ? [{ part: 'frame_soglia', profile: soglia.codice,
+                      mm: fw - (numeroValido(soglia.detrazione_mm) ? Number(soglia.detrazione_mm) : 0) }] : []),
     ];
 
     // BOM anta
@@ -173,7 +189,6 @@ export function runCamEngine(items, barLength = 6500) {
     // Number(null) vale 0 e passerebbe. Usato in due modi diversi sullo stesso
     // dato, un campo nullo attivava questo ramo ma veniva poi rifiutato piu'
     // sotto, e l'anta usciva piu' grande del telaio.
-    const numeroValido = (v) => v !== null && v !== '' && Number.isFinite(Number(v));
 
     const haDatiAnta = rebate > 0
       || numeroValido(ant.detrazione_larghezza_mm)

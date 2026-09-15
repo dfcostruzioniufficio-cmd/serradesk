@@ -16,6 +16,7 @@ const PART_IT = {
   frame_bottom: 'Traversa INF. Telaio',
   frame_left:   'Montante SX Telaio',
   frame_right:  'Montante DX Telaio',
+  frame_soglia: 'Soglia Telaio',
   traverso_1:   'Traverso Intermedio 1',
   traverso_2:   'Traverso Intermedio 2',
 };
