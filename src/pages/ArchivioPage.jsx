@@ -146,7 +146,7 @@ export default function ArchivioPage() {
       user_id: user.id,
       nome: form.nome,
       marca: form.marca,
-      materiale: 'Non specificato',
+      materiale: form.materiale || 'Non specificato',
       tipologia: form.tipologia,
       calc_type: form.calcType,
       base_price: Number(form.basePrice) || 0,
@@ -256,12 +256,18 @@ export default function ArchivioPage() {
         calcType: s.calc_type || 'mq',
         basePrice: s.base_price || '',
         is_active: s.is_active ?? true,
+        // Tutto l'oggetto specs, non solo i campi mostrati nel modulo: dentro
+        // ci sono anche materiale, porta balcone e persiana. Ricostruendolo
+        // con quattro campi, il primo salvataggio dall'Archivio li cancellava
+        // e il sistema tornava a calcolare le porte finestre come finestre.
         specs: {
+          ...(s.specs || {}),
           trasmittanza: s.specs?.trasmittanza || '',
           colInt: s.specs?.colInt || '',
           colEst: s.specs?.colEst || '',
           accessori: s.specs?.accessori || ''
         },
+        materiale: s.materiale || '',
         profilo_lati: s.telaio_std || VUOTO.profilo_lati,
         profilo_basso: s.telaio_inf || VUOTO.profilo_basso,
         profilo_anta: s.anta || VUOTO.profilo_anta,
@@ -290,12 +296,18 @@ export default function ArchivioPage() {
         tipologia: s.tipologia || 'BATTENTE',
         calcType: s.calc_type || 'mq',
         basePrice: s.base_price || '',
+        // Tutto l'oggetto specs, non solo i campi mostrati nel modulo: dentro
+        // ci sono anche materiale, porta balcone e persiana. Ricostruendolo
+        // con quattro campi, il primo salvataggio dall'Archivio li cancellava
+        // e il sistema tornava a calcolare le porte finestre come finestre.
         specs: {
+          ...(s.specs || {}),
           trasmittanza: s.specs?.trasmittanza || '',
           colInt: s.specs?.colInt || '',
           colEst: s.specs?.colEst || '',
           accessori: s.specs?.accessori || ''
         },
+        materiale: s.materiale || '',
         profilo_lati: s.telaio_std || VUOTO.profilo_lati,
         profilo_basso: s.telaio_inf || VUOTO.profilo_basso,
         profilo_anta: s.anta || VUOTO.profilo_anta,
