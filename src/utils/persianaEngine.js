@@ -18,11 +18,20 @@ const numero = (v) => v !== undefined && v !== null && v !== '' && Number.isFini
 const quota = (v) => (numero(v) ? Number(v) : 0);
 
 /**
- * Dice se un articolo va calcolato come persiana.
+ * Dice se un articolo va calcolato come persiana. Decide solo l'apertura
+ * scelta nel preventivo: il sistema puo' essere stato selezionato per
+ * sbaglio, e una finestra con un sistema persiana deve dare un avviso, non
+ * una distinta di persiana credibile.
  */
-export function ePersiana(item, sys) {
-  return String(item?.apertura || '').toLowerCase().includes('persiana')
-    || String(sys?.tipologia || '').toUpperCase().startsWith('PERSIANA');
+export function ePersiana(item) {
+  return String(item?.apertura || '').toLowerCase().includes('persiana');
+}
+
+/**
+ * Il sistema scelto e' di tipo persiana/scurone.
+ */
+export function sistemaPersiana(sys) {
+  return String(sys?.tipologia || '').toUpperCase().startsWith('PERSIANA');
 }
 
 /**

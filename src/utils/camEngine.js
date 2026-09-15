@@ -7,7 +7,7 @@
  * Solo BAR_MM, KERF, END_TRIM sono costanti macchina.
  */
 
-import { ePersiana, calcolaPersiana, datiMancantiPersiana, ferramentaPersiana } from './persianaEngine.js';
+import { ePersiana, sistemaPersiana, calcolaPersiana, datiMancantiPersiana, ferramentaPersiana } from './persianaEngine.js';
 
 const KERF     = 4;
 const END_TRIM = 20;
@@ -99,7 +99,21 @@ export function runCamEngine(items, barLength = 6500) {
 
     // Persiane e scuroni hanno un calcolo loro (niente vetro, lamelle o
     // doghe a passo): vedi persianaEngine.js.
-    if (ePersiana(item, sys)) {
+    // Apertura e sistema devono essere dello stesso tipo: con il sistema
+    // sbagliato i tagli sarebbero calcolati con la formula sbagliata.
+    if (ePersiana(item) !== sistemaPersiana(sys)) {
+      sistemiIncompleti.push({
+        itemId: item.id,
+        sistema: sys?.nome || 'Sistema senza nome',
+        marca: sys?.marca || '',
+        mancano: [ePersiana(item)
+          ? `un sistema di tipo persiana: "${item.apertura}" e' stata associata a un sistema da finestra`
+          : `un sistema da finestra: "${item.apertura || 'l\'articolo'}" e' stato associato a un sistema di tipo persiana`],
+      });
+      continue;
+    }
+
+    if (ePersiana(item)) {
       const mancano = datiMancantiPersiana(sys?.specs?.persiana);
       if (mancano.length) {
         sistemiIncompleti.push({
@@ -126,7 +140,8 @@ export function runCamEngine(items, barLength = 6500) {
         sash: ris.sash,
         persiana: ris.dettaglio,
         bom: ris.pezzi,
-        ferramenta: ferramentaPersiana(item, numAnte, qty, ris.dettaglio?.conTelaio),
+        // Senza pezzi tagliati non si stima nemmeno la ferramenta.
+        ferramenta: ris.pezzi.length ? ferramentaPersiana(item, numAnte, qty, ris.dettaglio?.conTelaio) : [],
       });
       continue;
     }
