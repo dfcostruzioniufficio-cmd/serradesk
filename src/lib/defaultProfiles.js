@@ -59,6 +59,8 @@ export const VETRI_DI_RIFERIMENTO = [
   { nome: 'Vetrocamera 4/16/4 basso emissivo, argon', ug: '1.1', categoria: 'Doppio vetro', fonte: 'AGC iplus 1.1, 4/16/4 argon 90%, EN 673' },
   { nome: 'Vetrocamera 4/16/4 basso emissivo alte prestazioni, argon', ug: '1.0', categoria: 'Doppio vetro', fonte: 'AGC iplus 1.0, 4/16/4 argon 90%, EN 673; Saint-Gobain Planitherm One 4-16Ar-4: 1,0' },
   { nome: 'Vetrocamera controllo solare 6/16/4 basso emissivo, argon', ug: '1.0', categoria: 'Doppio vetro', fonte: 'AGC Stopray Vision / Energy 6/16/4 argon 90%, EN 673' },
+  { nome: 'Vetrocamera di sicurezza 33.1/14/33.1 (6/7) basso emissivo, argon', ug: '1.1', categoria: 'Sicurezza e acustici', fonte: 'Calcolo EN 673 (1,12-1,14 W/m²K) con basso emissivo tarato sui valori dichiarati AGC iplus 1.1 (4/16/4 Ar 1,1) e Guardian ClimaGuard Premium (4/16/4 aria 1,36)' },
+  { nome: 'Vetrocamera di sicurezza 33.1/14/33.1 (6/7) basso emissivo, aria', ug: '1.4', categoria: 'Sicurezza e acustici', fonte: 'Calcolo EN 673 (1,42-1,44 W/m²K) con basso emissivo tarato sui valori dichiarati AGC iplus 1.1 (4/16/4 Ar 1,1) e Guardian ClimaGuard Premium (4/16/4 aria 1,36)' },
   { nome: 'Triplo vetro 4/12/4/12/4 due basso emissivi, argon', ug: '0.7', categoria: 'Triplo vetro', fonte: 'AGC ipaphon 33/36, 4/12/4/12/4 argon 90%, EN 673' },
   { nome: 'Triplo vetro 4/16/4/16/4 due basso emissivi, argon', ug: '0.6', categoria: 'Triplo vetro', fonte: 'AGC iplus 1.1 tripla, 4/16/4/16/4 argon 90%, EN 673' },
   { nome: 'Triplo vetro 4/16/4/16/4 alte prestazioni, argon', ug: '0.5', categoria: 'Triplo vetro', fonte: 'AGC iplus 1.0 tripla, 4/16/4/16/4 argon 90%, EN 673' },
