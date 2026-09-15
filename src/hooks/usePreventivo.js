@@ -246,9 +246,6 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // La spunta si vedeva nell'anteprima ma non veniva copiata
         // nell'articolo: nel preventivo e nel PDF tornava la maniglia normale.
         maniglioneAntipanico: !!newItem.maniglioneAntipanico,
-        // Prezzo calcolato con avvolgimento e minimi della tapparella (vedi
-        // calculateItemMq): serve a distinguere questi articoli dai vecchi.
-        regolaTapparella: newItem.apertura === 'Tapparella' || undefined,
         maniglioneAnte: anteManiglione,
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(newItem.unitPrice),
