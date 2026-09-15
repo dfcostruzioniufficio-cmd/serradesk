@@ -342,9 +342,11 @@ function Sezione({ n, titolo, nota, nuovaPagina }) {
         breakInside: 'avoid', pageBreakInside: 'avoid' };
   return (
     <div style={spaziatura}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', borderBottom: `1px solid ${BLU}`, paddingBottom: '2px' }}>
-        <span style={{ background: BLU, color: '#fff', fontSize: '8px', fontWeight: 800, padding: '1px 5px', borderRadius: '2px' }}>{n}</span>
-        <span style={{ fontSize: '11.5px', fontWeight: 800, color: BLU, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{titolo}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', borderBottom: `1px solid ${BLU}`, paddingBottom: '3px' }}>
+        {/* Numero nel titolo e non in un quadratino colorato: Safari disegna il
+            testo un paio di pixel piu' in basso e dentro un riquadro cosi'
+            piccolo il numero usciva dal bordo. */}
+        <span style={{ fontSize: '11.5px', fontWeight: 800, color: BLU, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{n}. {titolo}</span>
       </div>
       {nota && <div style={{ fontSize: '8px', color: GRIGIO, marginTop: '3px' }}>{nota}</div>}
     </div>
@@ -359,6 +361,16 @@ const FOGLIO = {
   fontFamily: 'Arial, Helvetica, sans-serif',
   fontSize: '9.5px',
   color: '#111',
+  // Il foglio eredita dal sito l'interlinea 1,5 di Tailwind e le legature
+  // attivate sul body (font-feature-settings "rlig" "calt"). Safari, dentro
+  // html2canvas, con quei due valori disegna il testo qualche pixel piu' in
+  // basso del suo riquadro e misura male gli spazi fra le parole: nel PDF i
+  // numeri di sezione uscivano tagliati e l'ultima riga delle tabelle finiva
+  // sotto il bordo. Qui si fissano valori neutri, uguali per tutti i browser.
+  lineHeight: 'normal',
+  fontFeatureSettings: 'normal',
+  fontVariantLigatures: 'none',
+  letterSpacing: 'normal',
   padding: '10px',
   // La larghezza la impone il contenitore (l'anteprima in pagina, oppure il
   // contenitore da 281mm che html2pdf crea in fase di esportazione). Quando
@@ -387,7 +399,7 @@ const META = {
   // arrotondamento il secondo blocco vada a capo da solo.
   width: '48.4%',
   marginRight: '1.4%',
-  lineHeight: 1.35,
+  lineHeight: 'normal',
 };
 
 // Niente sfondo bianco qui: il foglio e' gia' bianco, e su un blocco
@@ -414,6 +426,8 @@ const TABELLA = { width: '100%', borderCollapse: 'collapse' };
 const TH = { padding: '3px 7px', background: '#f7f9fb', borderBottom: '1px solid #d8e0e8',
              textAlign: 'center', fontWeight: 700, fontSize: '8px', color: '#44576b',
              textTransform: 'uppercase', letterSpacing: '0.2px' };
-const TD = { padding: '2.5px 7px', borderBottom: '1px solid #eef2f6' };
+// Un pixel in piu' sotto che sopra: html2canvas tende a disegnare il testo
+// leggermente basso e senza margine l'ultima riga toccava il bordo.
+const TD = { padding: '2.5px 7px 3.5px', borderBottom: '1px solid #eef2f6' };
 const ETI = { padding: '1px 6px 1px 0', color: GRIGIO, textAlign: 'right' };
 const VAL = { padding: '1px 0', fontWeight: 700 };

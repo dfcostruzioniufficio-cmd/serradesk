@@ -147,8 +147,23 @@ export default function DistintaPage() {
     const isZoomed = Math.abs(zoomFactor - 1) > 0.01;
     if (isZoomed) element.style.zoom = String(1 / zoomFactor);
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    // html2canvas misura dove cade la base del testo con un elemento di prova
+    // appeso al body della pagina, che eredita l'interlinea 1,5 del sito.
+    // Safari conta quell'interlinea in modo diverso da Chrome e disegnava
+    // tutto il testo del PDF qualche pixel piu' in basso: numeri tagliati e
+    // l'ultima riga delle tabelle sotto il bordo. Durante l'esportazione il
+    // body torna all'interlinea normale, poi si rimette com'era.
+    const interlineaPrima = document.body.style.lineHeight;
+    document.body.style.lineHeight = 'normal';
+    const ripristina = () => {
+      document.body.style.lineHeight = interlineaPrima;
       if (isZoomed) element.style.zoom = '';
+    };
+
+    html2pdf().set(opt).from(element).save().then(ripristina, (err) => {
+      ripristina();
+      console.error('Errore esportazione distinta:', err);
+      toast.error('Non sono riuscito a creare il PDF. Riprova.');
     });
   };
 
