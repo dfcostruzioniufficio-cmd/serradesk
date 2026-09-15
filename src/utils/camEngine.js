@@ -281,14 +281,24 @@ export function runCamEngine(items, barLength = 6500) {
          }
       } else if (haDatiAnta) {
          const ingombroVista = Number(ant.ingombro_vista_mm) || 70;
-         const fvH = sh - (ingombroVista * 2);
+         // Quanto si toglie all'anta per tagliare il fermavetro. I cataloghi
+         // non detraggono sempre la stessa quota nei due sensi: nella Sapa R40
+         // e' La-90 in larghezza ma Ha-134 in altezza, perche' i verticali
+         // vanno a battere fra i due orizzontali. Usando per tutti e due il
+         // doppio dell'ingombro a vista, i verticali del R40 uscivano 44 mm
+         // troppo lunghi. Senza il dato si resta al calcolo di prima.
+         const detrFermavetroL = numeroValido(ant.detrazione_fermavetro_larghezza_mm)
+           ? Number(ant.detrazione_fermavetro_larghezza_mm) : ingombroVista * 2;
+         const detrFermavetroH = numeroValido(ant.detrazione_fermavetro_altezza_mm)
+           ? Number(ant.detrazione_fermavetro_altezza_mm) : ingombroVista * 2;
+         const fvH = sh - detrFermavetroH;
          // Il fermavetro appartiene a una singola anta: si misura sulla
          // larghezza di QUELLA anta. Usando la media, con ante asimmetriche
          // uscivano tutti uguali - troppo lunghi per l'anta stretta (non
          // entrano) e troppo corti per la larga (non tengono il vetro).
          const larghezzaFermavetro = (a) => {
            const base = Number.isFinite(larghezzeAnte[a]) ? larghezzeAnte[a] : sw;
-           return Math.round(base) - (ingombroVista * 2);
+           return Math.round(base) - detrFermavetroL;
          };
 
          if (item.hasTraverso) {
