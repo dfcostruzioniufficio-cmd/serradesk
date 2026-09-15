@@ -208,7 +208,10 @@ export function calculateItemMq(item) {
   const numAnte = Number(item.numAnte) || 1;
   const isFisso = item.apertura === 'Fisso';
   
-  if (item.apertura === 'Tapparella') {
+  // Articolo gia' salvato: la regola tapparella solo se e' stato inserito con
+  // quella regola (regolaTapparella), cosi' i preventivi vecchi riaperti
+  // mostrano gli stessi m² di quando sono stati mandati.
+  if (item.apertura === 'Tapparella' && item.regolaTapparella) {
     mq = mqTapparella(item).mqFatturati;
   } else if (!isFisso && item.apertura !== 'Cassonetto') {
     if (numAnte === 1 && mq < 1.50) mq = 1.50;

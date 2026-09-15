@@ -183,7 +183,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const hM = Number(newItem.height) / 1000;
       let mq = wM * hM;
       const isFisso = newItem.complementoCalcType === 'fisso';
-      const tapparella = newItem.complementoType === 'Tapparella' && !isFisso;
+      // La regola nuova vale solo se le ante sono indicate: gli articoli nuovi
+      // partono da 1, quelli dei preventivi vecchi non hanno il campo e restano
+      // L x H finche' l'utente non sceglie le ante.
+      const tapparella = newItem.complementoType === 'Tapparella' && !isFisso && Number(newItem.tapparellaAnte) > 0;
       // Tapparella: +20 cm di avvolgimento e minimo per ante (utils/tapparella.js).
       const calcoloTapparella = tapparella ? mqTapparella({ ...newItem, numAnte: newItem.tapparellaAnte }) : null;
       if (calcoloTapparella) mq = calcoloTapparella.mqFatturati;
@@ -198,7 +201,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         id: targetId, type: 'complemento',
         model: newItem.complementoType,
         complementoType: newItem.complementoType,
-        tapparellaAnte: Number(newItem.tapparellaAnte) || 1,
+        tapparellaAnte: Number(newItem.tapparellaAnte) > 0 ? Number(newItem.tapparellaAnte) : null,
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(price.toFixed(2)),
         description1: '', description2: desc2, description3: compDesc,
@@ -243,6 +246,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // La spunta si vedeva nell'anteprima ma non veniva copiata
         // nell'articolo: nel preventivo e nel PDF tornava la maniglia normale.
         maniglioneAntipanico: !!newItem.maniglioneAntipanico,
+        // Prezzo calcolato con avvolgimento e minimi della tapparella (vedi
+        // calculateItemMq): serve a distinguere questi articoli dai vecchi.
+        regolaTapparella: newItem.apertura === 'Tapparella' || undefined,
         maniglioneAnte: anteManiglione,
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(newItem.unitPrice),

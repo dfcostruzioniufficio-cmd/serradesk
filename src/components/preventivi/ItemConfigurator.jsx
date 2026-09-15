@@ -556,7 +556,10 @@ export default function ItemConfigurator({
           {newItem.complementoType === 'Tapparella' && (
             <div className="col-span-2 md:col-span-1">
               <Label className="font-semibold text-gray-700">Ante del serramento</Label>
-              <select value={newItem.tapparellaAnte || 1} onChange={e => updateItemField('tapparellaAnte', Number(e.target.value))} className="mt-1.5 flex h-11 w-full rounded-xl border border-orange-200 bg-white px-4 py-2 text-sm">
+              <select value={Number(newItem.tapparellaAnte) > 0 ? newItem.tapparellaAnte : ''} onChange={e => updateItemField('tapparellaAnte', e.target.value === '' ? null : Number(e.target.value))} className="mt-1.5 flex h-11 w-full rounded-xl border border-orange-200 bg-white px-4 py-2 text-sm">
+                {/* Solo per le tapparelle dei preventivi vecchi, salvate prima
+                    della regola con avvolgimento e minimi. */}
+                {!(Number(newItem.tapparellaAnte) > 0) && <option value="">Calcolo precedente (L × H)</option>}
                 <option value={1}>1 anta (min. 1,5 m²)</option>
                 <option value={2}>2 ante (min. 2 m²)</option>
                 <option value={3}>3 ante (min. 2,5 m²)</option>
@@ -576,7 +579,7 @@ export default function ItemConfigurator({
               <Input type="number" step="0.01" value={newItem.unitPrice} onChange={e => updateItemField('unitPrice', e.target.value)} className="h-11 rounded-xl font-bold text-orange-700 bg-orange-50" />
             </div>
           )}
-          {newItem.complementoType === 'Tapparella' && newItem.complementoCalcType !== 'fisso' && (() => {
+          {newItem.complementoType === 'Tapparella' && newItem.complementoCalcType !== 'fisso' && Number(newItem.tapparellaAnte) > 0 && (() => {
             // Il conto che finira' nel preventivo, scritto per esteso: si vede
             // subito l'avvolgimento e se scatta il minimo.
             const r = mqTapparella({ ...newItem, numAnte: newItem.tapparellaAnte });
