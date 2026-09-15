@@ -132,13 +132,20 @@ export default function ItemConfigurator({
                 className="mt-1.5 flex h-11 w-full rounded-xl border-2 border-emerald-200 bg-emerald-50/50 px-4 py-2 text-sm hover:border-emerald-300 focus:border-emerald-500 transition-colors"
               >
                 <option value="">-- Nessun Vetro --</option>
-                {sistemiCam.filter(s => s.tipologia === 'VETRO').map(v => (
+                {/* Solo i vetri tenuti nel preventivo (Archivio > Vetri), piu' quello
+                    gia' scelto per questo articolo. */}
+                {sistemiCam.filter(s => s.tipologia === 'VETRO' && (s.specs?.nel_preventivo !== false || s.id === newItem.vetroId)).map(v => (
                   <option key={v.id} value={v.id}>{v.nome} (+{v.base_price}€/mq)</option>
                 ))}
                 <option value="custom">-- Vetro Personalizzato --</option>
               </select>
               {newItem.vetroId === 'custom' && (
-                <Input type="text" value={newItem.vetro} onChange={e => updateItemField('vetro', e.target.value)} placeholder="Nome vetro..." className="mt-2 h-10 border-emerald-300 rounded-lg bg-white" />
+                <div className="mt-2 flex gap-2">
+                  <Input type="text" value={newItem.vetro} onChange={e => updateItemField('vetro', e.target.value)} placeholder="Nome vetro..." className="h-10 border-emerald-300 rounded-lg bg-white flex-1" />
+                  {/* Senza la Ug di un vetro scritto a mano la Uw non si puo'
+                      calcolare: la si chiede qui, accanto al nome. */}
+                  <Input type="text" inputMode="decimal" value={newItem.vetroUg || ''} onChange={e => updateItemField('vetroUg', e.target.value)} placeholder="Ug W/m²K" title="Trasmittanza del vetro (Ug), dalla scheda del fornitore" className="h-10 w-28 border-emerald-300 rounded-lg bg-white" />
+                </div>
               )}
             </div>
           )}
@@ -424,7 +431,7 @@ export default function ItemConfigurator({
                       className="h-9 w-48 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium"
                     >
                       <option value="">-- Uguale al Sup. --</option>
-                      {sistemiCam.filter(s => s.tipologia === 'VETRO').map(v => (
+                      {sistemiCam.filter(s => s.tipologia === 'VETRO' && (s.specs?.nel_preventivo !== false || s.id === newItem.vetroInferioreId)).map(v => (
                         <option key={v.id} value={v.id}>{v.nome}</option>
                       ))}
                       <option value="custom">Pannello / Custom</option>

@@ -201,7 +201,11 @@ export default function ArchivioPage() {
       calc_type: 'mq',
       base_price: Number(formVetro.basePrice) || 0,
       is_active: formVetro.is_active,
+      // Si parte dai dati gia' salvati del vetro (visibilita' nel preventivo,
+      // fonte della Ug, categoria): riscrivendo specs con la sola trasmittanza
+      // ogni modifica li cancellava.
       specs: {
+        ...((editingId && sistemi.find(x => x.id === editingId)?.specs) || {}),
         trasmittanza: formVetro.ug
       }
     };
@@ -673,6 +677,24 @@ export default function ArchivioPage() {
                   </span>
                 </div>
               )}
+              {mainTab === 'vetri' && sistemi.some(s => s.tipologia === 'VETRO') && (
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Button size="sm" onClick={() => setSceltaProfili(v => !v)} className="bg-blue-700 hover:bg-blue-800 text-white">
+                    Scegli i vetri del preventivo
+                  </Button>
+                  <span className="text-xs text-gray-500">
+                    {sistemi.filter(s => s.tipologia === 'VETRO' && s.specs?.nel_preventivo !== false).length} visibili nel preventivo
+                  </span>
+                </div>
+              )}
+              {mainTab === 'vetri' && sceltaProfili && (
+                <ProfiliPreventivoPanel
+                  vetri
+                  sistemi={sistemi}
+                  onChiudi={() => setSceltaProfili(false)}
+                  onSalvato={(aggiornati) => setSistemi(prev => prev.map(s => aggiornati.find(a => a.id === s.id) || s))}
+                />
+              )}
               {mainTab === 'profili' && sceltaProfili && (
                 <ProfiliPreventivoPanel
                   sistemi={sistemi}
@@ -731,7 +753,12 @@ export default function ArchivioPage() {
                             <div className="w-3 h-3 rounded-full" style={{ background: C[s.tipologia] || '#10b981' }}/>
                             <div>
                               <p className="font-bold text-gray-800">{s.nome} {s.marca && <span className="text-gray-400 font-normal text-sm">({s.marca})</span>}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{s.tipologia} · € {s.base_price}/{s.calc_type}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {s.tipologia} · € {s.base_price}/{s.calc_type}
+                                {s.tipologia === 'VETRO' && s.specs?.trasmittanza && <> · Ug {String(s.specs.trasmittanza).replace('.', ',')} W/m²K</>}
+                                {s.specs?.nel_preventivo === false && <span className="ml-2 text-gray-400">· nascosto nel preventivo</span>}
+                                {!(Number(s.base_price) > 0) && <span className="ml-2 text-amber-700">· prezzo da impostare</span>}
+                              </p>
                             </div>
                           </div>
                           <div className="flex gap-2">

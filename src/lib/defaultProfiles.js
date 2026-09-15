@@ -2,9 +2,12 @@ import { supabase } from './supabaseClient';
 
 export const DEFAULT_PROFILES_DATA = [
   // VETRI
-  { nome: 'Vetro Camera 4/16/4 (Base)', marca: 'Generico', tipologia: 'VETRO', calc_type: 'mq', base_price: 45, specs: { trasmittanza: '2.8', descrizione: 'Doppio vetro trasparente standard' } },
-  { nome: 'Vetro Stratificato Basso Emissivo 33.1/16/33.1', marca: 'Generico', tipologia: 'VETRO', calc_type: 'mq', base_price: 85, specs: { trasmittanza: '1.1', descrizione: 'Vetro antinfortunistico isolante termico' } },
-  { nome: 'Vetro Acustico 44.2/15/33.1', marca: 'Generico', tipologia: 'VETRO', calc_type: 'mq', base_price: 120, specs: { trasmittanza: '1.0', descrizione: 'Vetro ad altissimo abbattimento acustico' } },
+  // I tre vetri con prezzo sono visibili da subito; gli altri sono i vetri
+  // di riferimento (VETRI_DI_RIFERIMENTO, piu' sotto), nascosti finche'
+  // l'utente non ne imposta il prezzo.
+  { nome: 'Vetrocamera 4/16/4 aria, vetro normale', marca: 'Generico', tipologia: 'VETRO', calc_type: 'mq', base_price: 45, specs: { trasmittanza: '2.7', categoria: 'Doppio vetro', descrizione: 'Doppio vetro trasparente senza trattamento', fonte: 'Calcolo EN 673 (2,73 W/m²K), UNI EN ISO 10077-1 prospetto C.2' } },
+  { nome: 'Vetrocamera di sicurezza 33.1/16/33.1 basso emissivo, argon', marca: 'Generico', tipologia: 'VETRO', calc_type: 'mq', base_price: 85, specs: { trasmittanza: '1.1', categoria: 'Sicurezza e acustici', descrizione: 'Vetro antinfortunio isolante con gas argon', fonte: 'Vetrocamera basso emissivo argon 16 mm, EN 673: lo stratificato non cambia la Ug (AGC ipaphon V 6/16/VSG 44.2 Ar: 1,1)' } },
+  { nome: 'Vetrocamera acustico 6/16/44.2 basso emissivo, argon (Rw 39 dB)', marca: 'Generico', tipologia: 'VETRO', calc_type: 'mq', base_price: 120, specs: { trasmittanza: '1.1', categoria: 'Sicurezza e acustici', descrizione: 'Vetro ad alto abbattimento acustico', fonte: 'AGC ipaphon 39/31 V, 6/16/VSG 44.2 Ar 90%, EN 673' } },
   // PVC
   { nome: 'Rehau Synego', marca: 'Rehau', tipologia: 'BATTENTE', calc_type: 'mq', base_price: 370, specs: { materiale: 'PVC', trasmittanza: '0.97' } },
   { nome: 'Veka Softline 76 Italia', marca: 'Veka', tipologia: 'BATTENTE', calc_type: 'mq', base_price: 340, specs: { materiale: 'PVC', trasmittanza: '1.1' } },
@@ -44,6 +47,27 @@ export const DEFAULT_PROFILES_DATA = [
   { nome: 'Porta Blindata Classe 3 Standard', marca: 'Dierre', tipologia: 'PORTA_BLINDATA', calc_type: 'pz', base_price: 850, specs: { materiale: 'Acciaio', descrizione: 'Serratura cilindro europeo, pannello liscio' } },
   { nome: 'Porta Blindata Classe 4', marca: 'Oikos', tipologia: 'PORTA_BLINDATA', calc_type: 'pz', base_price: 1400, specs: { materiale: 'Acciaio', descrizione: 'Altissima sicurezza' } }
 ];
+
+/**
+ * Vetri di uso comune con la Ug dichiarata dai produttori di vetro secondo
+ * EN 673 (tabelle tecniche AGC Interpane, Guardian Performance Calculator
+ * validato KIWA). Il prezzo dipende dal fornitore di ciascuno: partono senza
+ * prezzo e nascosti nel preventivo, l'utente li attiva dopo averlo scritto.
+ */
+export const VETRI_DI_RIFERIMENTO = [
+  { nome: 'Vetrocamera 4/16/4 basso emissivo, aria', ug: '1.4', categoria: 'Doppio vetro', fonte: 'Guardian ClimaGuard Premium 4/16 aria/4, EN 673: 1,36 W/m²K' },
+  { nome: 'Vetrocamera 4/16/4 basso emissivo, argon', ug: '1.1', categoria: 'Doppio vetro', fonte: 'AGC iplus 1.1, 4/16/4 argon 90%, EN 673' },
+  { nome: 'Vetrocamera 4/16/4 basso emissivo alte prestazioni, argon', ug: '1.0', categoria: 'Doppio vetro', fonte: 'AGC iplus 1.0, 4/16/4 argon 90%, EN 673; Saint-Gobain Planitherm One 4-16Ar-4: 1,0' },
+  { nome: 'Vetrocamera controllo solare 6/16/4 basso emissivo, argon', ug: '1.0', categoria: 'Doppio vetro', fonte: 'AGC Stopray Vision / Energy 6/16/4 argon 90%, EN 673' },
+  { nome: 'Triplo vetro 4/12/4/12/4 due basso emissivi, argon', ug: '0.7', categoria: 'Triplo vetro', fonte: 'AGC ipaphon 33/36, 4/12/4/12/4 argon 90%, EN 673' },
+  { nome: 'Triplo vetro 4/16/4/16/4 due basso emissivi, argon', ug: '0.6', categoria: 'Triplo vetro', fonte: 'AGC iplus 1.1 tripla, 4/16/4/16/4 argon 90%, EN 673' },
+  { nome: 'Triplo vetro 4/16/4/16/4 alte prestazioni, argon', ug: '0.5', categoria: 'Triplo vetro', fonte: 'AGC iplus 1.0 tripla, 4/16/4/16/4 argon 90%, EN 673' },
+].map((v) => ({
+  nome: v.nome, marca: 'Generico', tipologia: 'VETRO', calc_type: 'mq', base_price: 0,
+  specs: { trasmittanza: v.ug, categoria: v.categoria, fonte: v.fonte, nel_preventivo: false },
+}));
+
+DEFAULT_PROFILES_DATA.push(...VETRI_DI_RIFERIMENTO);
 
 export async function autoSeedProfilesIfNeeded(userId) {
   if (!userId) return false;

@@ -45,8 +45,15 @@ function categoria(sys) {
   return 'pvc';
 }
 
-/** Ug del vetro scelto: dal vetro in archivio, dal nome, o da "Ug=1,1" nel testo. */
+/**
+ * Ug del vetro scelto: quella scritta a mano per un vetro personalizzato,
+ * poi il vetro in archivio (per id o per nome), infine "Ug=1,1" nel testo.
+ */
 function trovaUg(item, sistemiCam) {
+  if (item.vetroId === 'custom') {
+    const scritta = leggiNumero(item.vetroUg);
+    if (scritta) return scritta;
+  }
   const vetri = (sistemiCam || []).filter((s) => s.tipologia === 'VETRO');
   let v = item.vetroId && item.vetroId !== 'custom' ? vetri.find((s) => s.id === item.vetroId) : null;
   if (!v && item.vetro) v = vetri.find((s) => (s.nome || '').trim().toLowerCase() === String(item.vetro).trim().toLowerCase());
@@ -72,7 +79,11 @@ export function calcolaUw(item, sistemiCam) {
   const uf = leggiNumero(sys.specs?.trasmittanza);
   if (!uf) return { uw: null, motivo: 'il profilo non ha la trasmittanza del telaio (Uf) in archivio' };
   const ug = trovaUg(item, sistemiCam);
-  if (!ug) return { uw: null, motivo: 'il vetro non ha la trasmittanza (Ug) in archivio' };
+  if (!ug) {
+    return { uw: null, motivo: item.vetroId === 'custom'
+      ? 'scrivi la Ug del vetro accanto al nome'
+      : 'scegli un vetro con la trasmittanza (Ug) in archivio' };
+  }
 
   const W = (Number(item.width) || 0) / 1000;
   const H = (Number(item.height) || 0) / 1000;

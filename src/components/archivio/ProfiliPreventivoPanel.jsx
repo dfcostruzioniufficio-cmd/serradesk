@@ -15,15 +15,18 @@ import { Button } from '../ui/button';
  */
 export const visibileNelPreventivo = (s) => s?.specs?.nel_preventivo !== false;
 
-export default function ProfiliPreventivoPanel({ sistemi, onSalvato, onChiudi }) {
-  const profili = useMemo(() => sistemi.filter((s) => s.tipologia !== 'VETRO'), [sistemi]);
+export default function ProfiliPreventivoPanel({ sistemi, onSalvato, onChiudi, vetri = false }) {
+  // Lo stesso pannello serve per i profili e per i vetri: cambia solo
+  // l'elenco e come si raggruppa (marca per i profili, tipo per i vetri).
+  const profili = useMemo(() => sistemi.filter((s) => (vetri ? s.tipologia === 'VETRO' : s.tipologia !== 'VETRO')), [sistemi, vetri]);
+  const gruppo = (s) => (vetri ? (s.specs?.categoria || 'Altri vetri') : (s.marca || 'Senza marca')).trim();
   const [scelti, setScelti] = useState(() => new Set(profili.filter(visibileNelPreventivo).map((s) => s.id)));
   const [salvataggio, setSalvataggio] = useState(false);
 
   const perMarca = useMemo(() => {
     const m = new Map();
     profili.forEach((s) => {
-      const marca = (s.marca || 'Senza marca').trim();
+      const marca = gruppo(s);
       if (!m.has(marca)) m.set(marca, []);
       m.get(marca).push(s);
     });
@@ -35,7 +38,7 @@ export default function ProfiliPreventivoPanel({ sistemi, onSalvato, onChiudi })
     ids.forEach((id) => (attivo ? nuovi.add(id) : nuovi.delete(id)));
     return nuovi;
   });
-  const soloMarca = (marca) => setScelti(new Set(profili.filter((s) => (s.marca || 'Senza marca').trim() === marca).map((s) => s.id)));
+  const soloMarca = (marca) => setScelti(new Set(profili.filter((s) => gruppo(s) === marca).map((s) => s.id)));
 
   const salva = async () => {
     const daAggiornare = profili.filter((s) => visibileNelPreventivo(s) !== scelti.has(s.id));
@@ -56,7 +59,7 @@ export default function ProfiliPreventivoPanel({ sistemi, onSalvato, onChiudi })
     if (aggiornati.length) {
       onSalvato(aggiornati);
       if (aggiornati.length === daAggiornare.length) {
-        toast.success(`Menu del preventivo aggiornato: ${scelti.size} profili visibili.`);
+        toast.success(`Menu del preventivo aggiornato: ${scelti.size} ${vetri ? 'vetri' : 'profili'} visibili.`);
         onChiudi();
       }
     }
@@ -66,9 +69,9 @@ export default function ProfiliPreventivoPanel({ sistemi, onSalvato, onChiudi })
     <div className="bg-white rounded-2xl border-2 border-blue-200 shadow-sm p-4 mb-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-bold text-gray-900">Profili nel preventivo</h3>
+          <h3 className="font-bold text-gray-900">{vetri ? 'Vetri nel preventivo' : 'Profili nel preventivo'}</h3>
           <p className="text-xs text-gray-500">
-            Spunta quelli che usi: solo questi compariranno nella scelta del profilo.
+            Spunta quelli che usi: solo questi compariranno nella scelta {vetri ? 'del vetro' : 'del profilo'}.
             Gli altri restano in archivio e puoi rimetterli quando vuoi.
           </p>
         </div>
@@ -101,6 +104,8 @@ export default function ProfiliPreventivoPanel({ sistemi, onSalvato, onChiudi })
                   <label key={s.id} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
                     <input type="checkbox" checked={scelti.has(s.id)} onChange={(e) => cambia([s.id], e.target.checked)} />
                     <span className="truncate">{s.nome}</span>
+                    {vetri && s.specs?.trasmittanza && <span className="text-gray-400 whitespace-nowrap">Ug {String(s.specs.trasmittanza).replace('.', ',')}</span>}
+                    {!(Number(s.base_price) > 0) && <span className="text-amber-700 whitespace-nowrap">prezzo da impostare</span>}
                   </label>
                 ))}
               </div>
