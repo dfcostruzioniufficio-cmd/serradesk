@@ -1,4 +1,5 @@
 import React from 'react';
+import { calcolaUw, formattaUw } from '../../utils/trasmittanza';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,10 +76,29 @@ export default function ItemConfigurator({
               className="mt-1.5 flex h-11 w-full rounded-xl border-2 border-blue-200 bg-blue-50/50 px-4 py-2 text-sm font-semibold hover:border-blue-300 focus:border-blue-500 transition-colors"
             >
               <option value="">-- Configurazione Manuale --</option>
-              {sistemiCam.filter(s => s.tipologia !== 'VETRO').map(s => (
+              {/* Solo i profili scelti in Archivio ("Scegli i profili del
+                  preventivo"), piu' quello gia' assegnato a questo articolo,
+                  altrimenti riaprendo un articolo vecchio il menu lo perderebbe. */}
+              {sistemiCam.filter(s => s.tipologia !== 'VETRO' && (s.specs?.nel_preventivo !== false || s.id === newItem.sistemaCamId)).map(s => (
                 <option key={s.id} value={s.id}>{s.nome} ({s.marca})</option>
               ))}
             </select>
+            {newItem.sistemaCamId && (() => {
+              // La Uw che finira' nel preventivo, calcolata sulle misure di
+              // questo articolo. Se non si puo' calcolare si dice perche'.
+              const t = calcolaUw(newItem, sistemiCam);
+              return (
+                <p className="mt-1.5 text-xs text-gray-600">
+                  {t.uw != null ? (
+                    <>Trasmittanza <b>Uw {formattaUw(t.uw)}</b>
+                      <span className="text-gray-400"> · Ug {String(t.ug).replace('.', ',')} · Uf {String(t.uf).replace('.', ',')}{t.stimata ? ' · profili a vista stimati' : ''}</span>
+                    </>
+                  ) : (
+                    <span className="text-amber-700">Uw non calcolabile: {t.motivo}</span>
+                  )}
+                </p>
+              );
+            })()}
             {!newItem.sistemaCamId && (
               <Input 
                 type="text" 

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
-import { calculateWindowPrice, calculateTransmittance, calculateQuoteSummary, syncFrameColor, calculateItemMq } from './usePricingEngine';
+import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq } from './usePricingEngine';
+import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
 export function usePreventivo(isRestoring, setIsRestoring) {
@@ -100,7 +101,6 @@ export function usePreventivo(isRestoring, setIsRestoring) {
           updatedItem.apertura = s.tipologia === 'FISSO' ? 'Fisso' : s.tipologia === 'SCORREVOLE' ? 'Scorrevole' : s.tipologia === 'TAPPARELLA' ? 'Tapparella' : s.tipologia === 'CASSONETTO' ? 'Cassonetto' : s.tipologia === 'PORTA_BLINDATA' ? 'Porta Blindata' : 'Battente';
           updatedItem.marca = s.marca || '';
           updatedItem.vetro = s.specs?.vetro || '';
-          updatedItem.trasmittanza = s.specs?.trasmittanza || '';
           updatedItem.accessoriColore = s.specs?.accessori || '';
           updatedItem.calcType = s.calc_type || s.calcType || 'mq';
           updatedItem.basePrice = Number(s.base_price || s.basePrice || 0);
@@ -121,8 +121,6 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         updatedItem.basePrice = basePrice;
         if (unitPrice) updatedItem.unitPrice = unitPrice;
 
-        const uw = calculateTransmittance(updatedItem, sistemiCam);
-        if (uw) updatedItem.trasmittanza = uw;
       }
       
       if (field === 'colorName') {
@@ -239,7 +237,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         colCoperture: specs.colCoperture || '',
         telaioFisso: specs.telaioFisso || (sistemaCam?.telaio_std?.codice) || '',
         telaioMobile: specs.telaioMobile || (sistemaCam?.anta?.codice) || '',
-        trasmittanza: newItem.trasmittanza ? (newItem.trasmittanza.toLowerCase().includes('w/m') ? newItem.trasmittanza : `${newItem.trasmittanza} W/m²K`) : '',
+        // Uw calcolata al momento dell'inserimento con UNI EN ISO 10077-1 su
+        // misure, ante, traverso e sopraluce di QUESTO articolo. Prima qui
+        // finiva la trasmittanza del solo telaio (Uf) presa dal sistema.
+        trasmittanza: formattaUw(calcolaUw(newItem, sistemiCam).uw),
         description1: (newItem.vetro && !isPersiana && !isBlindata) ? `Vetro: ${newItem.vetro}` : '',
         description2: desc2,
         description3: isBlindata ? 'Porta Blindata di Sicurezza' : (newItem.marca ? `${newItem.marca} - ${sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato'}` : (sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato')),
@@ -362,6 +363,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         colCoperture: specs.colCoperture || '',
         telaioFisso: specs.telaioFisso || (sistemaCam?.telaio_std?.codice) || '',
         telaioMobile: specs.telaioMobile || (sistemaCam?.anta?.codice) || '',
+        // Cambiando profilo cambia Uf: la Uw va ricalcolata.
+        trasmittanza: formattaUw(calcolaUw(newRawInput, sistemiCam).uw),
         unitPrice: Number(res.unitPrice) || item.unitPrice,
         basePrice: Number(res.basePrice) || item.basePrice,
         rawInput: newRawInput

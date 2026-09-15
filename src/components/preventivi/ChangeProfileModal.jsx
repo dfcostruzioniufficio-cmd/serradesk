@@ -7,7 +7,8 @@ export default function ChangeProfileModal({ isOpen, onClose, sistemiCam, onAppl
 
   if (!isOpen) return null;
 
-  const profili = sistemiCam.filter(s => s.tipologia === 'BATTENTE' || s.tipologia === 'SCORREVOLE');
+  // Stessa scelta del menu dell'articolo: solo i profili tenuti nel preventivo.
+  const profili = sistemiCam.filter(s => (s.tipologia === 'BATTENTE' || s.tipologia === 'SCORREVOLE') && s.specs?.nel_preventivo !== false);
 
   const handleApply = () => {
     if (selectedProfile) {

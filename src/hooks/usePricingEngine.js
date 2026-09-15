@@ -1,7 +1,7 @@
 /**
  * usePricingEngine.js
  * Motore di calcolo prezzi estratto da PreventiviPage.
- * Gestisce: mq, ml, fisso, kg + vetro + trasmittanza.
+ * Gestisce: mq, ml, fisso, kg + vetro. La trasmittanza sta in utils/trasmittanza.js.
  */
 
 const COLOR_MAP = {
@@ -175,30 +175,6 @@ export function calculateWindowPrice(item, sistemiCam) {
     }
     return { unitPrice, basePrice: bPrice };
   }
-}
-
-/**
- * Calcola la trasmittanza termica Uw combinata (profilo + vetro).
- */
-export function calculateTransmittance(item, sistemiCam) {
-  const sysProfilo = sistemiCam.find(s => s.id === item.sistemaCamId);
-  if (!sysProfilo) return null;
-
-  let uf = Number(sysProfilo.specs?.trasmittanza?.replace(',', '.')) || null;
-  let ug = null;
-
-  if (item.vetroId && item.vetroId !== 'custom') {
-    const v = sistemiCam.find(s => s.id === item.vetroId);
-    if (v && v.specs?.trasmittanza) ug = Number(v.specs.trasmittanza.replace(',', '.')) || null;
-  }
-
-  if (uf && ug) {
-    const uw = (ug * 0.70) + (uf * 0.30) + 0.1;
-    return uw.toFixed(2);
-  } else if (uf) {
-    return uf.toString().replace('.', ',');
-  }
-  return null;
 }
 
 /**

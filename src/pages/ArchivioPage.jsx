@@ -7,6 +7,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import AIPdfImporter from '../components/AIPdfImporter';
 import PersianaTaglioForm from '../components/archivio/PersianaTaglioForm';
+import ProfiliPreventivoPanel from '../components/archivio/ProfiliPreventivoPanel';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
 export const DEFAULT_SISTEMI = [
@@ -91,6 +92,7 @@ export default function ArchivioPage() {
   const [expanded, setExpanded] = useState(null);
   const [mainTab, setMainTab] = useState('profili'); // 'profili' | 'vetri'
   const [categoryFilter, setCategoryFilter] = useState('Tutti');
+  const [sceltaProfili, setSceltaProfili] = useState(false);
   const [formTab, setFormTab] = useState('commerciale');
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -462,7 +464,27 @@ export default function ArchivioPage() {
 
                     <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-2">
                       <p className="text-xs font-bold text-blue-800 mb-1">Dati Tecnici per il PDF Preventivo</p>
-                      <Row label="Trasmittanza Nodo (Uf) W/m²K"><Input className="h-8 text-xs" value={form.specs.trasmittanza} onChange={e => f('specs','trasmittanza',e.target.value)} placeholder="es. 1,09 o 2,5"/></Row>
+                      <Row label="Trasmittanza telaio (Uf) W/m²K" hint="Dalla scheda tecnica del profilo. Serve per calcolare la Uw nel preventivo."><Input className="h-8 text-xs" value={form.specs.trasmittanza} onChange={e => f('specs','trasmittanza',e.target.value)} placeholder="es. 1,09 o 2,5"/></Row>
+                      {/* Larghezze a vista per la Uw secondo UNI EN ISO 10077-1: dicono
+                          quanta parte della finestra e' telaio e quanta vetro. */}
+                      <p className="text-[10px] text-blue-700 pt-1">Per una Uw precisa (facoltativo, altrimenti si usano valori tipici):</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          ['lato_mm', 'Telaio + anta a vista (mm)', 'es. 115'],
+                          ['nodo_mm', 'Nodo centrale a vista (mm)', 'es. 150'],
+                          ['traverso_mm', 'Traverso a vista (mm)', 'es. 90'],
+                          ['fisso_mm', 'Telaio fisso a vista (mm)', 'es. 75'],
+                        ].map(([k, label, ph]) => (
+                          <Row key={k} label={label}>
+                            <Input type="number" className="h-8 text-xs" placeholder={ph}
+                              value={form.specs?.vista?.[k] ?? ''}
+                              onChange={e => setForm(p => ({ ...p, specs: { ...p.specs, vista: { ...(p.specs?.vista || {}), [k]: e.target.value === '' ? '' : Number(e.target.value) } } }))}/>
+                          </Row>
+                        ))}
+                        <Row label="Ψ bordo vetro W/mK" hint="Vuoto: 0,06 PVC · 0,08 alluminio">
+                          <Input className="h-8 text-xs" placeholder="es. 0,04 canalina calda" value={form.specs?.psi_vetro ?? ''} onChange={e => f('specs','psi_vetro',e.target.value)}/>
+                        </Row>
+                      </div>
                     </div>
 
                     <div className="p-4 bg-gray-50 border rounded-xl flex items-center justify-between mt-4">
@@ -641,6 +663,23 @@ export default function ArchivioPage() {
               <h2 className="font-bold text-gray-700 text-lg">
                  {mainTab === 'profili' ? `Profili e Accessori Salvati` : mainTab === 'vetri' ? `Vetri Salvati (${sistemi.filter(s => s.tipologia === 'VETRO').length})` : 'Cataloghi Partner Disponibili'}
               </h2>
+              {mainTab === 'profili' && sistemi.length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Button size="sm" onClick={() => setSceltaProfili(v => !v)} className="bg-blue-700 hover:bg-blue-800 text-white">
+                    Scegli i profili del preventivo
+                  </Button>
+                  <span className="text-xs text-gray-500">
+                    {sistemi.filter(s => s.tipologia !== 'VETRO' && s.specs?.nel_preventivo !== false).length} visibili nel preventivo
+                  </span>
+                </div>
+              )}
+              {mainTab === 'profili' && sceltaProfili && (
+                <ProfiliPreventivoPanel
+                  sistemi={sistemi}
+                  onChiudi={() => setSceltaProfili(false)}
+                  onSalvato={(aggiornati) => setSistemi(prev => prev.map(s => aggiornati.find(a => a.id === s.id) || s))}
+                />
+              )}
               {mainTab === 'profili' && (
                 <div className="flex flex-wrap gap-2 mb-2">
                   {['Tutti', 'Finestre', 'Persiane', 'Tapparelle', 'Zanzariere', 'Tende', 'Cassonetti', 'Porte Blindate'].map(cat => (
