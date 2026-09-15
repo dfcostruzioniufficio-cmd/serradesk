@@ -93,7 +93,14 @@ export default function DistintaPage() {
     const clientName = selectedOrder?.cliente || 'Ordine';
     const filename = `Distinta_Taglio_${clientName.replace(/\s+/g, '_')}.pdf`;
     const opt = {
-      margin: 8,
+      // 7,5 mm e non 8: html2pdf decide dove spezzare le pagine con
+      // floor(194 x 96/25,4) = 733 px, ma poi ritaglia l'immagine ogni
+      // floor(larghezza_canvas x proporzione)/2 = 733,5 px. Mezzo pixel di
+      // scarto per pagina significa che dalla quinta in poi in fondo al
+      // foglio spunta la prima riga del blocco successivo. Con 7,5 i due
+      // conti danno lo stesso numero (737) e lo scarto sparisce; l'area
+      // stampabile diventa 282x195 mm, vedi la larghezza del wrapper.
+      margin: 7.5,
       filename,
       // vedi PreventiviPage.jsx: scale 2 + quality 0.92 restano nitidi
       // in stampa ma pesano 5-8 volte meno
@@ -106,9 +113,11 @@ export default function DistintaPage() {
         scrollX: 0,
         scrollY: 0,
         logging: false,
-        // Deve essere almeno quanto il modello (281mm ~ 1062px), altrimenti
-        // html2canvas ritaglia via tutto quello che sta oltre: e' il motivo
-        // per cui le barre del piano di taglio uscivano tagliate a destra.
+        // html2pdf mette il modello in un contenitore largo esattamente
+        // quanto l'area stampabile (282mm) e ritaglia tutto quello che sporge
+        // a destra. Per questo il wrapper qui sotto non ha piu' padding
+        // orizzontale: con "p-6" il foglio partiva 24px piu' a destra e il
+        // piano di taglio usciva tagliato sul bordo del foglio.
         windowWidth: 1200,
         onclone: (clonedDoc) => {
           // Vedi PreventiviPage.jsx: gli SVG con width/height="100%" (qui,
@@ -288,7 +297,7 @@ export default function DistintaPage() {
               </p>
             </div>
           </div>
-          <div id="distinta-template-wrapper" className="p-6" style={{ background: '#ffffff', width: '281mm', boxSizing: 'border-box' }}>
+          <div id="distinta-template-wrapper" style={{ background: '#ffffff', width: '282mm', boxSizing: 'border-box' }}>
             <DistintaPDFTemplate
               clientName={selectedOrder.cliente}
               items={orderItems}

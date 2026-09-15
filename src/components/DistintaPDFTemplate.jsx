@@ -134,9 +134,12 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
         </table>
       </div>
 
-      {/* ═══ 1. BARRE DA ORDINARE ═══ */}
-      <Sezione n="1" titolo="Barre da ordinare" />
-      <div style={{ ...BLOCCO, width: '60%' }}>
+      {/* ═══ 1. DA ORDINARE ═══ */}
+      <Sezione n="1" titolo="Da ordinare"
+               nota="Quello che serve procurarsi prima di cominciare. La ferramenta è una stima: verificare le quantità su quella effettivamente usata." />
+      <div style={COLONNE}>
+      <div style={{ ...BLOCCO, ...META, width: '56%' }}>
+        <div style={INTESTAZIONE_BLOCCO}>Barre di profilo</div>
         <table style={TABELLA}>
           <thead>
             <tr>
@@ -164,6 +167,28 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
           </tbody>
         </table>
       </div>
+      {ferramentaRiepilogo?.length > 0 && (
+        <div style={{ ...BLOCCO, ...META, width: '42.6%', marginRight: 0 }}>
+          <div style={INTESTAZIONE_BLOCCO}>Ferramenta <span style={{ color: '#5a6b7d' }}>· stima</span></div>
+          <table style={TABELLA}>
+            <thead>
+              <tr>
+                <th style={{ ...TH, textAlign: 'left' }}>Componente</th>
+                <th style={{ ...TH, width: '32%' }}>Quantità</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ferramentaRiepilogo.map((f) => (
+                <tr key={f.nome}>
+                  <td style={TD}>{f.nome}</td>
+                  <td style={{ ...TD, textAlign: 'center', fontWeight: 700 }}>{f.qtaTotale} {f.unitaMisura}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      </div>
 
       {/* ═══ 2. LISTA DI TAGLIO ═══ */}
       <Sezione n="2" titolo="Lista di taglio"
@@ -174,7 +199,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
             <div style={INTESTAZIONE_BLOCCO}>
               <span style={{ fontFamily: MONO, fontWeight: 800 }}>{g.codice}</span>
               <span style={{ color: '#5a6b7d' }}> · {g.etichetta}</span>
-              <span style={{ float: 'right', color: '#5a6b7d' }}>{g.pezzi} pezzi</span>
+              <span style={{ float: 'right', color: '#5a6b7d' }}>{g.pezzi === 1 ? '1 pezzo' : `${g.pezzi} pezzi`}</span>
             </div>
             <table style={TABELLA}>
               <thead>
@@ -202,14 +227,14 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
       </div>
 
       {/* ═══ 3. PIANO DI TAGLIO ═══ */}
-      <Sezione n="3" titolo="Piano di taglio"
+      <Sezione n="3" titolo="Piano di taglio" nuovaPagina
                nota="Disposizione dei pezzi su ogni barra, calcolata per ridurre lo sfrido." />
       {(nesting || []).map((n) => (
         <div key={n.profile_code} style={{ ...BLOCCO, width: '100%' }}>
           <div style={INTESTAZIONE_BLOCCO}>
             <span style={{ fontFamily: MONO, fontWeight: 800 }}>{n.profile_code}</span>
             <span style={{ color: '#5a6b7d' }}> · {n.profile_label}</span>
-            <span style={{ float: 'right', color: '#5a6b7d' }}>{n.bars_required} barre</span>
+            <span style={{ float: 'right', color: '#5a6b7d' }}>{n.bars_required === 1 ? '1 barra' : `${n.bars_required} barre`}</span>
           </div>
           <div style={{ padding: '6px 8px' }}>
             {n.bars.map((bar, bi) => {
@@ -237,7 +262,12 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
                         background: 'repeating-linear-gradient(45deg,#f7f9fb,#f7f9fb 3px,#e8edf2 3px,#e8edf2 6px)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '7.5px', color: '#94a3b8', overflow: 'hidden', whiteSpace: 'nowrap',
-                      }}>sfrido</div>
+                      }}>
+                        {/* su uno sfrido corto la parola non ci sta e resta
+                            tagliata a meta': i millimetri sono gia' scritti
+                            sopra, la fascia tratteggiata basta da sola. */}
+                        {bar.waste_mm / barra > 0.05 ? 'sfrido' : ''}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -248,7 +278,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
       ))}
 
       {/* ═══ 4. SCHEDE SERRAMENTI ═══ */}
-      <Sezione n="4" titolo="Schede serramenti"
+      <Sezione n="4" titolo="Schede serramenti" nuovaPagina
                nota="Misure finite di ogni serramento, per il controllo prima del montaggio." />
       <div style={COLONNE}>
         {itemResults.map((it, idx) => (
@@ -285,34 +315,9 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
         ))}
       </div>
 
-      {/* ═══ 5. FERRAMENTA ═══ */}
-      {ferramentaRiepilogo?.length > 0 && (
-        <>
-          <Sezione n="5" titolo="Ferramenta"
-                   nota="Stima automatica: verificare le quantità sulla ferramenta effettivamente usata." />
-          <div style={{ ...BLOCCO, width: '48%' }}>
-            <table style={TABELLA}>
-              <thead>
-                <tr>
-                  <th style={{ ...TH, textAlign: 'left' }}>Componente</th>
-                  <th style={{ ...TH, width: '28%' }}>Quantità</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ferramentaRiepilogo.map((f) => (
-                  <tr key={f.nome}>
-                    <td style={TD}>{f.nome}</td>
-                    <td style={{ ...TD, textAlign: 'center', fontWeight: 700 }}>{f.qtaTotale} {f.unitaMisura}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
       <div style={{ marginTop: '10px', paddingTop: '5px', borderTop: '1px solid #d8e0e8',
-                    fontSize: '7.5px', color: '#8a97a4', textAlign: 'center' }}>
+                    fontSize: '7.5px', color: '#8a97a4', textAlign: 'center',
+                    breakInside: 'avoid', pageBreakInside: 'avoid' }}>
         Le misure derivano dai parametri del profilo impostati in archivio.
         Verificare i profilati prima di tagliare in serie. · SerraDesk · {today}
       </div>
@@ -320,11 +325,20 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
   );
 }
 
-function Sezione({ n, titolo, nota }) {
+function Sezione({ n, titolo, nota, nuovaPagina }) {
+  // html2pdf non sa gestire "break-after: avoid": senza accorgimenti un
+  // titolo puo' restare solo in fondo alla pagina con il contenuto che
+  // comincia in quella dopo. Le due sezioni lunghe cominciano percio' a
+  // pagina nuova - in officina e' anche piu' comodo, ogni foglio e' una fase
+  // del lavoro. Per le altre il riquadro del titolo si allunga sotto al
+  // testo e il margine negativo rimette il contenuto al suo posto: cosi'
+  // "break-inside: avoid" sposta il titolo insieme a quello che annuncia.
+  const spaziatura = nuovaPagina
+    ? { marginTop: 0, marginBottom: '5px', breakBefore: 'page', pageBreakBefore: 'always' }
+    : { marginTop: '13px', marginBottom: '-65px', paddingBottom: '70px',
+        breakInside: 'avoid', pageBreakInside: 'avoid' };
   return (
-    // breakAfter avoid: un titolo di sezione non deve restare solo in fondo
-    // a una pagina con il contenuto che comincia in quella dopo.
-    <div style={{ marginTop: '13px', marginBottom: '5px', breakAfter: 'avoid', pageBreakAfter: 'avoid' }}>
+    <div style={spaziatura}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', borderBottom: `1px solid ${BLU}`, paddingBottom: '2px' }}>
         <span style={{ background: BLU, color: '#fff', fontSize: '8px', fontWeight: 800, padding: '1px 5px', borderRadius: '2px' }}>{n}</span>
         <span style={{ fontSize: '11.5px', fontWeight: 800, color: BLU, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{titolo}</span>
@@ -343,20 +357,40 @@ const FOGLIO = {
   fontSize: '9.5px',
   color: '#111',
   padding: '10px',
-  width: '281mm',
+  // La larghezza la impone il contenitore (l'anteprima in pagina, oppure il
+  // contenitore da 281mm che html2pdf crea in fase di esportazione). Quando
+  // il foglio dichiarava 281mm per conto suo dentro un wrapper con del
+  // padding, sporgeva a destra e html2canvas tagliava via quello che usciva.
+  width: '100%',
   boxSizing: 'border-box',
-  margin: '0 auto',
   background: '#fff',
 };
 
 // Due colonne affiancate: su un A4 orizzontale ci stanno comode e si
-// dimezzano le pagine. I blocchi non si spezzano mai a meta'.
-const COLONNE = { display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' };
-// 49% e non calc(50% - gap): il calcolo esatto lascia scarti di uno o due
-// pixel per arrotondamento e il secondo blocco va a capo, lasciando la
-// pagina a colonna singola. Il 2% di aria in meno non si nota.
-const META = { width: '49%' };
+// dimezzano le pagine.
+//
+// Sono inline-block e non flex per un motivo preciso: per non spezzare un
+// blocco a cavallo di due pagine, html2pdf gli infila davanti un <div> vuoto
+// alto quanto basta ad arrivare alla pagina dopo. Dentro un contenitore flex
+// quel div diventa un elemento della riga e non spinge giu' niente, quindi
+// "break-inside: avoid" veniva ignorato e le schede dei serramenti si
+// tagliavano a fine pagina. In flusso normale il div fa il suo lavoro.
+const COLONNE = { lineHeight: 0 };
+const META = {
+  display: 'inline-block',
+  verticalAlign: 'top',
+  boxSizing: 'border-box',
+  // 48.4 + 1.4 + 48.4 = 98.2%: lasciare un po' d'aria evita che per un
+  // arrotondamento il secondo blocco vada a capo da solo.
+  width: '48.4%',
+  marginRight: '1.4%',
+  lineHeight: 1.35,
+};
 
+// Niente sfondo bianco qui: il foglio e' gia' bianco, e su un blocco
+// affiancato (inline-block) html2canvas disegna lo sfondo DOPO il contenuto
+// dei figli, che sono di livello blocco. Con "background: #fff" il bianco
+// copriva la tabella: nel PDF restavano solo il bordo e il titolo.
 const BLOCCO = {
   border: '1px solid #d8e0e8',
   borderRadius: '3px',
@@ -364,7 +398,6 @@ const BLOCCO = {
   marginBottom: '8px',
   breakInside: 'avoid',
   pageBreakInside: 'avoid',
-  background: '#fff',
 };
 
 const INTESTAZIONE_BLOCCO = {
