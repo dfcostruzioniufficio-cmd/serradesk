@@ -212,11 +212,19 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const anteText = `${newItem.numAnte} ANT${newItem.numAnte > 1 ? 'E' : 'A'}`;
       let desc2 = `${newItem.apertura.toUpperCase()} ${anteText}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
       if (newItem.hasSopraluce) desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm`;
+      // Ante col maniglione, una sola volta per disegno e descrizione: se nel
+      // frattempo le ante sono diminuite si tolgono quelle che non esistono
+      // piu', e se non ne resta nessuna si torna all'anta con la maniglia.
+      const numAnteArticolo = Math.max(1, Number(newItem.numAnte) || 1);
+      let anteManiglione = null;
+      if (newItem.maniglioneAntipanico && Array.isArray(newItem.maniglioneAnte)) {
+        anteManiglione = [...new Set(newItem.maniglioneAnte)].filter(i => i >= 0 && i < numAnteArticolo).sort((a, b) => a - b);
+        if (!anteManiglione.length) anteManiglione = [newItem.handlePosition === 'left' ? 0 : numAnteArticolo - 1];
+      }
       if (newItem.maniglioneAntipanico) {
-        const anteMan = Array.isArray(newItem.maniglioneAnte) ? [...newItem.maniglioneAnte].sort((a, b) => a - b) : null;
         desc2 += ' CON MANIGLIONE ANTIPANICO';
-        if (Number(newItem.numAnte) > 1 && anteMan && anteMan.length && anteMan.length < Number(newItem.numAnte)) {
-          desc2 += ` SU ANT${anteMan.length > 1 ? 'E' : 'A'} ${anteMan.map(i => i + 1).join(' E ')}`;
+        if (numAnteArticolo > 1 && anteManiglione && anteManiglione.length < numAnteArticolo) {
+          desc2 += ` SU ANT${anteManiglione.length > 1 ? 'E' : 'A'} ${anteManiglione.map(i => i + 1).join(' E ')}`;
         }
       }
       
@@ -235,7 +243,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // La spunta si vedeva nell'anteprima ma non veniva copiata
         // nell'articolo: nel preventivo e nel PDF tornava la maniglia normale.
         maniglioneAntipanico: !!newItem.maniglioneAntipanico,
-        maniglioneAnte: Array.isArray(newItem.maniglioneAnte) ? newItem.maniglioneAnte.filter(i => i < Number(newItem.numAnte)) : null,
+        maniglioneAnte: anteManiglione,
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(newItem.unitPrice),
         frameColor: newItem.frameColor, colorName: newItem.colorName,

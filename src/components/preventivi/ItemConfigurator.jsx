@@ -389,7 +389,10 @@ export default function ItemConfigurator({
                     const attiva = scelte.includes(i);
                     return (
                       <button key={i} type="button"
-                        onClick={() => updateItemField('maniglioneAnte', attiva ? scelte.filter(x => x !== i) : [...scelte, i])}
+                        // L'ultima anta scelta non si toglie: per non volere il
+                        // maniglione si toglie la spunta, cosi' disegno e
+                        // preventivo dicono sempre la stessa cosa.
+                        onClick={() => { if (attiva && scelte.filter(x => x < Number(newItem.numAnte)).length <= 1) return; updateItemField('maniglioneAnte', attiva ? scelte.filter(x => x !== i) : [...scelte, i]); }}
                         className={`h-8 min-w-8 px-2.5 rounded-md text-sm font-bold border transition-colors ${attiva ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {i + 1}
                       </button>

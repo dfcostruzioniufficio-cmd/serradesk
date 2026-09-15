@@ -193,7 +193,10 @@ export function calculateItemMq(item) {
     const isFisso = item.complementoCalcType === 'fisso';
     if (isFisso) return 0;
     if (item.manualMq && Number(item.manualMq) > 0) return Number(item.manualMq);
-    if ((item.complementoType || item.model) === 'Tapparella') {
+    // Solo le tapparelle inserite con la regola nuova (hanno tapparellaAnte).
+    // Quelle dei preventivi gia' salvati restano L x H: altrimenti riaprendo
+    // un preventivo gia' mandato cambierebbero da sole m² e prezzi.
+    if ((item.complementoType || item.model) === 'Tapparella' && Number(item.tapparellaAnte) > 0) {
       return mqTapparella({ ...item, numAnte: item.tapparellaAnte }).mqFatturati;
     }
     return ((item.width || 0) / 1000) * ((item.height || 0) / 1000);
