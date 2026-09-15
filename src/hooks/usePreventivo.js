@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq } from './usePricingEngine';
 import { calcolaUw, formattaUw } from '../utils/trasmittanza';
+import { mqTapparella, spiegaMqTapparella } from '../utils/tapparella';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
 export function usePreventivo(isRestoring, setIsRestoring) {
@@ -21,7 +22,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     apertura: 'Battente', numAnte: 1, hasTraverso: false, traversoHeight: 1000,
     vetroInferioreId: '', hasSopraluce: false, sopraluceHeight: '', handlePosition: 'Centrale',
     width: '', height: '', quantity: 1, frameColor: '#ffffff', colorName: '',
-    sistemaCamId: '', complementoAction: 'Molla', complementoCalcType: 'mq',
+    sistemaCamId: '', complementoAction: 'Molla', complementoCalcType: 'mq', tapparellaAnte: 1,
     marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: ''
   };
 
@@ -182,15 +183,22 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const hM = Number(newItem.height) / 1000;
       let mq = wM * hM;
       const isFisso = newItem.complementoCalcType === 'fisso';
+      const tapparella = newItem.complementoType === 'Tapparella' && !isFisso;
+      // Tapparella: +20 cm di avvolgimento e minimo per ante (utils/tapparella.js).
+      const calcoloTapparella = tapparella ? mqTapparella({ ...newItem, numAnte: newItem.tapparellaAnte }) : null;
+      if (calcoloTapparella) mq = calcoloTapparella.mqFatturati;
       const price = isFisso ? Number(newItem.unitPrice) : (mq * Number(newItem.unitPrice));
       
       let desc2 = `L ${newItem.width} x H ${newItem.height} mm`;
-      if (!isFisso) desc2 += ` (Area: ${mq.toFixed(2)} mq)`;
+      if (calcoloTapparella) desc2 += ` (${spiegaMqTapparella(calcoloTapparella, newItem.tapparellaAnte)} fatturati)`;
+      else if (!isFisso) desc2 += ` (Area: ${mq.toFixed(2)} mq)`;
       const compDesc = `${newItem.complementoType?.toUpperCase() || ''} - ${newItem.complementoMaterial || ''} - Azionamento: ${newItem.complementoAction || ''}`;
 
       const newItemObj = {
         id: targetId, type: 'complemento',
         model: newItem.complementoType,
+        complementoType: newItem.complementoType,
+        tapparellaAnte: Number(newItem.tapparellaAnte) || 1,
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(price.toFixed(2)),
         description1: '', description2: desc2, description3: compDesc,

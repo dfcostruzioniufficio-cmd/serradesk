@@ -1,3 +1,4 @@
+import { mqTapparella } from '../utils/tapparella';
 /**
  * usePricingEngine.js
  * Motore di calcolo prezzi estratto da PreventiviPage.
@@ -55,7 +56,10 @@ export function calculateWindowPrice(item, sistemiCam) {
     const isFisso = item.apertura === 'Fisso';
     
     // Fatturazione Minima e maggiorazione ante
-    if (!isFisso && item.apertura !== 'Cassonetto') {
+    if (item.apertura === 'Tapparella') {
+      // Tapparella: altezza + avvolgimento e minimo per ante, vedi utils/tapparella.js.
+      mq = mqTapparella(item).mqFatturati;
+    } else if (!isFisso && item.apertura !== 'Cassonetto') {
       if (numAnte === 1 && mq < 1.50) mq = 1.50;
       if (numAnte >= 2 && mq < 2.00) mq = 2.00;
       if (numAnte === 3) mq += 1.50;
@@ -127,7 +131,10 @@ export function calculateWindowPrice(item, sistemiCam) {
     const isFisso = item.apertura === 'Fisso';
     
     // Fatturazione Minima e maggiorazione ante
-    if (!isFisso && item.apertura !== 'Cassonetto') {
+    if (item.apertura === 'Tapparella') {
+      // Tapparella: altezza + avvolgimento e minimo per ante, vedi utils/tapparella.js.
+      mq = mqTapparella(item).mqFatturati;
+    } else if (!isFisso && item.apertura !== 'Cassonetto') {
       if (numAnte === 1 && mq < 1.50) mq = 1.50;
       if (numAnte >= 2 && mq < 2.00) mq = 2.00;
       if (numAnte === 3) mq += 1.50;
@@ -185,6 +192,10 @@ export function calculateItemMq(item) {
   if (item.type === 'complemento') {
     const isFisso = item.complementoCalcType === 'fisso';
     if (isFisso) return 0;
+    if (item.manualMq && Number(item.manualMq) > 0) return Number(item.manualMq);
+    if ((item.complementoType || item.model) === 'Tapparella') {
+      return mqTapparella({ ...item, numAnte: item.tapparellaAnte }).mqFatturati;
+    }
     return ((item.width || 0) / 1000) * ((item.height || 0) / 1000);
   }
 
@@ -194,7 +205,9 @@ export function calculateItemMq(item) {
   const numAnte = Number(item.numAnte) || 1;
   const isFisso = item.apertura === 'Fisso';
   
-  if (!isFisso && item.apertura !== 'Cassonetto') {
+  if (item.apertura === 'Tapparella') {
+    mq = mqTapparella(item).mqFatturati;
+  } else if (!isFisso && item.apertura !== 'Cassonetto') {
     if (numAnte === 1 && mq < 1.50) mq = 1.50;
     if (numAnte >= 2 && mq < 2.00) mq = 2.00;
     if (numAnte === 3) mq += 1.50;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { calcolaUw, formattaUw } from '../../utils/trasmittanza';
+import { mqTapparella, spiegaMqTapparella } from '../../utils/tapparella';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -521,6 +522,17 @@ export default function ItemConfigurator({
             <Label className="font-semibold text-gray-700">Quantità</Label>
             <Input type="number" value={newItem.quantity} onChange={e => updateItemField('quantity', e.target.value)} className="mt-1.5 h-11 rounded-xl" />
           </div>
+          {newItem.complementoType === 'Tapparella' && (
+            <div className="col-span-2 md:col-span-1">
+              <Label className="font-semibold text-gray-700">Ante del serramento</Label>
+              <select value={newItem.tapparellaAnte || 1} onChange={e => updateItemField('tapparellaAnte', Number(e.target.value))} className="mt-1.5 flex h-11 w-full rounded-xl border border-orange-200 bg-white px-4 py-2 text-sm">
+                <option value={1}>1 anta (min. 1,5 m²)</option>
+                <option value={2}>2 ante (min. 2 m²)</option>
+                <option value={3}>3 ante (min. 2,5 m²)</option>
+                <option value={4}>4 ante o più (min. 3 m²)</option>
+              </select>
+            </div>
+          )}
           {!isCustomerMode && (
             <div className="col-span-2 md:col-span-1">
               <Label className="flex justify-between items-center text-xs font-semibold text-gray-700 mb-1.5">
@@ -533,6 +545,20 @@ export default function ItemConfigurator({
               <Input type="number" step="0.01" value={newItem.unitPrice} onChange={e => updateItemField('unitPrice', e.target.value)} className="h-11 rounded-xl font-bold text-orange-700 bg-orange-50" />
             </div>
           )}
+          {newItem.complementoType === 'Tapparella' && newItem.complementoCalcType !== 'fisso' && (() => {
+            // Il conto che finira' nel preventivo, scritto per esteso: si vede
+            // subito l'avvolgimento e se scatta il minimo.
+            const r = mqTapparella({ ...newItem, numAnte: newItem.tapparellaAnte });
+            if (!r.mqFatturati) return null;
+            const totale = r.mqFatturati * (Number(newItem.unitPrice) || 0);
+            return (
+              <p className="col-span-2 md:col-span-4 text-sm text-orange-900 bg-white border border-orange-100 rounded-lg px-3 py-2">
+                {spiegaMqTapparella(r, newItem.tapparellaAnte)} fatturati
+                {Number(newItem.unitPrice) > 0 && <> × {Number(newItem.unitPrice).toFixed(2).replace('.', ',')} € = <b>{totale.toFixed(2).replace('.', ',')} €</b></>}
+                <span className="block text-xs text-orange-700/80">Altezza +20 cm per l&#39;avvolgimento. Motore, guide e cassonetto vanno come voci separate.</span>
+              </p>
+            );
+          })()}
         </div>
       )}
 
