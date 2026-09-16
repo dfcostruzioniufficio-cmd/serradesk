@@ -80,7 +80,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // Autosave Draft
   useEffect(() => {
     if (isRestoring) return;
-    if (clientName.trim() || items.length > 0 || note.trim()) {
+    if (clientName.trim() || items.length > 0 || String(note || '').trim()) {
       const draft = {
         clientName, editingOrderId, editingOrderStato,
         items: [...items, { type: 'metadata', discount: Number(sconto) || 0, clientData, note }]

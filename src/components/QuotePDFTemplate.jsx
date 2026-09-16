@@ -117,6 +117,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const tableHeaderRef = useRef(null);
   const footerRef = useRef(null);
   const abacoRef = useRef(null);
+  const noteRef = useRef(null);
   const recapHeaderFirstRef = useRef(null);
   const recapHeaderContRef = useRef(null);
   const recapTitoloRef = useRef(null);
@@ -138,6 +139,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
       tableHeaderH: tableHeaderRef.current?.offsetHeight || 0,
       footerH: footerRef.current?.offsetHeight || 0,
       abacoH: abacoRef.current?.offsetHeight || 0,
+      noteH: noteRef.current?.offsetHeight || 0,
       itemHeights: actualItems.map((_, i) => itemRowRefs.current[i]?.offsetHeight || 0),
       // Il riepilogo prima si impaginava contando righe a numero fisso (13 la
       // prima pagina, 20 le altre, il riquadro dei totali "vale 5 righe"):
@@ -675,6 +677,18 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     return (lastPage.usedH + measured.abacoH) > available;
   })();
 
+  // Quando la chiusura va su una pagina sua, nota e totali insieme possono
+  // non starci: la pagina ha altezza fissa e taglia quello che avanza, e
+  // quello che avanza e' proprio il TOTALE DA PAGARE. In quel caso la nota
+  // prende una pagina per se'.
+  const spazioPaginaChiusura = PAGE_CONTENT_PX - (measured?.headerContH || 0) - (measured?.footerH || 0);
+  const noteSuPaginaPropria = !!(
+    abacoNeedsNewPage && noteScritte && measured
+    && (measured.noteH + measured.abacoH) > spazioPaginaChiusura
+  );
+  const paginePost = (abacoNeedsNewPage ? 1 : 0) + (noteSuPaginaPropria ? 1 : 0);
+  const totalePagine = pages.length + paginePost + recapPageCount;
+
   const hasPulsar = actualItems.some(item => 
     JSON.stringify(item).toLowerCase().includes('pulsar')
   );
@@ -758,7 +772,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           ))}
         </div>
 
-        <div ref={abacoRef}>{renderNote()}{renderAbaco()}</div>
+        <div ref={abacoRef}><div ref={noteRef}>{renderNote()}</div>{renderAbaco()}</div>
 
         {/* Pezzi del riepilogo, misurati con gli stessi margini che avranno
             nella pagina: flow-root li contiene invece di lasciarli collassare. */}
@@ -834,7 +848,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               )}
             </div>
             <div className="text-right">
-              <p>Pagina {rpIndex + 1} di {pages.length + (abacoNeedsNewPage ? 1 : 0) + recapPageCount}</p>
+              <p>Pagina {rpIndex + 1} di {totalePagine}</p>
             </div>
           </div>
         </div>
@@ -940,7 +954,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 )}
               </div>
               <div className="text-right">
-                <p>Pagina {pageIndex + 1 + recapPageCount} di {pages.length + (abacoNeedsNewPage ? 1 : 0) + recapPageCount}</p>
+                <p>Pagina {pageIndex + 1 + recapPageCount} di {totalePagine}</p>
               </div>
             </div>
           </div>
@@ -948,9 +962,41 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
       })}
 
       {/* Render Abaco su nuova pagina se necessario */}
+      {noteSuPaginaPropria && (
+        <div className="bg-white relative shadow-sm" style={{
+            width: '210mm',
+            height: '296mm',
+            overflow: 'hidden',
+            padding: '12mm',
+            boxSizing: 'border-box',
+            pageBreakAfter: 'always',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+            <h1 className="text-sm font-bold text-gray-800 uppercase tracking-wider">{userSettings?.company_name || 'SERRADESK'}</h1>
+            <p className="text-[10px] text-gray-500 font-medium">Preventivo Commerciale - Spett.le {clientName || 'Cliente Non Specificato'}</p>
+          </div>
+
+          <div className="flex-1">{renderNote()}</div>
+
+          <div className="mt-auto pt-4 border-t border-gray-200 flex justify-between items-end text-[8px] text-gray-400">
+            <div className="max-w-[70%]">
+              <p className="mb-1"><strong>Validità dell&#39;offerta:</strong> Il presente preventivo ha validità 15 giorni dalla data di emissione. Oltre tale termine, i prezzi potrebbero subire variazioni.</p>
+              {(!userEmail?.includes('dfcostruzioni.ufficio') && !userEmail?.includes('dfcostruzionisrl.ufficio')) && (
+                <p>Generato tramite piattaforma cloud SerraDesk.it</p>
+              )}
+            </div>
+            <div className="text-right">
+              <p>Pagina {pages.length + 1 + recapPageCount} di {totalePagine}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {abacoNeedsNewPage && (
-        <div className="bg-white relative shadow-sm" style={{ 
-            width: '210mm', 
+        <div className="bg-white relative shadow-sm" style={{
+            width: '210mm',
             height: '296mm',
             overflow: 'hidden',
             padding: '12mm', 
@@ -965,7 +1011,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           </div>
           
           <div className="flex-1">
-            {renderNote()}
+            {!noteSuPaginaPropria && renderNote()}
             {renderAbaco()}
           </div>
 
@@ -977,7 +1023,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               )}
             </div>
             <div className="text-right">
-              <p>Pagina {pages.length + 1 + recapPageCount} di {pages.length + (abacoNeedsNewPage ? 1 : 0) + recapPageCount}</p>
+              <p>Pagina {pages.length + 1 + recapPageCount + (noteSuPaginaPropria ? 1 : 0)} di {totalePagine}</p>
             </div>
           </div>
         </div>

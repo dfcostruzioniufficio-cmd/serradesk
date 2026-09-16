@@ -97,7 +97,7 @@ export default function PreventiviPage() {
 
       // Helper to normalize items from Web Widget
       const normalizeItems = (itemsArray) => {
-        if (!itemsArray || !Array.isArray(itemsArray)) return { items: [], cData: {}, discount: 0 };
+        if (!itemsArray || !Array.isArray(itemsArray)) return { items: [], cData: {}, discount: 0, note: '' };
         const meta = itemsArray.find(i => i.type === 'metadata');
         const notes = itemsArray.filter(i => i.type === 'note');
         let cData = meta?.clientData || { address: '', vat: '', phone: '', email: '' };
@@ -407,6 +407,10 @@ export default function PreventiviPage() {
     p.setClientName('');
     p.setClientData({ address: '', vat: '', phone: '', email: '' });
     p.setSconto(0);
+    // Senza questo la nota del cliente precedente resta nel campo e finisce
+    // nel preventivo del successivo; e l'autosave, che ora salva anche se
+    // c'e' solo la nota, riscrive subito la bozza appena cancellata.
+    p.setNote('');
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
     localStorage.removeItem('sd_draft_preventivo');
@@ -698,9 +702,15 @@ export default function PreventiviPage() {
                 value={p.note}
                 onChange={(e) => p.setNote(e.target.value)}
                 rows={4}
+                // Oltre questa lunghezza la nota non entrerebbe in una pagina
+                // sola e verrebbe tagliata in silenzio sul PDF del cliente.
+                maxLength={2000}
                 placeholder={'Es. N.B. Il prezzo si riferisce al colore indicato: la verniciatura in tinta RAL puo’ comportare variazioni.\nEs. Sono esclusi trasporto, smaltimento e opere murarie.'}
                 className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400"
               />
+              {p.note.length > 1500 && (
+                <p className="text-xs text-gray-500 mt-1.5 text-right">{p.note.length} / 2000 caratteri</p>
+              )}
             </div>
          </div>
          
