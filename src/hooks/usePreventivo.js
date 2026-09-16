@@ -120,6 +120,14 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         updatedItem.isManualBasePrice = false;
       }
 
+      // Ribalta e vasistas esistono solo sul battente: cambiando apertura si
+      // spengono subito, se no l'anteprima mostrava una persiana disegnata
+      // come un vasistas mentre l'articolo salvato era una persiana normale.
+      if (field === 'apertura' && value !== 'Battente') {
+        updatedItem.antaRibalta = false;
+        updatedItem.soloRibalta = false;
+      }
+
       if (field === 'basePrice') {
         updatedItem.isManualBasePrice = true;
       }

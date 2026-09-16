@@ -260,9 +260,12 @@ export default function WindowPreview({
           const { openingEdge: edge, hasHandle } = getOpeningInfo(i);
           const conManiglione = maniglioneAntipanico
             && (Array.isArray(maniglioneAnte) ? maniglioneAnte.includes(i) : true);
-          // Solo ribalta (vasistas): l'anta si apre soltanto in alto, quindi
-          // resta il triangolo della ribalta e sparisce quello del battente.
-          const showRibalta = (antaRibalta || soloRibalta) && edge && (edge === 'left' || edge === 'right') && hasHandle;
+          // Vasistas: l'anta si apre soltanto in alto, quindi resta il
+          // triangolo della ribalta e sparisce quello del battente. Qui non si
+          // guarda la maniglia: un'anta senza maniglia (la fissa di una due
+          // ante) resterebbe disegnata muta, con le sole cerniere in basso.
+          const vasistas = soloRibalta && edge && (edge === 'left' || edge === 'right');
+          const showRibalta = vasistas || (antaRibalta && edge && (edge === 'left' || edge === 'right') && hasHandle);
           const innerW = dW - FT * 2;
 
           const rawWidths = (anteWidths && anteWidths.length === anteCount)
@@ -410,7 +413,7 @@ export default function WindowPreview({
 
                 return (
                   <>
-                    {!soloRibalta && (
+                    {!vasistas && (
                       <>
                         <line x1={cx} y1={cy} x2={hx1} y2={hy1} stroke={color} strokeWidth={sw} strokeDasharray={da}/>
                         <line x1={cx} y1={cy} x2={hx2} y2={hy2} stroke={color} strokeWidth={sw} strokeDasharray={da}/>
@@ -427,7 +430,7 @@ export default function WindowPreview({
               })()}
 
               {/* ── CERNIERE 3D ── */}
-              {edge && apertura !== 'Scorrevole' && soloRibalta && (() => {
+              {edge && apertura !== 'Scorrevole' && vasistas && (() => {
                 // Vasistas: le cerniere stanno sulla traversa bassa, non di lato.
                 const hingeY = ay + ah - 6;
                 const cerniera = (x) => (
@@ -439,7 +442,7 @@ export default function WindowPreview({
                 return <>{cerniera(ax + aw * 0.18)} {cerniera(ax + aw * 0.72)}</>;
               })()}
 
-              {edge && apertura !== 'Scorrevole' && !soloRibalta && (() => {
+              {edge && apertura !== 'Scorrevole' && !vasistas && (() => {
                 const hingeX = edge === 'right' ? ax + 1 : edge === 'left' ? ax + aw - 5 : null;
                 if (!hingeX) return null;
                 const hinge = (y) => (

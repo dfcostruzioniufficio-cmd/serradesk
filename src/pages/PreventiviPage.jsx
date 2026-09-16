@@ -776,6 +776,10 @@ export default function PreventiviPage() {
       {p.showGallery && (
         <TemplateGalleryModal
           onSelectTemplate={(template) => {
+            // I modelli azzerano solo i campi che dichiarano: senza questo
+            // reset, scegliendo "Battente" dopo aver configurato un vasistas
+            // l'articolo restava un vasistas, disegno e descrizione compresi.
+            p.updateItemFields({ antaRibalta: false, soloRibalta: false });
             Object.entries(template).forEach(([key, val]) => {
               p.updateItemField(key, val);
             });
