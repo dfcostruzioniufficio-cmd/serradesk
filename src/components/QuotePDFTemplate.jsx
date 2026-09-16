@@ -252,10 +252,12 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
         ultima.usato -= riga.h;
       }
       pagine.push(nuova);
-      // Se l'unica riga rimasta e' passata di la', quella pagina non serve
-      // piu': altrimenti tornerebbe il foglio col solo riquadro dei totali,
-      // che e' proprio quello che si vuole evitare.
-      if (!ultima.righe.length) pagine.splice(pagine.length - 2, 1);
+      // Se le righe sono passate tutte di la', la pagina svuotata non serve
+      // piu'. Puo' restare a zero righe solo la pagina nuova, e solo se non
+      // c'era una sola riga spostabile: allora si stampa col solo riquadro.
+      // E' brutto, ma l'alternativa - infilare i totali dove non ci stanno -
+      // li taglierebbe a meta', e un totale tagliato va al cliente.
+      if (nuova.righe.length && !ultima.righe.length) pagine.splice(pagine.length - 2, 1);
     }
 
     return pagine.map((p) => ({ items: p.righe.map((r) => r.item), isFirst: p.isFirst, showTotals: p.showTotals }));
