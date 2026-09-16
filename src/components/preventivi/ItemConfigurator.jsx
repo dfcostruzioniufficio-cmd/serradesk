@@ -331,9 +331,23 @@ export default function ItemConfigurator({
               {/* Opzioni Aggiuntive */}
               <div className="col-span-4 bg-gray-50/50 rounded-xl p-4 border border-gray-100 space-y-4">
             <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
-                <input type="checkbox" checked={newItem.antaRibalta} onChange={e => updateItemField('antaRibalta', e.target.checked)} disabled={newItem.apertura?.toLowerCase() !== 'battente'} className="w-4 h-4 rounded text-blue-600" />
-                <span className={`text-sm font-medium ${newItem.apertura?.toLowerCase() !== 'battente' ? 'text-gray-400' : 'text-gray-700'}`}>Anta a Ribalta</span>
+              {/* Battente, anta-ribalta o solo ribalta (vasistas): il taglio
+                  non cambia, cambia la ferramenta e il disegno. */}
+              <label className={`flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm ${newItem.apertura?.toLowerCase() !== 'battente' ? 'opacity-60' : ''}`}>
+                <span className={`text-sm font-medium ${newItem.apertura?.toLowerCase() !== 'battente' ? 'text-gray-400' : 'text-gray-700'}`}>Apertura anta</span>
+                <select
+                  value={newItem.soloRibalta ? 'solo' : newItem.antaRibalta ? 'antaribalta' : 'battente'}
+                  onChange={e => updateItemFields({
+                    antaRibalta: e.target.value === 'antaribalta',
+                    soloRibalta: e.target.value === 'solo',
+                  })}
+                  disabled={newItem.apertura?.toLowerCase() !== 'battente'}
+                  className="text-sm font-semibold bg-transparent outline-none cursor-pointer text-blue-700 disabled:text-gray-400"
+                >
+                  <option value="battente">Solo battente</option>
+                  <option value="antaribalta">Anta a ribalta</option>
+                  <option value="solo">Solo ribalta (vasistas)</option>
+                </select>
               </label>
               <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
                 <input 

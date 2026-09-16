@@ -68,6 +68,7 @@ export default function LivePreview({ newItem, paneConfigs }) {
             numAnte={newItem.numAnte}
             apertura={newItem.apertura}
             antaRibalta={newItem.antaRibalta}
+            soloRibalta={newItem.soloRibalta}
             frameColor={newItem.previewColor || newItem.frameColor}
             accessoriColore={newItem.previewAccessoriColor || newItem.accessoriColore}
             width={newItem.width}

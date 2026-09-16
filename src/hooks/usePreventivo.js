@@ -243,9 +243,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       if (isEditing) newItemsList[targetIndex] = newItemObj;
       else newItemsList.push(newItemObj);
     } else {
-      const hasRibalta = newItem.antaRibalta && newItem.apertura === 'Battente';
+      // Solo ribalta (vasistas): si taglia come un battente, cambiano la
+      // ferramenta e il disegno, quindi l'apertura resta "Battente" e la
+      // differenza la porta la descrizione.
+      const soloRibalta = newItem.soloRibalta && newItem.apertura === 'Battente';
+      const hasRibalta = !soloRibalta && newItem.antaRibalta && newItem.apertura === 'Battente';
       const anteText = `${newItem.numAnte} ANT${newItem.numAnte > 1 ? 'E' : 'A'}`;
-      let desc2 = `${newItem.apertura.toUpperCase()} ${anteText}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
+      let desc2 = `${newItem.apertura.toUpperCase()} ${anteText}${hasRibalta ? ' CON ANTA A RIBALTA' : soloRibalta ? ' A SOLA RIBALTA (VASISTAS)' : ''}`;
       if (newItem.hasSopraluce) desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm`;
       // Ante col maniglione, una sola volta per disegno e descrizione: se nel
       // frattempo le ante sono diminuite si tolgono quelle che non esistono
@@ -280,7 +284,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         uid: isEditing ? items[editingIndex]?.uid : nuovoUid(),
         model: `${newItem.apertura.toUpperCase()} ${anteText}`,
         apertura: newItem.apertura, numAnte: newItem.numAnte,
-        antaRibalta: hasRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
+        antaRibalta: hasRibalta, soloRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
         hasSopraluce: newItem.hasSopraluce, sopraluceHeight: Number(newItem.sopraluceHeight),
         handlePosition: newItem.handlePosition, paneConfigs: [...paneConfigs],
         // La spunta si vedeva nell'anteprima ma non veniva copiata

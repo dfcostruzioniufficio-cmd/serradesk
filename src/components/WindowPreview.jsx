@@ -14,6 +14,7 @@ export default function WindowPreview({
   numAnte = 1,
   apertura = 'Battente',
   antaRibalta = false,
+  soloRibalta = false,
   frameColor = 'Bianco',
   accessoriColore = 'Argento',
   width = 1000,
@@ -259,7 +260,9 @@ export default function WindowPreview({
           const { openingEdge: edge, hasHandle } = getOpeningInfo(i);
           const conManiglione = maniglioneAntipanico
             && (Array.isArray(maniglioneAnte) ? maniglioneAnte.includes(i) : true);
-          const showRibalta = antaRibalta && edge && (edge === 'left' || edge === 'right') && hasHandle;
+          // Solo ribalta (vasistas): l'anta si apre soltanto in alto, quindi
+          // resta il triangolo della ribalta e sparisce quello del battente.
+          const showRibalta = (antaRibalta || soloRibalta) && edge && (edge === 'left' || edge === 'right') && hasHandle;
           const innerW = dW - FT * 2;
 
           const rawWidths = (anteWidths && anteWidths.length === anteCount)
@@ -407,8 +410,12 @@ export default function WindowPreview({
 
                 return (
                   <>
-                    <line x1={cx} y1={cy} x2={hx1} y2={hy1} stroke={color} strokeWidth={sw} strokeDasharray={da}/>
-                    <line x1={cx} y1={cy} x2={hx2} y2={hy2} stroke={color} strokeWidth={sw} strokeDasharray={da}/>
+                    {!soloRibalta && (
+                      <>
+                        <line x1={cx} y1={cy} x2={hx1} y2={hy1} stroke={color} strokeWidth={sw} strokeDasharray={da}/>
+                        <line x1={cx} y1={cy} x2={hx2} y2={hy2} stroke={color} strokeWidth={sw} strokeDasharray={da}/>
+                      </>
+                    )}
                     {showRibalta && (
                       <>
                         <line x1={mx} y1={gy+4} x2={gx+4}    y2={gy+gh-4} stroke={color} strokeWidth={sw} strokeDasharray={da}/>
@@ -420,7 +427,19 @@ export default function WindowPreview({
               })()}
 
               {/* ── CERNIERE 3D ── */}
-              {edge && apertura !== 'Scorrevole' && (() => {
+              {edge && apertura !== 'Scorrevole' && soloRibalta && (() => {
+                // Vasistas: le cerniere stanno sulla traversa bassa, non di lato.
+                const hingeY = ay + ah - 6;
+                const cerniera = (x) => (
+                  <g key={x} filter="drop-shadow(1px 2px 2px rgba(0,0,0,0.4))">
+                    <rect x={x} y={hingeY} width={14} height={5} rx="2" fill={`url(#metalCilinderV_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.5"/>
+                    <rect x={x-2} y={hingeY+1} width={18} height={3} rx="1.5" fill={accLight} stroke={darken(accHex, 60)} strokeWidth="0.5"/>
+                  </g>
+                );
+                return <>{cerniera(ax + aw * 0.18)} {cerniera(ax + aw * 0.72)}</>;
+              })()}
+
+              {edge && apertura !== 'Scorrevole' && !soloRibalta && (() => {
                 const hingeX = edge === 'right' ? ax + 1 : edge === 'left' ? ax + aw - 5 : null;
                 if (!hingeX) return null;
                 const hinge = (y) => (
