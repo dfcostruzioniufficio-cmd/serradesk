@@ -73,6 +73,11 @@ export function righeTapparelle(items = []) {
       const quantita = Math.max(1, Number(item.quantity) || 1);
       const calcolo = mqTapparella({ width: item.width, height: item.height, numAnte });
       return {
+        // Gli id visibili (01, 02...) si rinumerano a ogni cancellazione: le
+        // esclusioni si tengono sull'uid, che il serramento si porta dietro
+        // per sempre. I serramenti dei preventivi vecchi non ce l'hanno e
+        // ricadono sull'id, che pero' viene spostato da removeItem.
+        chiave: item.uid || item.id,
         id: item.id,
         indice,
         width: Number(item.width),
@@ -87,13 +92,13 @@ export function righeTapparelle(items = []) {
 }
 
 /**
- * Totale dei m² da fatturare. `escluse` sono gli id dei serramenti che
+ * Totale dei m² da fatturare. `escluse` sono le chiavi dei serramenti che
  * l'utente ha tolto (quelli senza tapparella): tenere le escluse invece
  * delle incluse fa entrare da sole nel conto le righe aggiunte dopo.
  */
 export function totaleTapparelle(righe, escluse = []) {
   const fuori = new Set(escluse || []);
-  const scelte = righe.filter((r) => !fuori.has(r.id));
+  const scelte = righe.filter((r) => !fuori.has(r.chiave));
   return {
     righe: scelte,
     serramenti: scelte.reduce((s, r) => s + r.quantita, 0),

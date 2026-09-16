@@ -6,6 +6,12 @@ import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
+const nuovoUid = () => (
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `s-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+);
+
 export function usePreventivo(isRestoring, setIsRestoring) {
   const [clientName, setClientName] = useState('');
   const [items, setItems] = useState([]);
@@ -264,6 +270,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
       const newItemObj = {
         id: targetId, type: 'window',
+        // Identita' stabile del serramento: l'id visibile si rinumera a ogni
+        // cancellazione, l'uid no. Le tapparelle escluse si agganciano qui.
+        uid: (isEditing && items[editingIndex]?.uid) || nuovoUid(),
         model: `${newItem.apertura.toUpperCase()} ${anteText}`,
         apertura: newItem.apertura, numAnte: newItem.numAnte,
         antaRibalta: hasRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
@@ -326,9 +335,37 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   };
 
   const removeItem = (indexToRemove) => {
-    setItems(items.filter((_, index) => index !== indexToRemove).map((item, index) => ({
-      ...item, id: (index + 1).toString().padStart(2, '0')
-    })));
+    const rimasti = items.filter((_, index) => index !== indexToRemove);
+    // Cancellando un articolo tutti gli id si rinumerano. I serramenti dei
+    // preventivi vecchi non hanno l'uid, quindi le loro esclusioni sono
+    // salvate per id e vanno spostate insieme a lui: se no il serramento
+    // che l'utente aveva tolto rientra da solo nel conto delle tapparelle,
+    // e il cliente si vede fatturare una tapparella che non ha.
+    const idNuovi = new Map();
+    rimasti.forEach((item, index) => {
+      const nuovoId = (index + 1).toString().padStart(2, '0');
+      if (item.id !== nuovoId) idNuovi.set(item.id, nuovoId);
+    });
+    const idRimosso = items[indexToRemove]?.id;
+    const spostaEscluse = (escluse) => (
+      Array.isArray(escluse)
+        ? escluse.filter((k) => k !== idRimosso).map((k) => idNuovi.get(k) ?? k)
+        : escluse
+    );
+
+    setItems(rimasti.map((item, index) => {
+      const aggiornato = { ...item, id: (index + 1).toString().padStart(2, '0') };
+      if (item.rawInput?.itemType === 'tapparelle') {
+        aggiornato.rawInput = { ...item.rawInput, tapparelleEscluse: spostaEscluse(item.rawInput.tapparelleEscluse) };
+      }
+      return aggiornato;
+    }));
+    // Anche la scheda aperta in questo momento, se sta configurando tapparelle.
+    setNewItem(prev => (
+      Array.isArray(prev.tapparelleEscluse) && prev.tapparelleEscluse.length
+        ? { ...prev, tapparelleEscluse: spostaEscluse(prev.tapparelleEscluse) }
+        : prev
+    ));
   };
 
   const handleSpalmaQuadratura = (targetTotalMq) => {

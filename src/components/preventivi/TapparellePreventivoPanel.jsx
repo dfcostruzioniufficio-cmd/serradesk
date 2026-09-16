@@ -21,8 +21,8 @@ export default function TapparellePreventivoPanel({ items, newItem, updateItemFi
   const totale = totaleTapparelle(righe, escluse);
   const prezzo = Number(newItem.unitPrice) || 0;
 
-  const cambia = (id, dentro) => {
-    const nuove = dentro ? escluse.filter((x) => x !== id) : [...new Set([...escluse, id])];
+  const cambia = (chiave, dentro) => {
+    const nuove = dentro ? escluse.filter((x) => x !== chiave) : [...new Set([...escluse, chiave])];
     updateItemField('tapparelleEscluse', nuove);
   };
 
@@ -51,13 +51,13 @@ export default function TapparellePreventivoPanel({ items, newItem, updateItemFi
       <div className="rounded-xl border border-orange-100 bg-white overflow-hidden">
         <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
           {righe.map((r) => {
-            const dentro = !escluse.includes(r.id);
+            const dentro = !escluse.includes(r.chiave);
             return (
               <label
-                key={r.id}
+                key={r.chiave}
                 className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer ${dentro ? '' : 'opacity-45'}`}
               >
-                <input type="checkbox" checked={dentro} onChange={(e) => cambia(r.id, e.target.checked)} />
+                <input type="checkbox" checked={dentro} onChange={(e) => cambia(r.chiave, e.target.checked)} />
                 <span className="font-bold text-gray-400 w-6 shrink-0">{r.id}</span>
                 <span className="font-semibold text-gray-800 w-32 shrink-0 tabular-nums">
                   {r.width} × {r.height}
