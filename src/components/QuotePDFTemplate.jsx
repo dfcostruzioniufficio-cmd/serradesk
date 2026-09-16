@@ -41,6 +41,13 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     return new Intl.NumberFormat('it-IT', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   };
 
+  // I pezzi restano interi ("2 pz"); le voci a misura, come le tapparelle al
+  // m², portano i decimali ("43,43 m²").
+  const formatQta = (value) => {
+    const n = Number(value) || 0;
+    return Number.isInteger(n) ? String(n) : formatNumber(n);
+  };
+
   const maxQuoteWidth = Math.max(1000, ...actualItems.map(i => Number(i.width) || 0));
   const maxQuoteHeight = Math.max(1000, ...actualItems.map(i => Number(i.height) || 0));
 
@@ -219,11 +226,11 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             </svg>
           </div>
           <div className="flex-1 px-4">
-            <h3 className="font-bold text-gray-900 text-[13px] mb-1 uppercase tracking-wide">Articolo Personalizzato</h3>
+            <h3 className="font-bold text-gray-900 text-[13px] mb-1 uppercase tracking-wide">{item.titolo || 'Articolo Personalizzato'}</h3>
             <p className="text-gray-600 text-xs whitespace-pre-wrap leading-relaxed">{item.customDescription}</p>
           </div>
           <div className="w-24 text-right px-2 text-sm text-gray-600">{formatCurrency(item.unitPrice)}</div>
-          <div className="w-16 text-center px-2 text-sm text-gray-600">{item.quantity} pz</div>
+          <div className="w-16 text-center px-2 text-sm text-gray-600">{formatQta(item.quantity)} {item.unita || 'pz'}</div>
           <div className="w-28 text-right font-bold text-base text-gray-900 pr-2">{formatCurrency(totale)}</div>
         </div>
       );
@@ -621,7 +628,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               {rp.items.map((item, itemIndex) => {
                 const globalIndex = recapPages.slice(0, rpIndex).reduce((acc, p) => acc + p.items.length, 0) + itemIndex;
                 const recapTitle = item.type === 'custom'
-                  ? 'Articolo Personalizzato'
+                  ? (item.titolo || 'Articolo Personalizzato')
                   : (item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim() || 'Complemento');
                 const recapMisure = item.width && item.height ? `${item.width} x ${item.height}` : '—';
                 const recapTotale = (item.unitPrice || 0) * (item.quantity || 1);
@@ -630,7 +637,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                     <div className="w-8 text-center shrink-0 text-gray-400 font-bold">{globalIndex + 1}</div>
                     <div className="flex-1 px-3 font-semibold text-gray-800">{recapTitle}</div>
                     <div className="w-24 text-center shrink-0 text-gray-500 font-mono">{recapMisure}</div>
-                    <div className="w-12 text-center shrink-0 text-gray-500">{item.quantity || 1}</div>
+                    <div className="w-12 text-center shrink-0 text-gray-500">{formatQta(item.quantity || 1)}</div>
                     <div className="w-24 text-right pr-2 shrink-0 font-bold text-gray-900">{formatCurrency(recapTotale)}</div>
                   </div>
                 );

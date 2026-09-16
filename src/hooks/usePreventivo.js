@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq } from './usePricingEngine';
 import { calcolaUw, formattaUw } from '../utils/trasmittanza';
-import { mqTapparella, spiegaMqTapparella } from '../utils/tapparella';
+import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
 export function usePreventivo(isRestoring, setIsRestoring) {
@@ -23,6 +23,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     vetroInferioreId: '', hasSopraluce: false, sopraluceHeight: '', handlePosition: 'Centrale',
     width: '', height: '', quantity: 1, frameColor: '#ffffff', colorName: '',
     sistemaCamId: '', complementoAction: 'Molla', complementoCalcType: 'mq', tapparellaAnte: 1,
+    tapparelleEscluse: [], tapparelleDescrizione: 'Tapparelle in PVC',
     marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: ''
   };
 
@@ -156,6 +157,15 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         toast.error('Inserisci un prezzo valido prima di aggiungere.');
         return;
       }
+    } else if (itemType === 'tapparelle') {
+      if (!totaleTapparelle(righeTapparelle(items), newItem.tapparelleEscluse).mq) {
+        toast.error('Nessun serramento selezionato: spunta almeno una finestra con la tapparella.');
+        return;
+      }
+      if (!Number(newItem.unitPrice)) {
+        toast.error('Inserisci il prezzo al m² prima di aggiungere le tapparelle.');
+        return;
+      }
     } else if (itemType === 'custom') {
       if (!Number(newItem.unitPrice)) {
         toast.error('Inserisci un prezzo valido prima di aggiungere.');
@@ -168,7 +178,23 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     const targetIndex = isEditing ? editingIndex : items.length;
     const targetId = isEditing ? items[editingIndex].id : (items.length + 1).toString().padStart(2, '0');
     
-    if (itemType === 'custom') {
+    if (itemType === 'tapparelle') {
+      // Una riga sola per tutte le tapparelle: i m² arrivano dai serramenti
+      // gia' nel preventivo, l'utente mette solo il prezzo al m².
+      const totale = totaleTapparelle(righeTapparelle(items), newItem.tapparelleEscluse);
+      const quanti = totale.serramenti;
+      const newItemObj = {
+        id: targetId, type: 'custom',
+        titolo: (newItem.tapparelleDescrizione || 'Tapparelle').trim(),
+        customDescription: `${totale.mq.toFixed(2).replace('.', ',')} m² su ${quanti} ${quanti === 1 ? 'serramento' : 'serramenti'} · altezza +${AVVOLGIMENTO_MM / 10} cm per l'avvolgimento, minimi per ante`,
+        unita: 'm²',
+        unitPrice: Number(newItem.unitPrice) || 0,
+        quantity: totale.mq,
+        rawInput: { ...newItem, itemType: 'tapparelle' }
+      };
+      if (isEditing) newItemsList[targetIndex] = newItemObj;
+      else newItemsList.push(newItemObj);
+    } else if (itemType === 'custom') {
       const newItemObj = {
         id: targetId, type: 'custom',
         customDescription: newItem.customDescription,

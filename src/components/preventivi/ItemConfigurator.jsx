@@ -7,10 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Settings2, Plus, Ruler, Palette } from 'lucide-react';
 import { getFrameColorHex, getAccessoriHex } from '../../utils/colors';
 import { isClientePuntoAlluminio } from '../../lib/personalizzazioni';
+import TapparellePreventivoPanel from './TapparellePreventivoPanel';
 
 export default function ItemConfigurator({
   itemType,
   setItemType,
+  items = [],
   newItem,
   updateItemField,
   updateItemFields,
@@ -70,8 +72,14 @@ export default function ItemConfigurator({
         >
           Complemento
         </button>
-        <button 
-          onClick={() => setItemType('custom')} 
+        <button
+          onClick={() => setItemType('tapparelle')}
+          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${itemType === 'tapparelle' ? 'bg-orange-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+        >
+          Tapparelle al m²
+        </button>
+        <button
+          onClick={() => setItemType('custom')}
           className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${itemType === 'custom' ? 'bg-emerald-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
         >
           Voce Libera
@@ -594,6 +602,15 @@ export default function ItemConfigurator({
             );
           })()}
         </div>
+      )}
+
+      {itemType === 'tapparelle' && (
+        <TapparellePreventivoPanel
+          items={items}
+          newItem={newItem}
+          updateItemField={updateItemField}
+          isCustomerMode={isCustomerMode}
+        />
       )}
 
       {itemType === 'custom' && (

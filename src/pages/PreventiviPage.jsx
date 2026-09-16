@@ -664,7 +664,7 @@ export default function PreventiviPage() {
          {/* Configurazione (Colonna Sinistra 2/3) */}
          <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
             <ItemConfigurator 
-              itemType={p.itemType} setItemType={p.setItemType}
+              itemType={p.itemType} setItemType={p.setItemType} items={p.items}
               newItem={p.newItem} updateItemField={p.updateItemField} updateItemFields={p.updateItemFields}
               sistemiCam={p.sistemiCam} editingIndex={p.editingIndex}
               handleCancelEdit={p.handleCancelEdit} handleAddItem={p.handleAddItem}

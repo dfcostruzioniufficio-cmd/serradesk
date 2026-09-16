@@ -31,8 +31,10 @@ export default function ItemsList({
                   <div>
                     {item.type === 'custom' ? (
                       <>
-                        <p className="font-bold text-gray-800 line-clamp-1">{item.customDescription || 'Voce Libera'}</p>
-                        <p className="text-sm text-gray-500">Voce Libera | Qtà: {item.quantity}</p>
+                        <p className="font-bold text-gray-800 line-clamp-1">{item.titolo || item.customDescription || 'Voce Libera'}</p>
+                        <p className="text-sm text-gray-500">
+                          {item.titolo ? item.customDescription : `Voce Libera | Qtà: ${item.quantity}${item.unita ? ` ${item.unita}` : ''}`}
+                        </p>
                       </>
                     ) : item.type === 'complemento' ? (
                       <>
