@@ -264,7 +264,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(price.toFixed(2)),
         description1: '', description2: desc2, description3: compDesc,
-        colInt: coloreInfisso(newItem), colEst: coloreInfisso(newItem),
+        // Il complemento non ha il campo "Colore Infisso": prenderebbe quello
+        // rimasto in memoria dal serramento configurato prima, e la zanzariera
+        // uscirebbe "RAL 7016" senza che nessuno l'abbia chiesto.
+        colInt: newItem.colorName || '', colEst: newItem.colorName || '',
         rawInput: { ...newItem, itemType: 'complemento' }
       };
       if (isEditing) newItemsList[targetIndex] = newItemObj;
