@@ -239,8 +239,12 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     } else {
       const disponibileNuova = spazio(false) - m.totaliH;
       const nuova = { righe: [], isFirst: false, showTotals: true, usato: 0, disponibile: disponibileNuova };
-      const quante = Math.ceil(ultima.righe.length / 2);
-      while (nuova.righe.length < quante && ultima.righe.length > 1) {
+      const quante = Math.max(1, Math.ceil(ultima.righe.length / 2));
+      // Sulla prima pagina resta sempre almeno una riga: senza, si
+      // stamperebbe un foglio con la sola intestazione. Sulle altre si puo'
+      // svuotare, tanto poi la pagina vuota si butta.
+      const restaAlmeno = ultima.isFirst ? 1 : 0;
+      while (nuova.righe.length < quante && ultima.righe.length > restaAlmeno) {
         const riga = ultima.righe[ultima.righe.length - 1];
         if (nuova.usato + riga.h > disponibileNuova) break;
         nuova.righe.unshift(ultima.righe.pop());
@@ -248,6 +252,10 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
         ultima.usato -= riga.h;
       }
       pagine.push(nuova);
+      // Se l'unica riga rimasta e' passata di la', quella pagina non serve
+      // piu': altrimenti tornerebbe il foglio col solo riquadro dei totali,
+      // che e' proprio quello che si vuole evitare.
+      if (!ultima.righe.length) pagine.splice(pagine.length - 2, 1);
     }
 
     return pagine.map((p) => ({ items: p.righe.map((r) => r.item), isFirst: p.isFirst, showTotals: p.showTotals }));
