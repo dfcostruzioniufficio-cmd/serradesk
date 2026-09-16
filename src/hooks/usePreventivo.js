@@ -6,6 +6,25 @@ import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
+/**
+ * Il colore scritto a mano nel campo "Colore Infisso".
+ *
+ * Quel campo scrive in frameColor, che pero' tiene due cose insieme: il
+ * nome del colore come lo scrive l'utente ("RAL 7016", "RAL da definire")
+ * e l'esadecimale scelto col selettore, che nel documento del cliente non
+ * ci deve finire mai. Qui si tiene solo il primo.
+ */
+const coloreScritto = (valore) => {
+  const testo = String(valore || '').trim();
+  // Si scarta solo cio' che e' davvero un esadecimale: col cancelletto,
+  // come lo scrive il selettore, o sei cifre piene. Un "9010" scritto a
+  // mano e' il nome di un RAL e sul preventivo ci deve andare.
+  return /^#/.test(testo) || /^[0-9a-fA-F]{6}$/.test(testo) ? '' : testo;
+};
+
+/** Colore da scrivere sul preventivo: quello dell'utente, se l'ha scritto. */
+const coloreInfisso = (item) => item?.colorName || coloreScritto(item?.frameColor);
+
 const nuovoUid = () => (
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -245,7 +264,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         width: Number(newItem.width), height: Number(newItem.height),
         quantity: Number(newItem.quantity), unitPrice: Number(price.toFixed(2)),
         description1: '', description2: desc2, description3: compDesc,
-        colInt: newItem.colorName, colEst: newItem.colorName,
+        colInt: coloreInfisso(newItem), colEst: coloreInfisso(newItem),
         rawInput: { ...newItem, itemType: 'complemento' }
       };
       if (isEditing) newItemsList[targetIndex] = newItemObj;
@@ -311,7 +330,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         customImage: newItem.customImage || null,
         anteAsimmetriche: newItem.anteAsimmetriche || false, anteWidths: newItem.anteWidths || null,
         sistema_cam: sistemaCam,
-        colInt: newItem.colorName || specs.colInt || '', colEst: newItem.colorName || specs.colEst || '',
+        colInt: coloreInfisso(newItem) || specs.colInt || '', colEst: coloreInfisso(newItem) || specs.colEst || '',
         accessori: newItem.accessoriColore || specs.accessori || '', serrature: specs.serrature || '',
         vetro: (isPersiana || isBlindata) ? '' : newItem.vetro,
         colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''), colCanalina: (isPersiana || isBlindata) ? '' : (specs.colCanalina || ''),
@@ -463,8 +482,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         sistema_cam: sistemaCam,
         marca: sistemaCam?.marca || '',
         description3: isBlindata ? 'Porta Blindata di Sicurezza' : (sistemaCam?.marca ? `${sistemaCam.marca} - ${sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato'}` : (sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato')),
-        colInt: item.colorName || specs.colInt || '', 
-        colEst: item.colorName || specs.colEst || '',
+        colInt: coloreInfisso(item) || specs.colInt || '',
+        colEst: coloreInfisso(item) || specs.colEst || '',
         accessori: item.accessoriColore || specs.accessori || '',
         serrature: specs.serrature || '',
         colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''),
