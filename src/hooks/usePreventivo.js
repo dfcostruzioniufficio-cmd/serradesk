@@ -272,7 +272,12 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         id: targetId, type: 'window',
         // Identita' stabile del serramento: l'id visibile si rinumera a ogni
         // cancellazione, l'uid no. Le tapparelle escluse si agganciano qui.
-        uid: (isEditing && items[editingIndex]?.uid) || nuovoUid(),
+        // Modificando un serramento l'uid non si tocca mai: i serramenti dei
+        // preventivi vecchi non ce l'hanno e devono restare senza, se no
+        // cambierebbero identita' a meta' strada e l'esclusione salvata sul
+        // loro id (l'unica che hanno) andrebbe persa, rimettendo in conto una
+        // tapparella che il cliente non ha.
+        uid: isEditing ? items[editingIndex]?.uid : nuovoUid(),
         model: `${newItem.apertura.toUpperCase()} ${anteText}`,
         apertura: newItem.apertura, numAnte: newItem.numAnte,
         antaRibalta: hasRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
