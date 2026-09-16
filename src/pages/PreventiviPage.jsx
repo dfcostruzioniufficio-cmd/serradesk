@@ -702,8 +702,8 @@ export default function PreventiviPage() {
                 value={p.note}
                 onChange={(e) => p.setNote(e.target.value)}
                 rows={4}
-                // Oltre questa lunghezza la nota non entrerebbe in una pagina
-                // sola e verrebbe tagliata in silenzio sul PDF del cliente.
+                // Un tetto di buon senso: la nota si spezza su piu' fogli, ma
+                // oltre questa misura non e' piu' una nota, e' un contratto.
                 maxLength={2000}
                 placeholder={'Es. N.B. Il prezzo si riferisce al colore indicato: la verniciatura in tinta RAL puo’ comportare variazioni.\nEs. Sono esclusi trasporto, smaltimento e opere murarie.'}
                 className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400"

@@ -11,11 +11,13 @@ Il flusso è sempre questo, senza scorciatoie:
 1. Si lavora e si committa su `staging`
 2. **Si esegue l'agente `judge`** sulle modifiche in uscita (`git diff main...HEAD`)
 3. Si sistemano i problemi che il judge segnala come bloccanti
-4. Si aspetta il via libera esplicito dell'utente
-5. Solo allora: merge su `main` e push, che fa partire il deploy su Vercel
+4. Se il judge non ha piu' bloccanti, **si pubblica subito**: merge su `main` e
+   push, che fa partire il deploy su Vercel
 
-Non fare mai merge su `main` senza aver eseguito il judge e senza che l'utente
-abbia detto di procedere.
+Non serve chiedere il permesso a ogni pubblicazione: l'utente lo ha detto
+esplicitamente il 16 settembre 2026, gli bastava aspettare troppo. Il via libera
+che conta e' quello del judge. Non si pubblica mai, invece, senza aver eseguito
+il judge quando serve (vedi sotto), o mentre restano suoi rilievi bloccanti.
 
 ### Quando il judge serve davvero
 

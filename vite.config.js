@@ -341,7 +341,11 @@ export default defineConfig({
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'pagine',
-							networkTimeoutSeconds: 4,
+							// Niente timeout: scaduto quello, su una rete lenta da
+							// cantiere verrebbe servita la pagina vecchia in cache,
+							// cioe' di nuovo il bundle mancante e la schermata
+							// bianca. Se la rete manca davvero la fetch fallisce
+							// subito e si ripiega comunque sulla cache.
 							expiration: { maxEntries: 20 },
 						},
 					},
