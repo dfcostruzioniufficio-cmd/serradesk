@@ -345,8 +345,8 @@ export default function ItemConfigurator({
                   className="text-sm font-semibold bg-transparent outline-none cursor-pointer text-blue-700 disabled:text-gray-400"
                 >
                   <option value="battente">Solo battente</option>
-                  <option value="antaribalta">Anta a ribalta</option>
-                  <option value="solo">Solo ribalta (vasistas)</option>
+                  <option value="antaribalta">Anta e ribalta</option>
+                  <option value="solo">Vasistas (solo ribalta)</option>
                 </select>
               </label>
               <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
