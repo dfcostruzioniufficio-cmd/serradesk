@@ -57,6 +57,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const [barLength, setBarLength] = useState(6500);
   const [sistemiCam, setSistemiCam] = useState([]);
   const [sconto, setSconto] = useState(0);
+  // Note libere in fondo al preventivo: avvertenze sul colore, sui tempi,
+  // su cosa non e' compreso. Vanno nel documento che legge il cliente.
+  const [note, setNote] = useState('');
   const [clientData, setClientData] = useState({ address: '', vat: '', phone: '', email: '' });
 
   // Load sistemi
@@ -77,16 +80,16 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // Autosave Draft
   useEffect(() => {
     if (isRestoring) return;
-    if (clientName.trim() || items.length > 0) {
+    if (clientName.trim() || items.length > 0 || note.trim()) {
       const draft = {
         clientName, editingOrderId, editingOrderStato,
-        items: [...items, { type: 'metadata', discount: Number(sconto) || 0, clientData }]
+        items: [...items, { type: 'metadata', discount: Number(sconto) || 0, clientData, note }]
       };
       localStorage.setItem('sd_draft_preventivo', JSON.stringify(draft));
     } else {
       localStorage.removeItem('sd_draft_preventivo');
     }
-  }, [clientName, items, sconto, clientData, editingOrderId, editingOrderStato, isRestoring]);
+  }, [clientName, items, sconto, clientData, note, editingOrderId, editingOrderStato, isRestoring]);
 
   // Removed sd_draft_form saving
 
@@ -508,7 +511,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const { imponibile, scontoAmount, imponibileScontato, totaleIva, totalePreventivo } = calculateQuoteSummary(items, sconto, iva);
 
   return {
-    clientName, setClientName, clientData, setClientData, sconto, setSconto, iva, setIva,
+    clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, iva, setIva,
     items, setItems, itemType, setItemType, editingOrderId, setEditingOrderId,
     editingOrderStato, setEditingOrderStato,
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs,

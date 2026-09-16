@@ -153,7 +153,7 @@ export default function PreventiviPage() {
           });
         }
 
-        return { items: clean, cData, discount: meta?.discount || 0 };
+        return { items: clean, cData, discount: meta?.discount || 0, note: meta?.note || '' };
       };
 
       // 1. Edit da Archivio
@@ -168,6 +168,7 @@ export default function PreventiviPage() {
           const norm = normalizeItems(editData.items);
           p.setSconto(norm.discount);
           p.setClientData(norm.cData);
+          p.setNote(norm.note);
           p.setItems(norm.items);
           
           sessionStorage.removeItem('sd_edit_ordine');
@@ -190,6 +191,7 @@ export default function PreventiviPage() {
           const norm = normalizeItems(draft.items);
           p.setSconto(norm.discount);
           p.setClientData(norm.cData);
+          p.setNote(norm.note);
           p.setItems(norm.items);
         } catch (e) {
           console.error('Error parsing sd_draft_preventivo', e);
@@ -376,7 +378,7 @@ export default function PreventiviPage() {
       cliente: p.clientName || 'Cliente non specificato',
       totale: p.totalePreventivo,
       stato: p.editingOrderStato || 'Bozza',
-      items: [...p.items, { type: 'metadata', discount: p.sconto, clientData: p.clientData }]
+      items: [...p.items, { type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note }]
     };
 
     let error;
@@ -570,7 +572,7 @@ export default function PreventiviPage() {
       id: p.editingOrderId,
       cliente: p.clientName,
       totale: p.totalePreventivo,
-      items: [...p.items, { type: 'metadata', discount: p.sconto, clientData: p.clientData }],
+      items: [...p.items, { type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note }],
       created_at: new Date().toISOString()
     };
     sessionStorage.setItem('sd_distinta_ordine', JSON.stringify(tmpOrder));
@@ -681,6 +683,25 @@ export default function PreventiviPage() {
               editingIndex={p.editingIndex}
               isCustomerMode={isCustomerMode}
             />
+
+            {/* Note in fondo al preventivo: avvertenze sul colore, sui tempi,
+                su cosa non e' compreso. Finiscono nel PDF del cliente. */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6">
+              <label htmlFor="note-preventivo" className="block">
+                <span className="text-xl font-bold text-gray-800">Note e condizioni</span>
+                <span className="block text-sm text-gray-500 mt-0.5 mb-3">
+                  Escono in fondo al preventivo, sotto gli articoli. Lascia vuoto per non stamparle.
+                </span>
+              </label>
+              <textarea
+                id="note-preventivo"
+                value={p.note}
+                onChange={(e) => p.setNote(e.target.value)}
+                rows={4}
+                placeholder={'Es. N.B. Il prezzo si riferisce al colore indicato: la verniciatura in tinta RAL puo’ comportare variazioni.\nEs. Sono esclusi trasporto, smaltimento e opere murarie.'}
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400"
+              />
+            </div>
          </div>
          
          {/* Preview e Totali (Colonna Destra 1/3) */}
@@ -746,6 +767,7 @@ export default function PreventiviPage() {
                     clientPhone: p.clientData.phone,
                     clientEmail: p.clientData.email,
                     items: p.items,
+                    note: p.note,
                     sconto: p.sconto,
                     iva: p.iva,
                     imponibile: p.imponibile,
@@ -822,6 +844,7 @@ export default function PreventiviPage() {
               clientPhone: p.clientData.phone,
               clientEmail: p.clientData.email,
               items: p.items,
+              note: p.note,
               sconto: p.sconto,
               iva: p.iva,
               imponibile: p.imponibile,

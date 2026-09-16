@@ -15,6 +15,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     clientPhone,
     clientEmail,
     items,
+    note,
     sconto,
     iva,
     imponibile,
@@ -156,7 +157,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     // Nelle dipendenze niente importi: il riquadro dei totali ha sempre le
     // stesse quattro caselle, anche senza sconto, quindi la sua altezza non
     // cambia con le cifre.
-  }, [heightSignature, includeRecap, userSettings?.company_name, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
+    // `note` fra le dipendenze: cambiandole cambia l'altezza del blocco di
+    // chiusura, e senza rimisurare l'ultima pagina andrebbe in overflow.
+  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
 
   const getPages = () => {
     if (!measured) return getPagesEstimate();
@@ -482,6 +485,20 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     );
   };
 
+  // Le note stanno dentro il blocco di chiusura, che e' gia' misurato nel
+  // DOM: cosi' l'impaginazione le conta e non finiscono tagliate a fondo
+  // pagina ne' costringono a un foglio in piu' senza motivo.
+  const noteScritte = String(note || '').trim();
+
+  const renderNote = () => (
+    noteScritte ? (
+      <div className="mt-8 break-inside-avoid bg-amber-50/60 border border-amber-200 rounded-2xl px-5 py-4">
+        <h4 className="font-extrabold text-[11px] text-amber-900 uppercase tracking-widest mb-2">Note</h4>
+        <p className="text-[11px] text-slate-800 leading-relaxed whitespace-pre-wrap">{noteScritte}</p>
+      </div>
+    ) : null
+  );
+
   const renderAbaco = () => (
     <div className="mt-8 flex justify-between items-stretch abaco-container break-inside-avoid gap-6">
       <div className="w-1/3 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
@@ -741,7 +758,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           ))}
         </div>
 
-        <div ref={abacoRef}>{renderAbaco()}</div>
+        <div ref={abacoRef}>{renderNote()}{renderAbaco()}</div>
 
         {/* Pezzi del riepilogo, misurati con gli stessi margini che avranno
             nella pagina: flow-root li contiene invece di lasciarli collassare. */}
@@ -911,7 +928,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               </div>
 
               {/* Render Abaco se c'è spazio sufficiente */}
-              {pageIndex === pages.length - 1 && !abacoNeedsNewPage && renderAbaco()}
+              {pageIndex === pages.length - 1 && !abacoNeedsNewPage && <>{renderNote()}{renderAbaco()}</>}
             </div>
 
             {/* Footer Globale */}
@@ -948,6 +965,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           </div>
           
           <div className="flex-1">
+            {renderNote()}
             {renderAbaco()}
           </div>
 
