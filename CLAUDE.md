@@ -17,6 +17,33 @@ Il flusso è sempre questo, senza scorciatoie:
 Non fare mai merge su `main` senza aver eseguito il judge e senza che l'utente
 abbia detto di procedere.
 
+### Quando il judge serve davvero
+
+Il judge costa: ogni esecuzione rilegge i file da capo. Va eseguito sempre
+quando le modifiche toccano **prezzi e calcoli, il PDF che riceve il cliente
+finale, i salvataggi e i dati, i permessi e gli abbonamenti** — è lì che questo
+progetto si è rotto ogni volta.
+
+Per le modifiche che non toccano niente di tutto questo — etichette, testi,
+colori, spaziature, contenuti statici — si pubblica senza judge, dopo aver
+verificato che la build passi.
+
+Nel dubbio si esegue.
+
+### Una sola pubblicazione per più lavori
+
+Quando l'utente chiede più cose di fila, si fanno tutte, poi **un solo giro di
+judge e una sola pubblicazione**. Pubblicare ogni singola modifica moltiplica
+judge, build e verifiche senza alcun vantaggio.
+
+### Come si verifica
+
+Si verifica leggendo il testo e la struttura della pagina (`get_page_text`,
+`read_page`, il DOM), non fotografandola: uno screenshot costa circa dieci
+volte tanto. Gli screenshot si fanno quando è **l'utente** a dover vedere com'è
+venuto qualcosa, o quando il difetto è visivo (allineamenti, sovrapposizioni,
+colori).
+
 ## Verifiche dopo la pubblicazione
 
 Dopo il deploy il service worker può servire ancora la versione precedente:
