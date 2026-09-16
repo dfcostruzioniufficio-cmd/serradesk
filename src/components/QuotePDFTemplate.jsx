@@ -110,6 +110,16 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const MM_TO_PX = 96 / 25.4;
   const PAGE_CONTENT_PX = (296 - 24) * MM_TO_PX; // 296mm pagina - 12mm x2 padding
 
+  // Le note stanno dentro il blocco di chiusura, che e' gia' misurato nel
+  // DOM: cosi' l'impaginazione le conta e non finiscono tagliate a fondo
+  // pagina ne' costringono a un foglio in piu' senza motivo.
+  const noteScritte = String(note || '').trim();
+
+  // Righe della nota, misurate una per una: un elenco di sessanta voci corte
+  // sta dentro il limite di caratteri del campo ma non in una pagina, e la
+  // pagina taglia in silenzio. Spezzandola per righe non si perde niente.
+  const righeNote = noteScritte ? noteScritte.split('\n') : [];
+
   const [measured, setMeasured] = useState(null);
   const itemRowRefs = useRef([]);
   const headerFirstRef = useRef(null);
@@ -118,6 +128,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const footerRef = useRef(null);
   const abacoRef = useRef(null);
   const noteRef = useRef(null);
+  const noteRowRefs = useRef([]);
+  const chiusuraHeaderRef = useRef(null);
   const recapHeaderFirstRef = useRef(null);
   const recapHeaderContRef = useRef(null);
   const recapTitoloRef = useRef(null);
@@ -140,6 +152,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
       footerH: footerRef.current?.offsetHeight || 0,
       abacoH: abacoRef.current?.offsetHeight || 0,
       noteH: noteRef.current?.offsetHeight || 0,
+      chiusuraHeaderH: chiusuraHeaderRef.current?.offsetHeight || 0,
+      noteRowHeights: righeNote.map((_, i) => noteRowRefs.current[i]?.offsetHeight || 0),
       itemHeights: actualItems.map((_, i) => itemRowRefs.current[i]?.offsetHeight || 0),
       // Il riepilogo prima si impaginava contando righe a numero fisso (13 la
       // prima pagina, 20 le altre, il riquadro dei totali "vale 5 righe"):
@@ -487,16 +501,19 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     );
   };
 
-  // Le note stanno dentro il blocco di chiusura, che e' gia' misurato nel
-  // DOM: cosi' l'impaginazione le conta e non finiscono tagliate a fondo
-  // pagina ne' costringono a un foglio in piu' senza motivo.
-  const noteScritte = String(note || '').trim();
+  const rigaNote = (testo, i) => (
+    <p key={i} className="text-[11px] text-slate-800 leading-relaxed whitespace-pre-wrap">
+      {testo === '' ? ' ' : testo}
+    </p>
+  );
 
-  const renderNote = () => (
-    noteScritte ? (
+  const renderNote = (righe = righeNote, continua = false) => (
+    righe.length ? (
       <div className="mt-8 break-inside-avoid bg-amber-50/60 border border-amber-200 rounded-2xl px-5 py-4">
-        <h4 className="font-extrabold text-[11px] text-amber-900 uppercase tracking-widest mb-2">Note</h4>
-        <p className="text-[11px] text-slate-800 leading-relaxed whitespace-pre-wrap">{noteScritte}</p>
+        <h4 className="font-extrabold text-[11px] text-amber-900 uppercase tracking-widest mb-2">
+          Note{continua ? ' (segue)' : ''}
+        </h4>
+        {righe.map(rigaNote)}
       </div>
     ) : null
   );
@@ -681,12 +698,40 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   // non starci: la pagina ha altezza fissa e taglia quello che avanza, e
   // quello che avanza e' proprio il TOTALE DA PAGARE. In quel caso la nota
   // prende una pagina per se'.
-  const spazioPaginaChiusura = PAGE_CONTENT_PX - (measured?.headerContH || 0) - (measured?.footerH || 0);
+  const spazioPaginaChiusura = PAGE_CONTENT_PX - (measured?.chiusuraHeaderH || measured?.headerContH || 0) - (measured?.footerH || 0);
   const noteSuPaginaPropria = !!(
     abacoNeedsNewPage && noteScritte && measured
     && (measured.noteH + measured.abacoH) > spazioPaginaChiusura
   );
-  const paginePost = (abacoNeedsNewPage ? 1 : 0) + (noteSuPaginaPropria ? 1 : 0);
+
+  // Se la nota non sta neanche in una pagina da sola, si spezza per righe:
+  // il riquadro si ripete a ogni foglio con "Note (segue)". Senza questo il
+  // testo oltre il fondo pagina sparirebbe, e nessuno se ne accorgerebbe.
+  const paginateNote = () => {
+    if (!noteSuPaginaPropria) return [];
+    const altezze = measured?.noteRowHeights || [];
+    // Quanto pesa il riquadro senza testo: titolo, margini e riempimento.
+    const cornice = Math.max(0, (measured?.noteH || 0) - altezze.reduce((s, h) => s + h, 0));
+    const disponibile = spazioPaginaChiusura - cornice;
+    const pagine = [];
+    let corrente = [];
+    let usato = 0;
+    righeNote.forEach((testo, i) => {
+      const h = altezze[i] || 0;
+      if (corrente.length && usato + h > disponibile) {
+        pagine.push(corrente);
+        corrente = [];
+        usato = 0;
+      }
+      corrente.push(testo);
+      usato += h;
+    });
+    if (corrente.length) pagine.push(corrente);
+    return pagine.length ? pagine : [righeNote];
+  };
+
+  const paginePerNote = paginateNote();
+  const paginePost = (abacoNeedsNewPage ? 1 : 0) + paginePerNote.length;
   const totalePagine = pages.length + paginePost + recapPageCount;
 
   const hasPulsar = actualItems.some(item => 
@@ -772,7 +817,35 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           ))}
         </div>
 
-        <div ref={abacoRef}><div ref={noteRef}>{renderNote()}</div>{renderAbaco()}</div>
+        {/* L'intestazione delle pagine di chiusura si misura dentro un
+            flow-root, che tiene dentro anche il margine inferiore: contarla
+            senza faceva sforare la pagina di 24px. */}
+        <div ref={chiusuraHeaderRef} className="flow-root">
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+            <h1 className="text-sm font-bold text-gray-800 uppercase tracking-wider">{userSettings?.company_name || 'SERRADESK'}</h1>
+            <p className="text-[10px] text-gray-500 font-medium">Preventivo Commerciale - Spett.le {clientName || 'Cliente Non Specificato'}</p>
+          </div>
+        </div>
+
+        <div ref={abacoRef} className="flow-root">
+          {/* Il riquadro si misura com'e' davvero nella pagina, con le righe
+              dentro: misurandole fuori erano larghe 186mm invece dei 186 meno
+              il riempimento, e su sessanta righe l'errore diventava un
+              sforamento. */}
+          <div ref={noteRef} className="flow-root">
+            {righeNote.length ? (
+              <div className="mt-8 bg-amber-50/60 border border-amber-200 rounded-2xl px-5 py-4">
+                <h4 className="font-extrabold text-[11px] text-amber-900 uppercase tracking-widest mb-2">Note</h4>
+                {righeNote.map((testo, i) => (
+                  <div key={`misura-nota-${i}`} ref={el => { noteRowRefs.current[i] = el; }}>
+                    {rigaNote(testo, i)}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          {renderAbaco()}
+        </div>
 
         {/* Pezzi del riepilogo, misurati con gli stessi margini che avranno
             nella pagina: flow-root li contiene invece di lasciarli collassare. */}
@@ -962,8 +1035,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
       })}
 
       {/* Render Abaco su nuova pagina se necessario */}
-      {noteSuPaginaPropria && (
-        <div className="bg-white relative shadow-sm" style={{
+      {paginePerNote.map((righe, iNota) => (
+        <div key={`pagina-note-${iNota}`} className="bg-white relative shadow-sm" style={{
             width: '210mm',
             height: '296mm',
             overflow: 'hidden',
@@ -978,7 +1051,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             <p className="text-[10px] text-gray-500 font-medium">Preventivo Commerciale - Spett.le {clientName || 'Cliente Non Specificato'}</p>
           </div>
 
-          <div className="flex-1">{renderNote()}</div>
+          <div className="flex-1">{renderNote(righe, iNota > 0)}</div>
 
           <div className="mt-auto pt-4 border-t border-gray-200 flex justify-between items-end text-[8px] text-gray-400">
             <div className="max-w-[70%]">
@@ -988,11 +1061,11 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               )}
             </div>
             <div className="text-right">
-              <p>Pagina {pages.length + 1 + recapPageCount} di {totalePagine}</p>
+              <p>Pagina {pages.length + 1 + recapPageCount + iNota} di {totalePagine}</p>
             </div>
           </div>
         </div>
-      )}
+      ))}
 
       {abacoNeedsNewPage && (
         <div className="bg-white relative shadow-sm" style={{
@@ -1023,7 +1096,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               )}
             </div>
             <div className="text-right">
-              <p>Pagina {pages.length + 1 + recapPageCount + (noteSuPaginaPropria ? 1 : 0)} di {totalePagine}</p>
+              <p>Pagina {pages.length + 1 + recapPageCount + paginePerNote.length} di {totalePagine}</p>
             </div>
           </div>
         </div>

@@ -321,12 +321,41 @@ export default defineConfig({
 				// (tutorial.mp4, smart670.pdf, i mockup) sarebbero decine di MB
 				// scaricati all'installazione senza servire a nulla offline.
 				globPatterns: ['**/*.{js,css,html}', 'pwa-*.png', 'apple-touch-icon.png', 'logo_rounded.png'],
+				// index.html fuori dal precarico, se no la pagina viene servita
+				// da li' - prima ancora della regola di rete qui sotto - e si
+				// torna a consegnare la versione vecchia dopo ogni deploy.
+				globIgnores: ['**/index.html'],
+				directoryIndex: null,
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
 				cleanupOutdatedCaches: true,
-				navigateFallback: '/index.html',
-				// Le funzioni serverless devono sempre arrivare alla rete,
-				// mai essere servite dalla index in cache
-				navigateFallbackDenylist: [/^\/api\//],
+				// La pagina si chiede sempre prima alla rete. Servendola dalla
+				// cache, dopo ogni pubblicazione il service worker consegnava la
+				// index vecchia, che punta a un bundle JavaScript non piu'
+				// esistente: 404 e schermata bianca, finche' non si ricaricava
+				// una seconda volta. Succedeva a ogni deploy, a tutti gli
+				// abbonati. Con la rete per prima il problema non si pone, e la
+				// copia in cache resta per quando si e' offline.
+				runtimeCaching: [
+					{
+						urlPattern: ({ request }) => request.mode === 'navigate',
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'pagine',
+							networkTimeoutSeconds: 4,
+							expiration: { maxEntries: 20 },
+						},
+					},
+				],
+				// Niente navigateFallback: genererebbe una NavigationRoute
+				// servita dalla index precaricata, registrata PRIMA della regola
+				// qui sopra e quindi vincente - era esattamente questa a
+				// consegnare la pagina vecchia. Le funzioni serverless restano
+				// fuori da ogni cache perche' non sono navigazioni.
+				// Senza rete si apre comunque l'ultima pagina visitata, tenuta
+				// nella cache "pagine"; il gestionale ha bisogno del server per
+				// qualunque cosa, quindi l'offline vero non e' mai esistito.
+				// Va messo a null: lasciandolo fuori, il plugin ce lo rimette.
+				navigateFallback: null,
 			},
 		}),
 		addTransformIndexHtml
