@@ -116,6 +116,13 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const tableHeaderRef = useRef(null);
   const footerRef = useRef(null);
   const abacoRef = useRef(null);
+  const recapHeaderFirstRef = useRef(null);
+  const recapHeaderContRef = useRef(null);
+  const recapTitoloRef = useRef(null);
+  const recapTestataRef = useRef(null);
+  const recapTotaliRef = useRef(null);
+  const recapFooterRef = useRef(null);
+  const recapRowRefs = useRef([]);
 
   const heightSignature = actualItems.map(i => [
     i.id, i.type, i.width, i.height, i.description2, i.description3,
@@ -130,10 +137,26 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
       tableHeaderH: tableHeaderRef.current?.offsetHeight || 0,
       footerH: footerRef.current?.offsetHeight || 0,
       abacoH: abacoRef.current?.offsetHeight || 0,
-      itemHeights: actualItems.map((_, i) => itemRowRefs.current[i]?.offsetHeight || 0)
+      itemHeights: actualItems.map((_, i) => itemRowRefs.current[i]?.offsetHeight || 0),
+      // Il riepilogo prima si impaginava contando righe a numero fisso (13 la
+      // prima pagina, 20 le altre, il riquadro dei totali "vale 5 righe"):
+      // numeri scritti a mano e tutti e tre sbagliati, per questo il riquadro
+      // finiva da solo su una pagina vuota. Ora si misura, come il dettaglio.
+      recap: includeRecap ? {
+        headerFirstH: recapHeaderFirstRef.current?.offsetHeight || 0,
+        headerContH: recapHeaderContRef.current?.offsetHeight || 0,
+        titoloH: recapTitoloRef.current?.offsetHeight || 0,
+        testataH: recapTestataRef.current?.offsetHeight || 0,
+        totaliH: recapTotaliRef.current?.offsetHeight || 0,
+        footerH: recapFooterRef.current?.offsetHeight || 0,
+        rowHeights: actualItems.map((_, i) => recapRowRefs.current[i]?.offsetHeight || 0)
+      } : null
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heightSignature, userSettings?.company_name, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
+    // Nelle dipendenze niente importi: il riquadro dei totali ha sempre le
+    // stesse quattro caselle, anche senza sconto, quindi la sua altezza non
+    // cambia con le cifre.
+  }, [heightSignature, includeRecap, userSettings?.company_name, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
 
   const getPages = () => {
     if (!measured) return getPagesEstimate();
@@ -181,8 +204,60 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const RECAP_ROWS_OTHER_PAGE = 20;
   const RECAP_TOTALS_ROW_EQUIVALENT = 5; // spazio verticale del box totali, in "righe"
 
+  /**
+   * Impaginazione del riepilogo sulle altezze vere. Due regole:
+   * - i totali stanno con le righe finche' ci stanno davvero;
+   * - se proprio serve una pagina in piu', non ci va il solo riquadro dei
+   *   totali: si porta dietro meta' delle righe, cosi' non si stampa mai una
+   *   pagina quasi bianca con dentro un rettangolo.
+   */
+  const getRecapPagesMisurate = (m) => {
+    const spazio = (isFirst) => (
+      PAGE_CONTENT_PX - (isFirst ? m.headerFirstH + m.titoloH : m.headerContH) - m.footerH - m.testataH
+    );
+
+    const pagine = [];
+    const rimanenti = actualItems.map((item, i) => ({ item, h: m.rowHeights[i] || 0 }));
+    while (rimanenti.length > 0) {
+      const isFirst = pagine.length === 0;
+      const disponibile = spazio(isFirst);
+      const righe = [];
+      let usato = 0;
+      while (rimanenti.length > 0 && (usato + rimanenti[0].h <= disponibile || righe.length === 0)) {
+        usato += rimanenti[0].h;
+        righe.push(rimanenti.shift());
+      }
+      pagine.push({ righe, isFirst, showTotals: false, usato, disponibile });
+    }
+    if (pagine.length === 0) {
+      pagine.push({ righe: [], isFirst: true, showTotals: false, usato: 0, disponibile: spazio(true) });
+    }
+
+    const ultima = pagine[pagine.length - 1];
+    if (!ultima.righe.length || ultima.usato + m.totaliH <= ultima.disponibile) {
+      ultima.showTotals = true;
+    } else {
+      const disponibileNuova = spazio(false) - m.totaliH;
+      const nuova = { righe: [], isFirst: false, showTotals: true, usato: 0, disponibile: disponibileNuova };
+      const quante = Math.ceil(ultima.righe.length / 2);
+      while (nuova.righe.length < quante && ultima.righe.length > 1) {
+        const riga = ultima.righe[ultima.righe.length - 1];
+        if (nuova.usato + riga.h > disponibileNuova) break;
+        nuova.righe.unshift(ultima.righe.pop());
+        nuova.usato += riga.h;
+        ultima.usato -= riga.h;
+      }
+      pagine.push(nuova);
+    }
+
+    return pagine.map((p) => ({ items: p.righe.map((r) => r.item), isFirst: p.isFirst, showTotals: p.showTotals }));
+  };
+
   const getRecapPages = () => {
     if (!includeRecap) return [];
+    if (measured?.recap?.rowHeights?.length === actualItems.length && measured.recap.testataH > 0) {
+      return getRecapPagesMisurate(measured.recap);
+    }
     const recapPages = [];
     let remaining = [...actualItems];
     let isFirst = true;
@@ -444,6 +519,117 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     </div>
   );
 
+  // ── Pezzi della pagina di riepilogo ────────────────────────────────────
+  // Stanno in funzioni perche' vengono disegnati due volte: una nello
+  // scaffold invisibile, per misurarne l'altezza vera, e una nelle pagine.
+
+  const renderRecapHeaderFirst = () => (
+    <div className="flex justify-between items-start mb-10 pb-6 border-b border-gray-200">
+      <div className="flex flex-col gap-4 max-w-[50%]">
+        <div className="h-16 relative flex items-center justify-start">
+          {userSettings?.logo_base64 ? (
+            <img src={userSettings.logo_base64} alt="Company Logo" className="max-h-full object-contain" />
+          ) : (
+            <div className="h-12 px-4 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xl tracking-wider">
+              {userSettings?.company_name ? userSettings.company_name.toUpperCase() : 'SERRADESK'}
+            </div>
+          )}
+        </div>
+        <div className="text-[10px] space-y-[2px] text-gray-500">
+          <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">{userSettings?.company_name || 'Azienda Non Impostata'}</h1>
+          <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
+          <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
+        </div>
+      </div>
+
+      <div className="text-right flex flex-col items-end max-w-[45%]">
+        <div className="bg-gray-50 border border-gray-200 px-6 py-4 rounded-xl text-left w-full">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Spett.le Cliente</p>
+          <h2 className="text-base font-black text-gray-900 mb-1">{clientName || 'Cliente Non Specificato'}</h2>
+        </div>
+        <div className="mt-4 text-[10px] text-gray-500">
+          <p>Documento: <span className="font-bold text-gray-900">Riepilogo Preventivo</span></p>
+          <p>Data: <span className="font-bold text-gray-900">{new Date().toLocaleDateString('it-IT')}</span></p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderRecapHeaderCont = () => (
+    <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+      <h1 className="text-sm font-bold text-gray-800 uppercase tracking-wider">{userSettings?.company_name || 'SERRADESK'}</h1>
+      <p className="text-[10px] text-gray-500 font-medium">Riepilogo Preventivo - Spett.le {clientName || 'Cliente Non Specificato'}</p>
+    </div>
+  );
+
+  const renderRecapTitolo = () => (
+    <div className="mb-4">
+      <h2 className="text-xl font-extrabold text-indigo-900 uppercase tracking-wider">Riepilogo Articoli</h2>
+      <p className="text-xs text-gray-500 mt-1">Il dettaglio tecnico di ogni singolo articolo si trova nelle pagine seguenti.</p>
+    </div>
+  );
+
+  const renderRecapTestata = () => (
+    <div className="flex bg-slate-800 text-white shadow-sm border border-slate-700 py-3 px-2 text-[10px] font-bold uppercase tracking-wider items-center rounded-lg mb-2">
+      <div className="w-8 text-center shrink-0 text-slate-300">Nº</div>
+      <div className="flex-1 px-3 text-slate-200">Descrizione</div>
+      <div className="w-24 text-center shrink-0 text-slate-300">Misure (mm)</div>
+      <div className="w-20 text-center shrink-0 text-slate-300">Q.TÀ</div>
+      <div className="w-24 text-right pr-2 shrink-0 text-indigo-300">TOTALE</div>
+    </div>
+  );
+
+  const renderRecapRow = (item, globalIndex) => {
+    const recapTitle = item.type === 'custom'
+      ? (item.titolo || 'Articolo Personalizzato')
+      : (item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim() || 'Complemento');
+    const recapMisure = item.width && item.height ? `${item.width} x ${item.height}` : '—';
+    const recapTotale = (item.unitPrice || 0) * (item.quantity || 1);
+    return (
+      <div className="flex border-b border-gray-200 py-3 break-inside-avoid items-center px-2 text-xs leading-normal">
+        <div className="w-8 text-center shrink-0 text-gray-400 font-bold">{globalIndex + 1}</div>
+        <div className="flex-1 px-3 font-semibold text-gray-800">{recapTitle}</div>
+        <div className="w-24 text-center shrink-0 text-gray-500 font-mono">{recapMisure}</div>
+        <div className="w-20 text-center shrink-0 text-gray-500">{formatQta(item.quantity || 1)}{item.unita ? ` ${item.unita}` : ''}</div>
+        <div className="w-24 text-right pr-2 shrink-0 font-bold text-gray-900">{formatCurrency(recapTotale)}</div>
+      </div>
+    );
+  };
+
+  // Totali in fascia orizzontale invece che in colonna: lo stesso contenuto
+  // in un terzo dell'altezza. Il riquadro alto costringeva a una pagina in
+  // piu' (e spesso con dentro solo lui) appena il riepilogo passava gli otto
+  // articoli.
+  const renderRecapTotali = () => (
+    <div className="mt-4 flex items-stretch gap-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
+      <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
+      <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1 py-3 pl-5 pr-2 text-[11px]">
+        <div className="flex justify-between items-baseline">
+          <span className="text-slate-500 font-medium">Totale Articoli</span>
+          <span className="font-semibold text-slate-900">{formatCurrency(imponibile)}</span>
+        </div>
+        <div className="flex justify-between items-baseline">
+          <span className="text-slate-500 font-medium">Imponibile Scontato</span>
+          <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
+        </div>
+        {scontoAmount > 0 ? (
+          <div className="flex justify-between items-baseline text-emerald-700">
+            <span className="font-bold">Sconto ({discountPercent}%)</span>
+            <span className="font-bold">- {formatCurrency(scontoAmount)}</span>
+          </div>
+        ) : <div />}
+        <div className="flex justify-between items-baseline">
+          <span className="text-slate-500 font-medium">I.V.A. ({iva || 10}%)</span>
+          <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
+        </div>
+      </div>
+      <div className="shrink-0 bg-slate-50 border-l border-slate-200 px-5 py-3 flex flex-col justify-center items-end">
+        <span className="font-black text-[9px] text-slate-500 uppercase tracking-widest">Totale da pagare</span>
+        <span className="font-black text-xl text-blue-700 leading-tight">{formatCurrency(totaleIvato)}</span>
+      </div>
+    </div>
+  );
+
   const abacoNeedsNewPage = (() => {
     if (pages.length === 0) return false;
     const lastPage = pages[pages.length - 1];
@@ -547,6 +733,29 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
 
         <div ref={abacoRef}>{renderAbaco()}</div>
 
+        {/* Pezzi del riepilogo, misurati con gli stessi margini che avranno
+            nella pagina: flow-root li contiene invece di lasciarli collassare. */}
+        {includeRecap && (
+          <>
+            <div ref={recapHeaderFirstRef} className="flow-root">{renderRecapHeaderFirst()}</div>
+            <div ref={recapHeaderContRef} className="flow-root">{renderRecapHeaderCont()}</div>
+            <div ref={recapTitoloRef} className="flow-root">{renderRecapTitolo()}</div>
+            <div ref={recapTestataRef} className="flow-root">{renderRecapTestata()}</div>
+            <div ref={recapTotaliRef} className="flow-root">{renderRecapTotali()}</div>
+            <div ref={recapFooterRef} className="pt-4 border-t border-gray-200 flex justify-between items-end text-[8px] text-gray-400">
+              <div className="max-w-[70%]"><p>Generato tramite piattaforma cloud SerraDesk.it</p></div>
+              <div className="text-right"><p>Pagina 1 di 1</p></div>
+            </div>
+            <div className="flex flex-col">
+              {actualItems.map((item, i) => (
+                <div key={`measure-recap-${i}`} ref={el => { recapRowRefs.current[i] = el; }}>
+                  {renderRecapRow(item, i)}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         <div ref={footerRef} className="pt-4 border-t border-gray-200 flex justify-between items-end text-[8px] text-gray-400">
           <div className="max-w-[70%]">
             <p className="mb-1"><strong>Validità dell'offerta:</strong> Il presente preventivo ha validità 15 giorni dalla data di emissione. Oltre tale termine, i prezzi potrebbero subire variazioni.</p>
@@ -571,111 +780,25 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             display: 'flex',
             flexDirection: 'column'
           }}>
-          {rp.isFirst ? (
-            <div className="flex justify-between items-start mb-10 pb-6 border-b border-gray-200">
-              <div className="flex flex-col gap-4 max-w-[50%]">
-                <div className="h-16 relative flex items-center justify-start">
-                    {userSettings?.logo_base64 ? (
-                      <img src={userSettings.logo_base64} alt="Company Logo" className="max-h-full object-contain" />
-                    ) : (
-                      <div className="h-12 px-4 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xl tracking-wider">
-                        {userSettings?.company_name ? userSettings.company_name.toUpperCase() : 'SERRADESK'}
-                      </div>
-                    )}
-                </div>
-                <div className="text-[10px] space-y-[2px] text-gray-500">
-                  <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">{userSettings?.company_name || 'Azienda Non Impostata'}</h1>
-                  <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
-                  <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
-                </div>
-              </div>
+          {rp.isFirst ? renderRecapHeaderFirst() : renderRecapHeaderCont()}
 
-              <div className="text-right flex flex-col items-end max-w-[45%]">
-                <div className="bg-gray-50 border border-gray-200 px-6 py-4 rounded-xl text-left w-full">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Spett.le Cliente</p>
-                  <h2 className="text-base font-black text-gray-900 mb-1">{clientName || 'Cliente Non Specificato'}</h2>
-                </div>
-                <div className="mt-4 text-[10px] text-gray-500">
-                  <p>Documento: <span className="font-bold text-gray-900">Riepilogo Preventivo</span></p>
-                  <p>Data: <span className="font-bold text-gray-900">{new Date().toLocaleDateString('it-IT')}</span></p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-              <h1 className="text-sm font-bold text-gray-800 uppercase tracking-wider">{userSettings?.company_name || 'SERRADESK'}</h1>
-              <p className="text-[10px] text-gray-500 font-medium">Riepilogo Preventivo - Spett.le {clientName || 'Cliente Non Specificato'}</p>
-            </div>
-          )}
-
-          {rp.isFirst && (
-            <div className="mb-4">
-              <h2 className="text-xl font-extrabold text-indigo-900 uppercase tracking-wider">Riepilogo Articoli</h2>
-              <p className="text-xs text-gray-500 mt-1">Il dettaglio tecnico di ogni singolo articolo si trova nelle pagine seguenti.</p>
-            </div>
-          )}
+          {rp.isFirst && renderRecapTitolo()}
 
           {rp.items.length > 0 && (
-            <div className="flex-1">
-              <div className="flex bg-slate-800 text-white shadow-sm border border-slate-700 py-3 px-2 text-[10px] font-bold uppercase tracking-wider items-center rounded-lg mb-2">
-                <div className="w-8 text-center shrink-0 text-slate-300">Nº</div>
-                <div className="flex-1 px-3 text-slate-200">Descrizione</div>
-                <div className="w-24 text-center shrink-0 text-slate-300">Misure (mm)</div>
-                <div className="w-12 text-center shrink-0 text-slate-300">Q.TÀ</div>
-                <div className="w-24 text-right pr-2 shrink-0 text-indigo-300">TOTALE</div>
-              </div>
-
+            <div>
+              {renderRecapTestata()}
               {rp.items.map((item, itemIndex) => {
                 const globalIndex = recapPages.slice(0, rpIndex).reduce((acc, p) => acc + p.items.length, 0) + itemIndex;
-                const recapTitle = item.type === 'custom'
-                  ? (item.titolo || 'Articolo Personalizzato')
-                  : (item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim() || 'Complemento');
-                const recapMisure = item.width && item.height ? `${item.width} x ${item.height}` : '—';
-                const recapTotale = (item.unitPrice || 0) * (item.quantity || 1);
                 return (
-                  <div key={`recap-row-${globalIndex}`} className="flex border-b border-gray-200 py-3 break-inside-avoid items-center px-2 text-xs leading-normal">
-                    <div className="w-8 text-center shrink-0 text-gray-400 font-bold">{globalIndex + 1}</div>
-                    <div className="flex-1 px-3 font-semibold text-gray-800">{recapTitle}</div>
-                    <div className="w-24 text-center shrink-0 text-gray-500 font-mono">{recapMisure}</div>
-                    <div className="w-12 text-center shrink-0 text-gray-500">{formatQta(item.quantity || 1)}</div>
-                    <div className="w-24 text-right pr-2 shrink-0 font-bold text-gray-900">{formatCurrency(recapTotale)}</div>
-                  </div>
+                  <React.Fragment key={`recap-row-${globalIndex}`}>
+                    {renderRecapRow(item, globalIndex)}
+                  </React.Fragment>
                 );
               })}
             </div>
           )}
 
-          {rp.showTotals && (
-            <div className={`mt-6 flex justify-end ${rp.items.length === 0 ? 'flex-1 items-start' : ''}`}>
-              <div className="w-1/2 p-6 bg-white rounded-2xl border border-slate-200 shadow-md relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
-                <div className="space-y-3 pl-2">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium tracking-wide">Totale Articoli</span>
-                    <span className="font-semibold text-slate-900">{formatCurrency(imponibile)}</span>
-                  </div>
-                  {scontoAmount > 0 && (
-                    <div className="flex justify-between items-center text-sm bg-emerald-50 text-emerald-700 -mx-6 px-6 py-2 border-y border-emerald-100/50">
-                      <span className="font-bold tracking-wide">Sconto applicato ({discountPercent}%)</span>
-                      <span className="font-bold text-emerald-800">- {formatCurrency(scontoAmount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center text-sm pt-1">
-                    <span className="text-slate-500 font-medium tracking-wide">Imponibile Scontato</span>
-                    <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm pb-4 border-b border-slate-100">
-                    <span className="text-slate-500 font-medium tracking-wide">I.V.A. ({iva || 10}%)</span>
-                    <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3">
-                    <span className="font-black text-[16px] text-slate-900 uppercase tracking-widest">TOTALE DA PAGARE</span>
-                    <span className="font-black text-xl text-blue-700">{formatCurrency(totaleIvato)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {rp.showTotals && renderRecapTotali()}
 
           <div className="mt-auto pt-4 border-t border-gray-200 flex justify-between items-end text-[8px] text-gray-400">
             <div className="max-w-[70%]">
