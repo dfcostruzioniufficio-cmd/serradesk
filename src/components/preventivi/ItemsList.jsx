@@ -46,7 +46,7 @@ export default function ItemsList({
                       <>
                         <p className="font-bold text-gray-800 line-clamp-1">{item.titolo || item.customDescription || 'Voce Libera'}</p>
                         <p className="text-sm text-gray-500">
-                          {item.titolo ? item.customDescription : `Voce Libera | Qtà: ${item.quantity}${item.unita ? ` ${item.unita}` : ''}`}
+                          {item.titolo ? item.customDescription : `Voce Libera | Qtà: ${Number(item.quantity).toLocaleString('it-IT', { maximumFractionDigits: 2 })}${item.unita ? ` ${item.unita}` : ''}`}
                         </p>
                         {(() => {
                           const attuali = tapparelleDaRifare(item);

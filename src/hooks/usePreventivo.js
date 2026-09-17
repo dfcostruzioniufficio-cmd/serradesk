@@ -235,7 +235,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         id: targetId, type: 'custom',
         customDescription: newItem.customDescription,
         unitPrice: Number(newItem.unitPrice) || 0,
-        quantity: Number(newItem.quantity) || 1,
+        // In Italia i decimali si scrivono con la virgola: "12,5" letto come
+        // numero darebbe NaN, e la voce passerebbe in silenzio a quantita' 1.
+        quantity: Number(String(newItem.quantity ?? '').replace(',', '.')) || 1,
+        ...(newItem.unitaVoce && newItem.unitaVoce !== 'pz' ? { unita: newItem.unitaVoce } : {}),
         rawInput: { ...newItem, itemType: 'custom' }
       };
       if (isEditing) newItemsList[targetIndex] = newItemObj;

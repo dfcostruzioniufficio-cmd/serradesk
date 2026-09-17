@@ -639,7 +639,16 @@ export default function ItemConfigurator({
           </div>
           <div className="col-span-1 md:col-span-1">
             <Label className="font-semibold text-gray-700">Quantità</Label>
-            <Input type="number" value={newItem.quantity} onChange={e => updateItemField('quantity', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl" />
+            {/* Quantita' con i decimali e unita' di misura: una voce libera
+                puo' essere 12,50 m² di posa, non solo un numero di pezzi. */}
+            <div className="mt-1.5 flex gap-2">
+              <Input type="text" inputMode="decimal" value={newItem.quantity} onChange={e => updateItemField('quantity', e.target.value.replace(/[^\d.,]/g, ''))} className="h-11 rounded-xl min-w-0" />
+              <select value={newItem.unitaVoce || 'pz'} onChange={e => updateItemField('unitaVoce', e.target.value)} className="h-11 rounded-xl border border-input bg-white px-2 text-sm font-semibold text-gray-700 shrink-0" aria-label="Unità di misura">
+                <option value="pz">pz</option>
+                <option value="m²">m²</option>
+                <option value="ml">ml</option>
+              </select>
+            </div>
           </div>
         </div>
       )}
