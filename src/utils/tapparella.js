@@ -72,6 +72,16 @@ export function righeTapparelle(items = []) {
       const numAnte = Math.max(1, Number(item.numAnte) || 1);
       const quantita = Math.max(1, Number(item.quantity) || 1);
       const calcolo = mqTapparella({ width: item.width, height: item.height, numAnte });
+      // Se sul serramento l'utente ha forzato la quadratura (per esempio la
+      // finestra a 3 ante calcolata come misura + 1,5 m² per la terza anta),
+      // la tapparella segue quella: e' il numero che ha deciso lui, e
+      // ricalcolarla dalle misure la faceva tornare piu' bassa.
+      const forzati = Number(item.manualMq ?? item.rawInput?.manualMq);
+      if (forzati > 0) {
+        calcolo.forzato = true;
+        calcolo.applicatoMinimo = false;
+        calcolo.mqFatturati = Math.round(forzati * 100) / 100;
+      }
       return {
         // Gli id visibili (01, 02...) si rinumerano a ogni cancellazione: le
         // esclusioni si tengono sull'uid, che il serramento si porta dietro

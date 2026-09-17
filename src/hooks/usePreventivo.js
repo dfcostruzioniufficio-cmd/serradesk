@@ -222,7 +222,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const newItemObj = {
         id: targetId, type: 'custom',
         titolo: (newItem.tapparelleDescrizione || 'Tapparelle').trim(),
-        customDescription: `${totale.mq.toFixed(2).replace('.', ',')} m² su ${quanti} ${quanti === 1 ? 'serramento' : 'serramenti'} · altezza +${AVVOLGIMENTO_MM / 10} cm per l'avvolgimento, minimi per ante`,
+        customDescription: `${totale.mq.toFixed(2).replace('.', ',')} m² su ${quanti} ${quanti === 1 ? 'serramento' : 'serramenti'} · altezza +${AVVOLGIMENTO_MM / 10} cm per l'avvolgimento, minimi per ante${totale.righe.some((r) => r.calcolo.forzato) ? ', quadratura del serramento dove indicata' : ''}`,
         unita: 'm²',
         unitPrice: Number(newItem.unitPrice) || 0,
         quantity: totale.mq,

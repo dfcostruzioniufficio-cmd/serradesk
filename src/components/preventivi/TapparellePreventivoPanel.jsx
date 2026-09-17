@@ -65,6 +65,11 @@ export default function TapparellePreventivoPanel({ items, newItem, updateItemFi
                 <span className="text-gray-500 w-16 shrink-0">{r.numAnte} {r.numAnte === 1 ? 'anta' : 'ante'}</span>
                 <span className="text-gray-500 w-10 shrink-0">× {r.quantita}</span>
                 <span className="flex-1 min-w-0 flex justify-end pr-3">
+                  {r.calcolo.forzato && (
+                    <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+                      forzata sul serramento
+                    </span>
+                  )}
                   {r.calcolo.applicatoMinimo && (
                     <span className="text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5 whitespace-nowrap">
                       minimo {n2(r.calcolo.minimo)} m²
