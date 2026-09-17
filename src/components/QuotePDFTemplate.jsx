@@ -186,7 +186,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     // cambia con le cifre.
     // `note` fra le dipendenze: cambiandole cambia l'altezza del blocco di
     // chiusura, e senza rimisurare l'ultima pagina andrebbe in overflow.
-  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
+  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
 
   const getPages = () => {
     if (!measured) return getPagesEstimate();
@@ -594,6 +594,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
         </div>
         <div className="text-[10px] space-y-[2px] text-gray-500">
           <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">{userSettings?.company_name || 'Azienda Non Impostata'}</h1>
+          {userSettings?.referente && <p className="text-[11px] font-semibold text-gray-700 -mt-0.5 mb-1">{userSettings.referente}</p>}
           <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
           <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
         </div>
@@ -775,6 +776,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">
                 {isClientePuntoAlluminio(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
               </h1>
+              {userSettings?.referente && <p className="text-[11px] font-semibold text-gray-700 -mt-0.5 mb-1">{userSettings.referente}</p>}
               <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
               {userSettings?.legal_address && <p>Sede Legale: {userSettings.legal_address}</p>}
               <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
@@ -968,6 +970,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                     <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">
                       {isClientePuntoAlluminio(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
                     </h1>
+                    {userSettings?.referente && <p className="text-[11px] font-semibold text-gray-700 -mt-0.5 mb-1">{userSettings.referente}</p>}
                     <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
                     {userSettings?.legal_address && <p>Sede Legale: {userSettings.legal_address}</p>}
                     <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>

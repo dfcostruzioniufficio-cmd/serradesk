@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../contexts/UserContext';
-import { Save, Building, FileText, Image as ImageIcon, MapPin, Phone, Mail, Globe, Lock, CreditCard, ExternalLink } from 'lucide-react';
+import { Save, Building, User, FileText, Image as ImageIcon, MapPin, Phone, Mail, Globe, Lock, CreditCard, ExternalLink } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState(null);
   const [formData, setFormData] = useState({
     company_name: '',
+    referente: '',
     vat_number: '',
     address: '',
     legal_address: '',
@@ -59,6 +60,7 @@ export default function SettingsPage() {
       if (data && !error) {
         setFormData({
           company_name: data.company_name || '',
+          referente: data.referente || '',
           vat_number: data.vat_number || '',
           address: data.address || '',
           legal_address: data.legal_address || '',
@@ -104,6 +106,7 @@ export default function SettingsPage() {
       .upsert({
         user_id: userId,
         company_name: formData.company_name,
+        referente: formData.referente.trim(),
         vat_number: formData.vat_number,
         address: formData.address,
         legal_address: formData.legal_address,
@@ -256,6 +259,23 @@ export default function SettingsPage() {
                   placeholder="Es. Mario Rossi Serramenti s.r.l."
                   className="h-11"
                 />
+              </div>
+
+              {/* Il nome di chi firma l'offerta, sotto la ragione sociale:
+                  c'e' chi vuole leggere "Geom. Francesco Panico" e non solo
+                  il nome dell'azienda. Vuoto, nel preventivo non esce. */}
+              <div className="col-span-1 md:col-span-2">
+                <Label className="flex items-center gap-2 mb-2 text-gray-700">
+                  <User size={16} className="text-blue-600"/> Referente <span className="font-normal text-gray-400">(facoltativo)</span>
+                </Label>
+                <Input 
+                  value={formData.referente} 
+                  onChange={(e) => setFormData({...formData, referente: e.target.value})} 
+                  placeholder="Es. Geom. Francesco Panico"
+                  maxLength={80}
+                  className="h-11"
+                />
+                <p className="text-xs text-gray-400 mt-1.5">Esce nell'intestazione del preventivo, sotto il nome dell'azienda.</p>
               </div>
 
               <div>
