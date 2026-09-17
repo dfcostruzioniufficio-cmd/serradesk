@@ -25,6 +25,17 @@ const coloreScritto = (valore) => {
 /** Colore da scrivere sul preventivo: quello dell'utente, se l'ha scritto. */
 const coloreInfisso = (item) => item?.colorName || coloreScritto(item?.frameColor);
 
+// Quantita' scritta all'italiana: "12,5", "1.250,5", "1.250". Un semplice
+// cambio della virgola trasformava "1.250,5" in NaN, e la voce passava in
+// silenzio a quantita' 1. Stessa regola del campo "prezzo dal totale".
+const leggiQuantita = (valore) => {
+  const s = String(valore ?? '').trim().replace(/\s/g, '');
+  if (!s) return 0;
+  if (s.includes(',')) return Number(s.replace(/\./g, '').replace(',', '.')) || 0;
+  if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, '')) || 0;
+  return Number(s) || 0;
+};
+
 const nuovoUid = () => (
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -207,6 +218,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         toast.error('Inserisci un prezzo valido prima di aggiungere.');
         return;
       }
+      if (String(newItem.quantity ?? '').trim() && !(leggiQuantita(newItem.quantity) > 0)) {
+        toast.error('La quantità non è un numero valido: scrivila come 12,5 o 1.250,5.');
+        return;
+      }
     }
 
     let newItemsList = [...items];
@@ -235,9 +250,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         id: targetId, type: 'custom',
         customDescription: newItem.customDescription,
         unitPrice: Number(newItem.unitPrice) || 0,
-        // In Italia i decimali si scrivono con la virgola: "12,5" letto come
-        // numero darebbe NaN, e la voce passerebbe in silenzio a quantita' 1.
-        quantity: Number(String(newItem.quantity ?? '').replace(',', '.')) || 1,
+        quantity: leggiQuantita(newItem.quantity) || 1,
         ...(newItem.unitaVoce && newItem.unitaVoce !== 'pz' ? { unita: newItem.unitaVoce } : {}),
         rawInput: { ...newItem, itemType: 'custom' }
       };
