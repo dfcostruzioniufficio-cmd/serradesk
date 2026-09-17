@@ -262,8 +262,8 @@ export default function SettingsPage() {
               </div>
 
               {/* Il nome di chi firma l'offerta, sotto la ragione sociale:
-                  c'e' chi vuole leggere "Geom. Francesco Panico" e non solo
-                  il nome dell'azienda. Vuoto, nel preventivo non esce. */}
+                  c'e' chi vuole leggere il proprio nome e non solo quello
+                  dell'azienda. Vuoto, nel preventivo non esce. */}
               <div className="col-span-1 md:col-span-2">
                 <Label className="flex items-center gap-2 mb-2 text-gray-700">
                   <User size={16} className="text-blue-600"/> Referente <span className="font-normal text-gray-400">(facoltativo)</span>
@@ -271,7 +271,6 @@ export default function SettingsPage() {
                 <Input 
                   value={formData.referente} 
                   onChange={(e) => setFormData({...formData, referente: e.target.value})} 
-                  placeholder="Es. Geom. Francesco Panico"
                   maxLength={80}
                   className="h-11"
                 />
