@@ -351,7 +351,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         trasmittanza: formattaUw(calcolaUw(newItem, sistemiCam).uw),
         description1: (newItem.vetro && !isPersiana && !isBlindata) ? `Vetro: ${newItem.vetro}` : '',
         description2: desc2,
-        description3: isBlindata ? 'Porta Blindata di Sicurezza' : (newItem.marca ? `${newItem.marca} - ${sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato'}` : (sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato')),
+        description3: isBlindata ? 'Porta Blindata di Sicurezza' : [newItem.marca, sistemaCam?.nome].filter(Boolean).join(' - '),
         rawInput: { ...newItem, itemType: 'window' }
       };
       if (isEditing) newItemsList[targetIndex] = newItemObj;
@@ -489,7 +489,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         sistemaCamId: newSistemaId,
         sistema_cam: sistemaCam,
         marca: sistemaCam?.marca || '',
-        description3: isBlindata ? 'Porta Blindata di Sicurezza' : (sistemaCam?.marca ? `${sistemaCam.marca} - ${sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato'}` : (sistemaCam ? sistemaCam.nome : 'Profilo Personalizzato')),
+        description3: isBlindata ? 'Porta Blindata di Sicurezza' : [sistemaCam?.marca, sistemaCam?.nome].filter(Boolean).join(' - '),
         colInt: coloreInfisso(item) || specs.colInt || '',
         colEst: coloreInfisso(item) || specs.colEst || '',
         accessori: item.accessoriColore || specs.accessori || '',

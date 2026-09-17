@@ -34,6 +34,17 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     email: clientEmail
   };
 
+  // Titolo e sottotitolo come vanno letti dal cliente. Si ripuliscono qui, al
+  // momento di stampare, cosi' si correggono anche i preventivi gia' salvati:
+  // il cassonetto non ha ante, e "Profilo Personalizzato" non dice niente.
+  const titoloArticolo = (item) => {
+    const t = item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim();
+    return item.apertura === 'Cassonetto' ? t.replace(/\s+\d+\s+ANT[AE]\b/i, '') : t;
+  };
+  const sottotitoloArticolo = (text) => String(text || '')
+    .replace(/\s*-\s*Profilo Personalizzato$/i, '')
+    .replace(/^Profilo Personalizzato$/i, '');
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value);
   };
@@ -330,7 +341,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             </svg>
           </div>
           <div className="flex-1 px-4">
-            <h3 className="font-bold text-gray-900 text-[13px] mb-1 uppercase tracking-wide">{item.titolo || 'Articolo Personalizzato'}</h3>
+            {item.titolo && <h3 className="font-bold text-gray-900 text-[13px] mb-1 uppercase tracking-wide">{item.titolo}</h3>}
             <p className="text-gray-600 text-xs whitespace-pre-wrap leading-relaxed">{item.customDescription}</p>
           </div>
           <div className="w-24 text-right px-2 text-sm text-gray-600">{formatCurrency(item.unitPrice)}</div>
@@ -360,7 +371,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           </div>
           <div className="flex-1 px-4 flex gap-4">
             <div className="w-[180px] shrink-0 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-100 p-2 min-h-[100px]">
-              <p className="font-bold text-xs text-center text-gray-700">{item.description3}</p>
+              <p className="font-bold text-xs text-center text-gray-700">{sottotitoloArticolo(item.description3)}</p>
             </div>
             <div className="flex-1">
               <h3 className="font-bold text-gray-900 text-sm mb-3 uppercase">{item.model || 'Complemento'}</h3>
@@ -399,8 +410,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     const isShutter = item.apertura === 'Persiana' || item.apertura === 'Persiana Balcone';
     const isBlindata = item.apertura?.toLowerCase() === 'porta blindata';
 
-    const mainTitle = item.description2 || `${item.apertura} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim();
-    const subTitle = item.description3 || item.description1;
+    const mainTitle = titoloArticolo(item);
+    const subTitle = item.description3 !== undefined ? sottotitoloArticolo(item.description3) : item.description1;
 
     return (
       <div key={index} className="flex border-b border-gray-100 py-3 px-2 break-inside-avoid items-start">
@@ -627,8 +638,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
 
   const renderRecapRow = (item, globalIndex) => {
     const recapTitle = item.type === 'custom'
-      ? (item.titolo || 'Articolo Personalizzato')
-      : (item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim() || 'Complemento');
+      ? (item.titolo || String(item.customDescription || '').split('\n')[0])
+      : (titoloArticolo(item) || 'Complemento');
     const recapMisure = item.width && item.height ? `${item.width} x ${item.height}` : '—';
     const recapTotale = (item.unitPrice || 0) * (item.quantity || 1);
     return (
@@ -1136,7 +1147,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               
               <div className="grid grid-cols-2 gap-6 mt-4 content-start">
                 {photoPageItems.map((item, iIndex) => {
-                  const mainTitle = item.description2 || `${item.apertura} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim();
+                  const mainTitle = titoloArticolo(item);
                   return (
                     <div key={iIndex} className="flex flex-col border border-gray-200 rounded-xl p-4 shadow-sm bg-gray-50/50 break-inside-avoid">
                       <div className="flex items-center gap-2 mb-3">
@@ -1145,7 +1156,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                         </div>
                         <div>
                           <h3 className="font-bold text-gray-900 text-xs uppercase leading-tight">{mainTitle}</h3>
-                          {item.description3 && <p className="text-[9px] text-gray-500 uppercase">{item.description3}</p>}
+                          {sottotitoloArticolo(item.description3) && <p className="text-[9px] text-gray-500 uppercase">{sottotitoloArticolo(item.description3)}</p>}
                         </div>
                       </div>
                       <div className="h-[260px] rounded-lg overflow-hidden border border-gray-100 bg-white flex items-center justify-center p-2">
