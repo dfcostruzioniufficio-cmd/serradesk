@@ -281,11 +281,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // differenza la porta la descrizione.
       const soloRibalta = newItem.soloRibalta && newItem.apertura === 'Battente';
       const hasRibalta = !soloRibalta && newItem.antaRibalta && newItem.apertura === 'Battente';
-      const anteText = `${newItem.numAnte} ANT${newItem.numAnte > 1 ? 'E' : 'A'}`;
+      // Il cassonetto non ha ante: "CASSONETTO 1 ANTA" non ha senso.
+      const senzaAnte = newItem.apertura === 'Cassonetto';
+      const anteText = senzaAnte ? '' : `${newItem.numAnte} ANT${newItem.numAnte > 1 ? 'E' : 'A'}`;
       // Il vasistas non e' un battente che fa anche la ribalta: si apre solo a
       // ribalta, quindi si chiama con il suo nome invece che "BATTENTE".
       const nomeApertura = soloRibalta ? 'VASISTAS' : newItem.apertura.toUpperCase();
-      let desc2 = `${nomeApertura} ${anteText}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
+      let desc2 = `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
       if (newItem.hasSopraluce) desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm`;
       // Ante col maniglione, una sola volta per disegno e descrizione: se nel
       // frattempo le ante sono diminuite si tolgono quelle che non esistono
@@ -318,7 +320,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // loro id (l'unica che hanno) andrebbe persa, rimettendo in conto una
         // tapparella che il cliente non ha.
         uid: isEditing ? items[editingIndex]?.uid : nuovoUid(),
-        model: `${nomeApertura} ${anteText}`,
+        model: [nomeApertura, anteText].filter(Boolean).join(' '),
         apertura: newItem.apertura, numAnte: newItem.numAnte,
         antaRibalta: hasRibalta, soloRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
         hasSopraluce: newItem.hasSopraluce, sopraluceHeight: Number(newItem.sopraluceHeight),
