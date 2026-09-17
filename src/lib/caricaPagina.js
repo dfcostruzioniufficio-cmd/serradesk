@@ -17,9 +17,19 @@
 
 const CHIAVE = 'sd_ricaricato_per_aggiornamento';
 
+// Il segno vale solo per poco. Un ciclo di ricaricamenti si ripete in pochi
+// secondi, e va fermato; una pubblicazione di un'ora dopo invece e' un guasto
+// nuovo e merita il suo ricaricamento. Prima il segno durava tutta la
+// sessione: se una pagina si apriva senza scaricare niente non veniva mai
+// cancellato, e alla pubblicazione successiva l'utente trovava lo schermo
+// rosso invece del ricaricamento automatico. Successo il 17 settembre, con
+// due pubblicazioni a pochi minuti di distanza.
+const VALIDITA_MS = 30 * 1000;
+
 function leggiSegno() {
   try {
-    return sessionStorage.getItem(CHIAVE) === '1';
+    const quando = Number(sessionStorage.getItem(CHIAVE));
+    return quando > 0 && Date.now() - quando < VALIDITA_MS;
   } catch {
     // Se non possiamo nemmeno leggere il segno, non possiamo garantire che
     // il ricaricamento avvenga una volta sola: rispondiamo "gia' fatto" e
@@ -33,7 +43,7 @@ function leggiSegno() {
 
 function scriviSegno() {
   try {
-    sessionStorage.setItem(CHIAVE, '1');
+    sessionStorage.setItem(CHIAVE, String(Date.now()));
   } catch {
     /* se non si puo' scrivere, il ricaricamento resta comunque protetto
        dal fatto che la versione nuova non fallira' di nuovo */
