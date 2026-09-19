@@ -185,17 +185,36 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // Dal disegno: cambia come si aprono le ante. Il prezzo si ricalcola solo
   // se cambia quante ante si aprono; spostare una maniglia non lo tocca, cosi'
   // aprire il disegno di un articolo gia' fatto non ne cambia il prezzo.
-  const aggiornaAnte = (nuova) => {
+  const aggiornaAnte = (proposta) => {
+    // Il menu "Apertura anta" non c'e' piu'. Chi l'aveva impostato su un
+    // articolo (anta-ribalta o vasistas per tutta la finestra) al primo tocco
+    // nel disegno se lo ritrova anta per anta, e il menu smette di comandare:
+    // se no le ante mai toccate cambierebbero apertura sotto gli occhi.
+    const globale = newItem.apertura === 'Battente'
+      ? (newItem.soloRibalta ? 'vasistas' : newItem.antaRibalta ? 'ribalta' : null)
+      : null;
+    const tipizzata = Array.isArray(proposta) && proposta.some((c) => c && (c.tipo || c.tipoSopra));
+    const spegni = !!(globale && tipizzata);
+    const nuova = spegni
+      ? proposta.map((c) => (c && c.tipo ? c : {
+        ...(c || {}),
+        tipo: globale === 'vasistas' ? 'vasistas' : (c?.handleEdge ? 'ribalta' : 'battente'),
+      }))
+      : proposta;
+
     const numAnte = newItem.numAnte;
     const hasTraverso = !!newItem.hasTraverso;
     const prima = anteApribili({ numAnte, hasTraverso, paneConfigs: paneConfigsRef.current });
     const dopo = anteApribili({ numAnte, hasTraverso, paneConfigs: nuova });
     paneConfigsRef.current = nuova;
     setPaneConfigs(nuova);
-    if (prima === dopo || itemType !== 'window') return;
+    const ricalcola = prima !== dopo && itemType === 'window';
+    if (!ricalcola && !spegni) return;
     setNewItem((prev) => {
-      const { unitPrice, basePrice } = calculateWindowPrice({ ...prev, paneConfigs: nuova }, sistemiCam);
-      return { ...prev, basePrice, ...(unitPrice ? { unitPrice } : {}) };
+      const agg = spegni ? { ...prev, antaRibalta: false, soloRibalta: false } : prev;
+      if (!ricalcola) return agg;
+      const { unitPrice, basePrice } = calculateWindowPrice({ ...agg, paneConfigs: nuova }, sistemiCam);
+      return { ...agg, basePrice, ...(unitPrice ? { unitPrice } : {}) };
     });
   };
 

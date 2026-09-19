@@ -331,24 +331,9 @@ export default function ItemConfigurator({
               {/* Opzioni Aggiuntive */}
               <div className="col-span-4 bg-gray-50/50 rounded-xl p-4 border border-gray-100 space-y-4">
             <div className="flex flex-wrap gap-4">
-              {/* Battente, anta-ribalta o solo ribalta (vasistas): il taglio
-                  non cambia, cambia la ferramenta e il disegno. */}
-              <label className={`flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm ${newItem.apertura?.toLowerCase() !== 'battente' ? 'opacity-60' : ''}`}>
-                <span className={`text-sm font-medium ${newItem.apertura?.toLowerCase() !== 'battente' ? 'text-gray-400' : 'text-gray-700'}`}>Apertura anta</span>
-                <select
-                  value={newItem.soloRibalta ? 'solo' : newItem.antaRibalta ? 'antaribalta' : 'battente'}
-                  onChange={e => updateItemFields({
-                    antaRibalta: e.target.value === 'antaribalta',
-                    soloRibalta: e.target.value === 'solo',
-                  })}
-                  disabled={newItem.apertura?.toLowerCase() !== 'battente'}
-                  className="text-sm font-semibold bg-transparent outline-none cursor-pointer text-blue-700 disabled:text-gray-400"
-                >
-                  <option value="battente">Solo battente</option>
-                  <option value="antaribalta">Anta e ribalta</option>
-                  <option value="solo">Vasistas (solo ribalta)</option>
-                </select>
-              </label>
+              {/* Il menu "Apertura anta" (battente, anta-ribalta, vasistas per
+                  tutta la finestra) non c'e' piu': come si apre ogni anta si
+                  sceglie nel disegno, anta per anta. */}
               <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
                 <input 
                   type="checkbox" 
