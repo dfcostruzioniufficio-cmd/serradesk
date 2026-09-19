@@ -54,6 +54,15 @@ export default function WindowPreview({
 
   const getOpeningInfo = (i) => {
     if (apertura === 'Fisso') return { openingEdge: null, hasHandle: false };
+    // Tipo scelto a mano nel disegno: una fissa non si apre; le altre si
+    // aprono dal lato della maniglia, o dal lato predefinito se non ce l'hanno.
+    const tipo = paneConfigs?.[i]?.tipo;
+    if (tipo === 'fissa') return { openingEdge: null, hasHandle: false };
+    if (tipo) {
+      const bordo = paneConfigs[i].handleEdge;
+      if (bordo) return { openingEdge: bordo, hasHandle: true };
+      return { openingEdge: i === anteCount - 1 && anteCount > 1 ? 'left' : 'right', hasHandle: false };
+    }
     if (paneConfigs && paneConfigs.length > i && 'handleEdge' in paneConfigs[i]) {
       const edge = paneConfigs[i].handleEdge;
       if (edge) return { openingEdge: edge, hasHandle: true };
@@ -264,8 +273,16 @@ export default function WindowPreview({
           // triangolo della ribalta e sparisce quello del battente. Qui non si
           // guarda la maniglia: un'anta senza maniglia (la fissa di una due
           // ante) resterebbe disegnata muta, con le sole cerniere in basso.
-          const vasistas = soloRibalta && edge && (edge === 'left' || edge === 'right');
-          const showRibalta = vasistas || (antaRibalta && edge && (edge === 'left' || edge === 'right') && hasHandle);
+          // Con il tipo scelto anta per anta, ribalta e vasistas valgono solo
+          // per quell'anta; senza, restano le spunte dell'intera finestra.
+          const tipoAnta = paneConfigs?.[i]?.tipo;
+          const laterale = edge === 'left' || edge === 'right';
+          const vasistas = tipoAnta
+            ? tipoAnta === 'vasistas' && laterale
+            : soloRibalta && edge && laterale;
+          const showRibalta = tipoAnta
+            ? (tipoAnta === 'ribalta' || tipoAnta === 'vasistas') && laterale
+            : vasistas || (antaRibalta && edge && laterale && hasHandle);
           const innerW = dW - FT * 2;
 
           const rawWidths = (anteWidths && anteWidths.length === anteCount)

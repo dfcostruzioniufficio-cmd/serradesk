@@ -9,7 +9,23 @@ const ZONE = 26; // thickness of clickable edge zone
 
 const EDGE_LABELS = { top: 'Alto', bottom: 'Basso', left: 'Sinistra', right: 'Destra' };
 
-export default function WindowConfigurator({ numAnte, frameColor, paneConfigs, onChange, onClose }) {
+// Come si apre ogni anta. Si sceglie toccando il centro dell'anta: ogni
+// tocco passa al tipo successivo. Sul battente ci sono tutte le aperture,
+// sullo scorrevole solo apribile o fissa.
+const TIPI = {
+  battente: 'Battente',
+  fissa: 'Fissa',
+  ribalta: 'Anta-ribalta',
+  vasistas: 'Vasistas',
+  apribile: 'Apribile',
+};
+const CICLO = {
+  Battente: ['battente', 'fissa', 'ribalta', 'vasistas'],
+  Scorrevole: ['apribile', 'fissa'],
+};
+
+export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose }) {
+  const ciclo = CICLO[apertura] || null;
   const safeFrameColor = getFrameColorHex(frameColor);
   const [hovered, setHovered] = useState(null); // { pane: i, edge: 'top'|'right'|... }
 
@@ -23,17 +39,53 @@ export default function WindowConfigurator({ numAnte, frameColor, paneConfigs, o
 
   const getEdge = (i) => paneConfigs[i]?.handleEdge || null;
 
+  const getTipo = (i) => paneConfigs[i]?.tipo || null;
+
+  // Bordo predefinito della maniglia quando un'anta torna apribile: l'ultima
+  // anta ce l'ha a sinistra (dove incontra la vicina), le altre a destra.
+  const bordoPredefinito = (i) => (i === count - 1 && count > 1 ? 'left' : 'right');
+
   const setEdge = (paneIndex, edge) => {
     const next = [...paneConfigs];
+    const attuale = next[paneIndex] || {};
     const current = getEdge(paneIndex);
-    next[paneIndex] = { handleEdge: current === edge ? null : edge };
+    // Mettere la maniglia su un'anta fissa la rende di nuovo apribile.
+    if (attuale.tipo === 'fissa') {
+      next[paneIndex] = { ...attuale, tipo: ciclo ? ciclo[0] : undefined, handleEdge: edge };
+    } else {
+      // Il tipo scelto resta: si sposta solo la maniglia.
+      next[paneIndex] = { ...attuale, handleEdge: current === edge ? null : edge };
+    }
+    onChange(next);
+  };
+
+  // Tocco al centro dell'anta: tipo successivo. Un'anta mai toccata vale
+  // come il primo tipo del ciclo, quindi il primo tocco la rende fissa.
+  const cambiaTipo = (i) => {
+    if (!ciclo) return;
+    const next = [...paneConfigs];
+    const attuale = next[i] || {};
+    const pos = ciclo.indexOf(attuale.tipo);
+    const tipo = ciclo[(pos < 0 ? 0 : pos + 1) % ciclo.length];
+    next[i] = tipo === 'fissa'
+      ? { ...attuale, tipo, handleEdge: null }
+      : { ...attuale, tipo, handleEdge: attuale.handleEdge || bordoPredefinito(i) };
     onChange(next);
   };
 
   /* ─── Opening lines ─── */
   const openingLines = (i, px, py, pw, ph) => {
     const edge = getEdge(i);
-    if (!edge) return null;
+    const tipo = getTipo(i);
+    if (tipo === 'fissa') return null;
+    const ribalta = (tipo === 'ribalta' || tipo === 'vasistas') ? (
+      <>
+        <line x1={px+pw/2} y1={py} x2={px} y2={py+ph} stroke="rgba(30,60,150,0.55)" strokeDasharray="5,3" strokeWidth="1.8"/>
+        <line x1={px+pw/2} y1={py} x2={px+pw} y2={py+ph} stroke="rgba(30,60,150,0.55)" strokeDasharray="5,3" strokeWidth="1.8"/>
+      </>
+    ) : null;
+    if (tipo === 'vasistas') return ribalta;
+    if (!edge) return ribalta;
     let hx, hy, c1x, c1y, c2x, c2y;
     switch (edge) {
       case 'right':  hx=px+pw; hy=py+ph/2; c1x=px; c1y=py;      c2x=px; c2y=py+ph; break;
@@ -46,7 +98,25 @@ export default function WindowConfigurator({ numAnte, frameColor, paneConfigs, o
       <>
         <line x1={hx} y1={hy} x2={c1x} y2={c1y} stroke="rgba(30,60,150,0.55)" strokeDasharray="5,3" strokeWidth="1.8"/>
         <line x1={hx} y1={hy} x2={c2x} y2={c2y} stroke="rgba(30,60,150,0.55)" strokeDasharray="5,3" strokeWidth="1.8"/>
+        {ribalta}
       </>
+    );
+  };
+
+  /* ─── Zona centrale: tocco per cambiare tipo ─── */
+  const zonaTipo = (i, px, py, pw, ph) => {
+    if (!ciclo) return null;
+    const hov = hovered?.pane === i && hovered?.edge === 'centro';
+    return (
+      <rect
+        x={px+ZONE} y={py+ZONE} width={Math.max(0, pw-ZONE*2)} height={Math.max(0, ph-ZONE*2)}
+        fill={hov ? 'rgba(59,130,246,0.08)' : 'transparent'}
+        rx="4"
+        style={{ cursor: 'pointer' }}
+        onMouseEnter={() => setHovered({ pane: i, edge: 'centro' })}
+        onMouseLeave={() => setHovered(null)}
+        onClick={() => cambiaTipo(i)}
+      />
     );
   };
 
@@ -105,7 +175,9 @@ export default function WindowConfigurator({ numAnte, frameColor, paneConfigs, o
           <div>
             <h2 className="text-xl font-bold text-gray-800">🖱️ Configuratore Visivo Infisso</h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              Clicca su un bordo per posizionare la maniglia. Clicca di nuovo per rimuoverla.
+              {ciclo
+                ? 'Tocca il centro di un\'anta per scegliere come si apre (anche fissa). Tocca un bordo per spostare la maniglia.'
+                : 'Clicca su un bordo per posizionare la maniglia. Clicca di nuovo per rimuoverla.'}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light leading-none w-8 h-8 flex items-center justify-center">×</button>
@@ -133,7 +205,14 @@ export default function WindowConfigurator({ numAnte, frameColor, paneConfigs, o
                   {openingLines(i, px, py, pw, ph)}
                   {/* Handle */}
                   {handleRect(i, px, py, pw, ph)}
+                  {/* Tipo dell'anta, scritto in grande nel vetro */}
+                  {getTipo(i) && (
+                    <text x={px+pw/2} y={py+ph/2+6} textAnchor="middle" fontSize={count > 4 ? 13 : 16} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                      {TIPI[getTipo(i)]}
+                    </text>
+                  )}
                   {/* Clickable zones */}
+                  {zonaTipo(i, px, py, pw, ph)}
                   {edgeZones(i, px, py, pw, ph)}
                   {/* Pane label */}
                   <text x={px+pw/2} y={py+ph-7} textAnchor="middle" fontSize="13" fill="rgba(0,0,0,0.2)" fontWeight="bold">{i+1}</text>
@@ -160,10 +239,17 @@ export default function WindowConfigurator({ numAnte, frameColor, paneConfigs, o
         <div className="px-6 py-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
           {Array.from({ length: count }).map((_, i) => {
             const edge = getEdge(i);
+            const tipo = getTipo(i);
+            const fissa = tipo === 'fissa';
+            // Un'anta mai toccata senza maniglia non e' fissa: si apre come
+            // anta secondaria e nel prezzo conta come apribile.
+            const testo = tipo
+              ? `${TIPI[tipo]}${!fissa && edge ? ` · ${EDGE_LABELS[edge]}` : ''}`
+              : (edge ? `↕ ${EDGE_LABELS[edge]}` : 'Senza maniglia');
             return (
-              <div key={i} className={`rounded-lg p-2 text-center border text-xs font-semibold transition-all ${edge ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
+              <div key={i} className={`rounded-lg p-2 text-center border text-xs font-semibold transition-all ${fissa ? 'bg-gray-100 border-gray-300 text-gray-600' : (edge || tipo) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
                 <div className="text-[10px] font-normal opacity-70 mb-0.5">Anta {i+1}</div>
-                {edge ? `↕ ${EDGE_LABELS[edge]}` : 'Fisso'}
+                {testo}
               </div>
             );
           })}

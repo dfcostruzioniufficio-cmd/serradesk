@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
-import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq } from './usePricingEngine';
+import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq, anteApribili } from './usePricingEngine';
 import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
@@ -34,6 +34,31 @@ const leggiQuantita = (valore) => {
   if (s.includes(',')) return Number(s.replace(/\./g, '').replace(',', '.')) || 0;
   if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, '')) || 0;
   return Number(s) || 0;
+};
+
+// Come si apre ogni anta, scritto per il cliente: "ANTE 1, 3 E 5 FISSE;
+// ANTE 2 E 4 AD ANTA-RIBALTA". Serve solo quando almeno un'anta ha un tipo
+// scelto nel disegno; le ante mai toccate si leggono come apribili.
+const TIPI_ANTA = {
+  fissa: ['FISSA', 'FISSE'],
+  battente: ['A BATTENTE', 'A BATTENTE'],
+  ribalta: ['AD ANTA-RIBALTA', 'AD ANTA-RIBALTA'],
+  vasistas: ['A VASISTAS', 'A VASISTAS'],
+  apribile: ['APRIBILE', 'APRIBILI'],
+};
+const descriviAnte = (configurazione, numAnte) => {
+  const ante = (configurazione || []).slice(0, numAnte);
+  if (!ante.some((c) => c && c.tipo)) return '';
+  const gruppi = {};
+  for (let i = 0; i < numAnte; i++) {
+    const tipo = TIPI_ANTA[ante[i]?.tipo] ? ante[i].tipo : 'apribile';
+    (gruppi[tipo] = gruppi[tipo] || []).push(i + 1);
+  }
+  return Object.keys(TIPI_ANTA).filter((t) => gruppi[t]).map((t) => {
+    const n = gruppi[t];
+    const elenco = n.length === 1 ? String(n[0]) : `${n.slice(0, -1).join(', ')} E ${n[n.length - 1]}`;
+    return `${n.length === 1 ? 'ANTA' : 'ANTE'} ${elenco} ${TIPI_ANTA[t][n.length === 1 ? 0 : 1]}`;
+  }).join('; ');
 };
 
 const nuovoUid = () => (
@@ -132,6 +157,21 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     setNewItem(prevItem => ({ ...prevItem, ...patch }));
   };
 
+  // Dal disegno: cambia come si aprono le ante. Il prezzo si ricalcola solo
+  // se cambia quante ante si aprono; spostare una maniglia non lo tocca, cosi'
+  // aprire il disegno di un articolo gia' fatto non ne cambia il prezzo.
+  const aggiornaAnte = (nuova) => {
+    const numAnte = newItem.numAnte;
+    const prima = anteApribili({ numAnte, paneConfigs });
+    const dopo = anteApribili({ numAnte, paneConfigs: nuova });
+    setPaneConfigs(nuova);
+    if (prima === dopo || itemType !== 'window') return;
+    setNewItem((prev) => {
+      const { unitPrice, basePrice } = calculateWindowPrice({ ...prev, paneConfigs: nuova }, sistemiCam);
+      return { ...prev, basePrice, ...(unitPrice ? { unitPrice } : {}) };
+    });
+  };
+
   const updateItemField = (field, value) => {
     setNewItem(prevItem => {
       let updatedItem = { ...prevItem, [field]: value };
@@ -166,7 +206,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       }
 
       if (['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId'].includes(field)) {
-        const { unitPrice, basePrice } = calculateWindowPrice(updatedItem, sistemiCam);
+        // Le ante fisse contano nel prezzo. Cambiando il numero di ante pero'
+        // la configurazione viene rifatta da capo, quindi quella vecchia non vale.
+        const conAnte = field === 'numAnte' ? updatedItem : { ...updatedItem, paneConfigs };
+        const { unitPrice, basePrice } = calculateWindowPrice(conAnte, sistemiCam);
         updatedItem.basePrice = basePrice;
         if (unitPrice) updatedItem.unitPrice = unitPrice;
 
@@ -303,7 +346,12 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // Il vasistas non e' un battente che fa anche la ribalta: si apre solo a
       // ribalta, quindi si chiama con il suo nome invece che "BATTENTE".
       const nomeApertura = soloRibalta ? 'VASISTAS' : newItem.apertura.toUpperCase();
-      let desc2 = `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
+      // Se nel disegno si e' scelto come si apre ogni anta, la descrizione lo
+      // dice anta per anta e prende il posto della ribalta generica.
+      const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1));
+      let desc2 = anteDescritte
+        ? `${[nomeApertura, anteText].filter(Boolean).join(' ')}: ${anteDescritte}`
+        : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
       if (newItem.hasSopraluce) desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm`;
       // Ante col maniglione, una sola volta per disegno e descrizione: se nel
       // frattempo le ante sono diminuite si tolgono quelle che non esistono
@@ -368,7 +416,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         description1: (newItem.vetro && !isPersiana && !isBlindata) ? `Vetro: ${newItem.vetro}` : '',
         description2: desc2,
         description3: isBlindata ? 'Porta Blindata di Sicurezza' : [newItem.marca, sistemaCam?.nome].filter(Boolean).join(' - '),
-        rawInput: { ...newItem, itemType: 'window' }
+        // La configurazione delle ante va anche qui: cambio profilo e prezzo
+        // dal totale ricalcolano da rawInput, e senza vedrebbero apribili
+        // anche le ante fisse, tornando al prezzo pieno.
+        rawInput: { ...newItem, itemType: 'window', paneConfigs: [...paneConfigs] }
       };
       if (isEditing) newItemsList[targetIndex] = newItemObj;
       else newItemsList.push(newItemObj);
@@ -532,7 +583,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, iva, setIva,
     items, setItems, itemType, setItemType, editingOrderId, setEditingOrderId,
     editingOrderStato, setEditingOrderStato,
-    showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs,
+    showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
     sistemiCam, handleAddItem, handleEditItem, handleCancelEdit, removeItem,
     updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,

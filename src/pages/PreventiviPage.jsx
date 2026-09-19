@@ -798,9 +798,10 @@ export default function PreventiviPage() {
       {p.showConfigurator && ['Battente', 'Scorrevole', 'Vasistas', 'Bilico', 'Persiana'].includes(p.newItem.apertura) && (
         <WindowConfigurator
           numAnte={p.newItem.numAnte}
+          apertura={p.newItem.apertura}
           frameColor={p.newItem.previewColor || p.newItem.frameColor}
           paneConfigs={p.paneConfigs}
-          onChange={p.setPaneConfigs}
+          onChange={p.aggiornaAnte}
           onClose={() => p.setShowConfigurator(false)}
         />
       )}

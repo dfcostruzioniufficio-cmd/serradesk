@@ -24,6 +24,38 @@ export function syncFrameColor(colorName) {
 }
 
 /**
+ * Quante ante del serramento si aprono davvero.
+ *
+ * Nel disegno l'utente puo' segnare un'anta come fissa (tipo 'fissa' nella
+ * sua configurazione). Un'anta fissa non ha ferramenta ne' profilo anta, e
+ * non deve contare per il minimo fatturabile ne' per la maggiorazione: una
+ * 5 ante con 3 fisse si fattura come una 2 ante.
+ *
+ * Le ante mai toccate restano apribili. I preventivi gia' fatti non hanno il
+ * tipo su nessuna anta, quindi il loro prezzo non cambia.
+ */
+export function anteApribili(item) {
+  const numAnte = Math.max(1, Number(item?.numAnte) || 1);
+  const configurazione = Array.isArray(item?.paneConfigs) ? item.paneConfigs : item?.rawInput?.paneConfigs;
+  if (!Array.isArray(configurazione)) return numAnte;
+  const fisse = configurazione.slice(0, numAnte).filter((c) => c && c.tipo === 'fissa').length;
+  return numAnte - fisse;
+}
+
+/** Minimo fatturabile e maggiorazione per ante, contando solo le apribili. */
+function mqConMinimiAnte(item, mq) {
+  if (item.apertura === 'Fisso' || item.apertura === 'Cassonetto') return mq;
+  const apribili = anteApribili(item);
+  // Tutte fisse: si fattura come un fisso, a misura, senza minimo.
+  if (apribili === 0) return mq;
+  if (apribili === 1 && mq < 1.50) mq = 1.50;
+  if (apribili >= 2 && mq < 2.00) mq = 2.00;
+  if (apribili === 3) mq += 1.50;
+  if (apribili >= 4) mq += 2.00;
+  return mq;
+}
+
+/**
  * Calcola il prezzo unitario per un serramento in base al tipo di calcolo.
  */
 export function calculateWindowPrice(item, sistemiCam) {
@@ -52,16 +84,9 @@ export function calculateWindowPrice(item, sistemiCam) {
     }
 
     let mq = wM * hM;
-    const numAnte = Number(item.numAnte) || 1;
-    const isFisso = item.apertura === 'Fisso';
     
     // Fatturazione Minima e maggiorazione ante
-    if (!isFisso && item.apertura !== 'Cassonetto') {
-      if (numAnte === 1 && mq < 1.50) mq = 1.50;
-      if (numAnte >= 2 && mq < 2.00) mq = 2.00;
-      if (numAnte === 3) mq += 1.50;
-      if (numAnte >= 4) mq += 2.00;
-    }
+    mq = mqConMinimiAnte(item, mq);
     
     if (item.manualMq && Number(item.manualMq) > 0) {
       mq = Number(item.manualMq);
@@ -124,16 +149,9 @@ export function calculateWindowPrice(item, sistemiCam) {
     let unitPrice;
     
     let mq = wM * hM;
-    const numAnte = Number(item.numAnte) || 1;
-    const isFisso = item.apertura === 'Fisso';
     
     // Fatturazione Minima e maggiorazione ante
-    if (!isFisso && item.apertura !== 'Cassonetto') {
-      if (numAnte === 1 && mq < 1.50) mq = 1.50;
-      if (numAnte >= 2 && mq < 2.00) mq = 2.00;
-      if (numAnte === 3) mq += 1.50;
-      if (numAnte >= 4) mq += 2.00;
-    }
+    mq = mqConMinimiAnte(item, mq);
     
     if (item.manualMq && Number(item.manualMq) > 0) {
       mq = Number(item.manualMq);
@@ -198,15 +216,7 @@ export function calculateItemMq(item) {
   let wM = (item.width || 0) / 1000;
   let hM = (item.height || 0) / 1000;
   let mq = wM * hM;
-  const numAnte = Number(item.numAnte) || 1;
-  const isFisso = item.apertura === 'Fisso';
-  
-  if (!isFisso && item.apertura !== 'Cassonetto') {
-    if (numAnte === 1 && mq < 1.50) mq = 1.50;
-    if (numAnte >= 2 && mq < 2.00) mq = 2.00;
-    if (numAnte === 3) mq += 1.50;
-    if (numAnte >= 4) mq += 2.00;
-  }
+  mq = mqConMinimiAnte(item, mq);
   
   if (item.manualMq && Number(item.manualMq) > 0) {
     mq = Number(item.manualMq);
