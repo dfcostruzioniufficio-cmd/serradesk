@@ -799,6 +799,9 @@ export default function PreventiviPage() {
         <WindowConfigurator
           numAnte={p.newItem.numAnte}
           apertura={p.newItem.apertura}
+          hasTraverso={!!p.newItem.hasTraverso}
+          traversoHeight={p.newItem.traversoHeight}
+          height={p.newItem.height}
           frameColor={p.newItem.previewColor || p.newItem.frameColor}
           paneConfigs={p.paneConfigs}
           onChange={p.aggiornaAnte}

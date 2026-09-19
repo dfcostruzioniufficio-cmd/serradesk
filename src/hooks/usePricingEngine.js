@@ -38,7 +38,15 @@ export function anteApribili(item) {
   const numAnte = Math.max(1, Number(item?.numAnte) || 1);
   const configurazione = Array.isArray(item?.paneConfigs) ? item.paneConfigs : item?.rawInput?.paneConfigs;
   if (!Array.isArray(configurazione)) return numAnte;
-  const fisse = configurazione.slice(0, numAnte).filter((c) => c && c.tipo === 'fissa').length;
+  // Col traverso la parte sopra puo' avere un tipo suo (tipoSopra): l'anta e'
+  // fissa solo se sono fisse tutte e due le parti. Senza traverso conta solo
+  // il tipo dell'anta intera.
+  const traverso = item?.hasTraverso ?? item?.rawInput?.hasTraverso;
+  const fisse = configurazione.slice(0, numAnte).filter((c) => {
+    if (!c || c.tipo !== 'fissa') return false;
+    const sopra = traverso && c.tipoSopra ? c.tipoSopra : c.tipo;
+    return sopra === 'fissa';
+  }).length;
   return numAnte - fisse;
 }
 

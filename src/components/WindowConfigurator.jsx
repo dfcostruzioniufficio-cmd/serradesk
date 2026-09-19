@@ -24,8 +24,12 @@ const CICLO = {
   Scorrevole: ['apribile', 'fissa'],
 };
 
-export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose }) {
+export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose, hasTraverso = false, traversoHeight = 1000, height = 1000 }) {
   const ciclo = CICLO[apertura] || null;
+  // Col traverso ogni anta ha due parti, sopra e sotto, ciascuna col suo tipo
+  // (la F06 degli abachi: tutto fisso tranne il vasistas in alto al centro).
+  const aDueParti = !!(hasTraverso && ciclo);
+  const quotaTraverso = Math.max(0.1, Math.min(0.9, 1 - (Number(traversoHeight) || 1000) / (Number(height) || 1000)));
   const safeFrameColor = getFrameColorHex(frameColor);
   const [hovered, setHovered] = useState(null); // { pane: i, edge: 'top'|'right'|... }
 
@@ -61,24 +65,46 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
 
   // Tocco al centro dell'anta: tipo successivo. Un'anta mai toccata vale
   // come il primo tipo del ciclo, quindi il primo tocco la rende fissa.
-  const cambiaTipo = (i) => {
+  const successivo = (tipo) => {
+    const pos = ciclo.indexOf(tipo);
+    // Un'anta mai toccata vale come il primo del ciclo (apribile): il primo
+    // tocco la porta al secondo, cioe' fissa, che e' il caso piu' frequente.
+    return ciclo[((pos < 0 ? 0 : pos) + 1) % ciclo.length];
+  };
+
+  // parte: 'sotto' (o l'anta intera, senza traverso) oppure 'sopra'.
+  const cambiaTipo = (i, parte = 'sotto') => {
     if (!ciclo) return;
     const next = [...paneConfigs];
     const attuale = next[i] || {};
-    const pos = ciclo.indexOf(attuale.tipo);
-    // Un'anta mai toccata vale come il primo del ciclo (apribile): il primo
-    // tocco la porta al secondo, cioe' fissa, che e' il caso piu' frequente.
-    const tipo = ciclo[((pos < 0 ? 0 : pos) + 1) % ciclo.length];
-    next[i] = tipo === 'fissa'
-      ? { ...attuale, tipo, handleEdge: null }
-      : { ...attuale, tipo, handleEdge: attuale.handleEdge || bordoPredefinito(i) };
+    let tipo = attuale.tipo;
+    let tipoSopra = attuale.tipoSopra;
+    if (!aDueParti) {
+      tipo = successivo(tipo);
+    } else {
+      // Toccando una parte l'altra resta com'era: se non aveva ancora un tipo
+      // suo lo prende adesso, altrimenti cambierebbe insieme a questa.
+      const sotto = tipo || ciclo[0];
+      const sopra = tipoSopra || sotto;
+      if (parte === 'sopra') { tipo = sotto; tipoSopra = successivo(sopra); }
+      else { tipoSopra = sopra; tipo = successivo(sotto); }
+    }
+    const tuttaFissa = tipo === 'fissa' && (!aDueParti || tipoSopra === 'fissa');
+    next[i] = {
+      ...attuale,
+      tipo,
+      ...(aDueParti ? { tipoSopra } : {}),
+      handleEdge: tuttaFissa ? null : (attuale.handleEdge || bordoPredefinito(i)),
+    };
     onChange(next);
   };
 
+  const tipoSopraDi = (i) => paneConfigs[i]?.tipoSopra || getTipo(i);
+
   /* ─── Opening lines ─── */
-  const openingLines = (i, px, py, pw, ph) => {
+  const openingLines = (i, px, py, pw, ph, tipoZona) => {
     const edge = getEdge(i);
-    const tipo = getTipo(i);
+    const tipo = tipoZona === undefined ? getTipo(i) : tipoZona;
     if (tipo === 'fissa') return null;
     const ribalta = (tipo === 'ribalta' || tipo === 'vasistas') ? (
       <>
@@ -108,17 +134,28 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   /* ─── Zona centrale: tocco per cambiare tipo ─── */
   const zonaTipo = (i, px, py, pw, ph) => {
     if (!ciclo) return null;
-    const hov = hovered?.pane === i && hovered?.edge === 'centro';
+    const zona = (chiave, y0, y1, parte) => {
+      const hov = hovered?.pane === i && hovered?.edge === chiave;
+      return (
+        <rect
+          key={chiave}
+          x={px+ZONE} y={y0} width={Math.max(0, pw-ZONE*2)} height={Math.max(0, y1-y0)}
+          fill={hov ? 'rgba(59,130,246,0.08)' : 'transparent'}
+          rx="4"
+          style={{ cursor: 'pointer' }}
+          onMouseEnter={() => setHovered({ pane: i, edge: chiave })}
+          onMouseLeave={() => setHovered(null)}
+          onClick={() => cambiaTipo(i, parte)}
+        />
+      );
+    };
+    if (!aDueParti) return zona('centro', py+ZONE, py+ph-ZONE, 'sotto');
+    const yT = py + ph * quotaTraverso;
     return (
-      <rect
-        x={px+ZONE} y={py+ZONE} width={Math.max(0, pw-ZONE*2)} height={Math.max(0, ph-ZONE*2)}
-        fill={hov ? 'rgba(59,130,246,0.08)' : 'transparent'}
-        rx="4"
-        style={{ cursor: 'pointer' }}
-        onMouseEnter={() => setHovered({ pane: i, edge: 'centro' })}
-        onMouseLeave={() => setHovered(null)}
-        onClick={() => cambiaTipo(i)}
-      />
+      <>
+        {zona('sopra', py+ZONE, yT-4, 'sopra')}
+        {zona('sotto', yT+4, py+ph-ZONE, 'sotto')}
+      </>
     );
   };
 
@@ -178,7 +215,9 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
             <h2 className="text-xl font-bold text-gray-800">🖱️ Configuratore Visivo Infisso</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               {ciclo
-                ? 'Tocca il centro di un\'anta per scegliere come si apre (anche fissa). Tocca un bordo per spostare la maniglia.'
+                ? (aDueParti
+                  ? 'Col traverso ogni anta ha due parti: tocca la parte sopra o quella sotto per scegliere come si apre. Tocca un bordo per spostare la maniglia.'
+                  : 'Tocca il centro di un\'anta per scegliere come si apre (anche fissa). Tocca un bordo per spostare la maniglia.')
                 : 'Clicca su un bordo per posizionare la maniglia. Clicca di nuovo per rimuoverla.'}
             </p>
           </div>
@@ -203,15 +242,36 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
                   <rect x={px} y={py} width={pw} height={ph} fill="#d6eff5" stroke={safeFrameColor} strokeWidth="3"/>
                   {/* Inner border */}
                   <rect x={px+9} y={py+9} width={pw-18} height={ph-18} fill="none" stroke="rgba(100,150,170,0.35)" strokeWidth="1"/>
-                  {/* Opening lines */}
-                  {openingLines(i, px, py, pw, ph)}
-                  {/* Handle */}
-                  {handleRect(i, px, py, pw, ph)}
-                  {/* Tipo dell'anta, scritto in grande nel vetro */}
-                  {getTipo(i) && (
-                    <text x={px+pw/2} y={py+ph/2+6} textAnchor="middle" fontSize={count > 4 ? 13 : 16} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
-                      {TIPI[getTipo(i)]}
-                    </text>
+                  {aDueParti ? (() => {
+                    // Traverso e due parti, ognuna con linee e nome suoi.
+                    const yT = py + ph * quotaTraverso;
+                    const scritta = (tipo, y) => tipo && (
+                      <text x={px+pw/2} y={y} textAnchor="middle" fontSize={count > 4 ? 12 : 15} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                        {TIPI[tipo]}
+                      </text>
+                    );
+                    return (
+                      <>
+                        {openingLines(i, px, py, pw, yT - py, tipoSopraDi(i) || null)}
+                        {openingLines(i, px, yT, pw, py + ph - yT, getTipo(i) || null)}
+                        <rect x={px} y={yT - 4} width={pw} height={8} fill={safeFrameColor} stroke="rgba(0,0,0,0.25)" strokeWidth="1"/>
+                        {scritta(tipoSopraDi(i), py + (yT - py) / 2 + 5)}
+                        {scritta(getTipo(i), yT + (py + ph - yT) / 2 + 5)}
+                      </>
+                    );
+                  })() : (
+                    <>
+                      {/* Opening lines */}
+                      {openingLines(i, px, py, pw, ph)}
+                      {/* Handle */}
+                      {handleRect(i, px, py, pw, ph)}
+                      {/* Tipo dell'anta, scritto in grande nel vetro */}
+                      {getTipo(i) && (
+                        <text x={px+pw/2} y={py+ph/2+6} textAnchor="middle" fontSize={count > 4 ? 13 : 16} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                          {TIPI[getTipo(i)]}
+                        </text>
+                      )}
+                    </>
                   )}
                   {/* Clickable zones */}
                   {zonaTipo(i, px, py, pw, ph)}
@@ -245,9 +305,12 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
             const fissa = tipo === 'fissa';
             // Un'anta mai toccata senza maniglia non e' fissa: si apre come
             // anta secondaria e nel prezzo conta come apribile.
-            const testo = tipo
-              ? `${TIPI[tipo]}${!fissa && edge ? ` · ${EDGE_LABELS[edge]}` : ''}`
-              : (edge ? `↕ ${EDGE_LABELS[edge]}` : 'Senza maniglia');
+            const sopra = aDueParti ? tipoSopraDi(i) : null;
+            const testo = sopra && sopra !== tipo
+              ? `Sopra: ${TIPI[sopra]} · Sotto: ${TIPI[tipo || ciclo[0]]}`
+              : tipo
+                ? `${TIPI[tipo]}${!fissa && edge ? ` · ${EDGE_LABELS[edge]}` : ''}`
+                : (edge ? `↕ ${EDGE_LABELS[edge]}` : 'Senza maniglia');
             return (
               <div key={i} className={`rounded-lg p-2 text-center border text-xs font-semibold transition-all ${fissa ? 'bg-gray-100 border-gray-300 text-gray-600' : (edge || tipo) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
                 <div className="text-[10px] font-normal opacity-70 mb-0.5">Anta {i+1}</div>

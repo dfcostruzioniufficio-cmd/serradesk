@@ -46,23 +46,37 @@ const TIPI_ANTA = {
   vasistas: ['A VASISTAS', 'A VASISTAS'],
   apribile: ['APRIBILE', 'APRIBILI'],
 };
-const descriviAnte = (configurazione, numAnte, apertura) => {
+const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
   const ante = (configurazione || []).slice(0, numAnte);
   // Il titolo non ripete piu' "BATTENTE 5 ANTE": sullo scorrevole quindi le
   // ante che si aprono si chiamano col loro nome, o il tipo andrebbe perso.
   const nomi = apertura === 'Scorrevole'
     ? { ...TIPI_ANTA, apribile: ['SCORREVOLE', 'SCORREVOLI'] }
     : TIPI_ANTA;
-  if (!ante.some((c) => c && c.tipo)) return '';
-  const gruppi = {};
+  if (!ante.some((c) => c && (c.tipo || (traverso && c.tipoSopra)))) return '';
+  const tipoDi = (t) => (nomi[t] ? t : 'apribile');
+  // Ogni anta ha una chiave: il suo tipo, oppure "sopra|sotto" quando col
+  // traverso le due parti si aprono in modo diverso. Le ante con la stessa
+  // chiave si scrivono insieme.
+  const gruppi = new Map();
   for (let i = 0; i < numAnte; i++) {
-    const tipo = TIPI_ANTA[ante[i]?.tipo] ? ante[i].tipo : 'apribile';
-    (gruppi[tipo] = gruppi[tipo] || []).push(i + 1);
+    const sotto = tipoDi(ante[i]?.tipo);
+    const sopra = traverso && ante[i]?.tipoSopra ? tipoDi(ante[i].tipoSopra) : sotto;
+    const chiave = sopra === sotto ? sotto : `${sopra}|${sotto}`;
+    if (!gruppi.has(chiave)) gruppi.set(chiave, []);
+    gruppi.get(chiave).push(i + 1);
   }
-  return Object.keys(TIPI_ANTA).filter((t) => gruppi[t]).map((t) => {
-    const n = gruppi[t];
+  const ordine = Object.keys(TIPI_ANTA);
+  const chiavi = [...gruppi.keys()].sort((a, b) => ordine.indexOf(a.split('|')[0]) - ordine.indexOf(b.split('|')[0]));
+  return chiavi.map((chiave) => {
+    const n = gruppi.get(chiave);
+    const plurale = n.length === 1 ? 0 : 1;
     const elenco = n.length === 1 ? String(n[0]) : `${n.slice(0, -1).join(', ')} E ${n[n.length - 1]}`;
-    return `${n.length === 1 ? 'ANTA' : 'ANTE'} ${elenco} ${nomi[t][n.length === 1 ? 0 : 1]}`;
+    const [sopra, sotto] = chiave.split('|');
+    const come = sotto === undefined
+      ? nomi[sopra][plurale]
+      : `SOPRA ${nomi[sopra][plurale]}, SOTTO ${nomi[sotto][plurale]}`;
+    return `${n.length === 1 ? 'ANTA' : 'ANTE'} ${elenco} ${come}`;
   }).join('; ');
 };
 
@@ -173,8 +187,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // aprire il disegno di un articolo gia' fatto non ne cambia il prezzo.
   const aggiornaAnte = (nuova) => {
     const numAnte = newItem.numAnte;
-    const prima = anteApribili({ numAnte, paneConfigs: paneConfigsRef.current });
-    const dopo = anteApribili({ numAnte, paneConfigs: nuova });
+    const hasTraverso = !!newItem.hasTraverso;
+    const prima = anteApribili({ numAnte, hasTraverso, paneConfigs: paneConfigsRef.current });
+    const dopo = anteApribili({ numAnte, hasTraverso, paneConfigs: nuova });
     paneConfigsRef.current = nuova;
     setPaneConfigs(nuova);
     if (prima === dopo || itemType !== 'window') return;
@@ -188,7 +203,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // un'anta segnata fissa sul serramento precedente restava fissa, anche nel
   // prezzo, se il modello aveva lo stesso numero di ante.
   const azzeraTipiAnte = () => {
-    const pulite = (paneConfigsRef.current || []).map(({ tipo, ...resto }) => resto);
+    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, ...resto }) => resto);
     paneConfigsRef.current = pulite;
     setPaneConfigs(pulite);
   };
@@ -371,7 +386,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // dice anta per anta e prende il posto della ribalta generica.
       // Niente "BATTENTE 5 ANTE:" davanti: l'elenco anta per anta dice gia'
       // quante sono e come si aprono, ripeterlo allungava solo il titolo.
-      const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1), newItem.apertura);
+      const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1), newItem.apertura, !!newItem.hasTraverso);
       let desc2 = anteDescritte
         ? anteDescritte
         : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;

@@ -54,16 +54,27 @@ export default function WindowPreview({
     larghezzaPredefinita: 1000, altezzaPredefinita: 1000
   });
 
+  // Col traverso la parte sopra puo' avere un tipo suo. Conta solo se e'
+  // diverso da quello sotto (un'anta mai toccata sotto vale apribile).
+  const partiDiverse = (i) => {
+    const c = paneConfigs?.[i];
+    if (!hasTraverso || !c?.tipoSopra) return false;
+    return c.tipoSopra !== (c.tipo || 'battente');
+  };
+
   const getOpeningInfo = (i) => {
     if (apertura === 'Fisso') return { openingEdge: null, hasHandle: false };
     // Tipo scelto a mano nel disegno: una fissa non si apre; le altre si
     // aprono dal lato della maniglia, o dal lato predefinito se non ce l'hanno.
     const tipo = paneConfigs?.[i]?.tipo;
-    if (tipo === 'fissa') return { openingEdge: null, hasHandle: false };
+    if (tipo === 'fissa' && !partiDiverse(i)) return { openingEdge: null, hasHandle: false };
+    // Sopra e sotto il traverso si aprono in modo diverso: l'anta intera e'
+    // telaio fisso, e ogni parte apribile viene disegnata per conto suo.
+    if (partiDiverse(i)) return { openingEdge: null, hasHandle: false };
     // Appena un'anta del serramento ha un tipo, quelle mai toccate valgono
     // come apribili: lo dicono la descrizione ("ANTA 2 APRIBILE") e il
     // prezzo, e il disegno non puo' mostrarle ferme come fosse fisse.
-    const conTipi = Array.isArray(paneConfigs) && paneConfigs.slice(0, anteCount).some((c) => c && c.tipo);
+    const conTipi = Array.isArray(paneConfigs) && paneConfigs.slice(0, anteCount).some((c) => c && (c.tipo || c.tipoSopra));
     if (tipo || conTipi) {
       // L'anta puo' non esistere ancora nella configurazione: alzando il
       // numero di ante il disegno si aggiorna un attimo prima di lei. Senza il
@@ -414,6 +425,65 @@ export default function WindowPreview({
                   <rect x={ax} y={traversoY - FT/2} width={aw} height={FT} fill="none" stroke={frameShadow} strokeWidth="0.8"/>
                 </>
               )}
+
+              {/* ── PARTI SOPRA/SOTTO IL TRAVERSO ──
+                  Ogni parte apribile ha la sua anta: profilo, linee di
+                  apertura, cerniere e maniglia, in scala con la parte. */}
+              {partiDiverse(i) && (() => {
+                const c = paneConfigs[i];
+                const lato = c.handleEdge === 'left' ? 'left' : 'right';
+                const parte = (chiave, x, y, w, h, tipo) => {
+                  if (!tipo || tipo === 'fissa' || w <= 8 || h <= 8) return null;
+                  const t = Math.max(2, Math.round(AT * 0.8));
+                  const gx2 = x + t, gy2 = y + t, gw2 = w - 2 * t, gh2 = h - 2 * t;
+                  const vas = tipo === 'vasistas';
+                  const rib = vas || tipo === 'ribalta';
+                  const color = 'rgba(20,80,160,0.6)';
+                  const k = scalaFerramenta(w, h);
+                  const maniglia = vas
+                    ? { x: gx2 + gw2 / 2 - 7 * k, y: y + 1, w: 14 * k, h: 4 * k }
+                    : { x: lato === 'right' ? x + w - t - 1 : x + 1, y: y + h / 2 - 7 * k, w: 4 * k, h: 14 * k };
+                  const lH = 10 * k;
+                  const cerniere = vas
+                    ? [gx2 + gw2 * 0.18, gx2 + gw2 * 0.72].map((cx) => ({ x: cx, y: y + h - 3, w: lH, h: 3 }))
+                    : [y + h * 0.15, y + h * 0.75].map((cy) => ({ x: lato === 'right' ? x : x + w - 3, y: cy, w: 3, h: lH }));
+                  const cerX = lato === 'right' ? gx2 + 3 : gx2 + gw2 - 3;
+                  const manX = lato === 'right' ? gx2 + gw2 - 3 : gx2 + 3;
+                  return (
+                    <g key={chiave}>
+                      <rect x={x} y={y} width={w} height={t} fill={frameMid}/>
+                      <rect x={x} y={y + h - t} width={w} height={t} fill={frameMid}/>
+                      <rect x={x} y={y} width={t} height={h} fill={frameMid}/>
+                      <rect x={x + w - t} y={y} width={t} height={h} fill={frameMid}/>
+                      <rect x={gx2} y={gy2} width={gw2} height={gh2} fill="none" stroke={frameShadow} strokeWidth="1"/>
+                      {!vas && (
+                        <>
+                          <line x1={manX} y1={gy2 + gh2 / 2} x2={cerX} y2={gy2 + 2} stroke={color} strokeWidth="1.2" strokeDasharray="3,2"/>
+                          <line x1={manX} y1={gy2 + gh2 / 2} x2={cerX} y2={gy2 + gh2 - 2} stroke={color} strokeWidth="1.2" strokeDasharray="3,2"/>
+                        </>
+                      )}
+                      {rib && (
+                        <>
+                          <line x1={gx2 + gw2 / 2} y1={gy2 + 2} x2={gx2 + 2} y2={gy2 + gh2 - 2} stroke={color} strokeWidth="1.2" strokeDasharray="3,2"/>
+                          <line x1={gx2 + gw2 / 2} y1={gy2 + 2} x2={gx2 + gw2 - 2} y2={gy2 + gh2 - 2} stroke={color} strokeWidth="1.2" strokeDasharray="3,2"/>
+                        </>
+                      )}
+                      {cerniere.map((r, n) => (
+                        <rect key={n} x={r.x} y={r.y} width={r.w} height={r.h} rx="1" fill={`url(#metalCilinder_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.4"/>
+                      ))}
+                      <rect x={maniglia.x} y={maniglia.y} width={maniglia.w} height={maniglia.h} rx="1.5" fill={vas ? `url(#metalCilinderV_${uid})` : `url(#metalCilinder_${uid})`} stroke={darken(accHex, 70)} strokeWidth="0.4"/>
+                    </g>
+                  );
+                };
+                const sopraY1 = traversoY - FT / 2;
+                const sottoY0 = traversoY + FT / 2;
+                return (
+                  <>
+                    {parte('sopra', ax, ay, aw, sopraY1 - ay, c.tipoSopra)}
+                    {parte('sotto', ax, sottoY0, aw, ay + ah - sottoY0, c.tipo || 'battente')}
+                  </>
+                );
+              })()}
 
               {edge && gw > 0 && gh > 0 && (() => {
                 const mx = gx + gw / 2, my = gy + gh / 2;
