@@ -65,7 +65,10 @@ export default function WindowPreview({
     // prezzo, e il disegno non puo' mostrarle ferme come fosse fisse.
     const conTipi = Array.isArray(paneConfigs) && paneConfigs.slice(0, anteCount).some((c) => c && c.tipo);
     if (tipo || conTipi) {
-      const bordo = paneConfigs[i].handleEdge;
+      // L'anta puo' non esistere ancora nella configurazione: alzando il
+      // numero di ante il disegno si aggiorna un attimo prima di lei. Senza il
+      // ?. qui tutta l'app finiva sulla schermata rossa.
+      const bordo = paneConfigs?.[i]?.handleEdge;
       if (bordo) return { openingEdge: bordo, hasHandle: true };
       return { openingEdge: i === anteCount - 1 && anteCount > 1 ? 'left' : 'right', hasHandle: false };
     }
