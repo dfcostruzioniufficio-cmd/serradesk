@@ -813,6 +813,7 @@ export default function PreventiviPage() {
             // reset, scegliendo "Battente" dopo aver configurato un vasistas
             // l'articolo restava un vasistas, disegno e descrizione compresi.
             p.updateItemFields({ antaRibalta: false, soloRibalta: false });
+            p.azzeraTipiAnte();
             Object.entries(template).forEach(([key, val]) => {
               p.updateItemField(key, val);
             });

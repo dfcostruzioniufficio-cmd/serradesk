@@ -76,6 +76,12 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const [showConfigurator, setShowConfigurator] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [paneConfigs, setPaneConfigs] = useState([{ handleEdge: 'right' }]);
+  // La configurazione delle ante piu' recente, anche a meta' di un gesto.
+  // Applicando un modello i campi si ricalcolano uno dopo l'altro nello
+  // stesso istante: leggendo lo stato si userebbe quella di prima, con le
+  // ante fisse del serramento precedente dentro il prezzo del nuovo.
+  const paneConfigsRef = useRef(paneConfigs);
+  paneConfigsRef.current = paneConfigs;
   const [editingIndex, setEditingIndex] = useState(null);
   const skipPaneResetRef = useRef(false);
 
@@ -162,14 +168,24 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // aprire il disegno di un articolo gia' fatto non ne cambia il prezzo.
   const aggiornaAnte = (nuova) => {
     const numAnte = newItem.numAnte;
-    const prima = anteApribili({ numAnte, paneConfigs });
+    const prima = anteApribili({ numAnte, paneConfigs: paneConfigsRef.current });
     const dopo = anteApribili({ numAnte, paneConfigs: nuova });
+    paneConfigsRef.current = nuova;
     setPaneConfigs(nuova);
     if (prima === dopo || itemType !== 'window') return;
     setNewItem((prev) => {
       const { unitPrice, basePrice } = calculateWindowPrice({ ...prev, paneConfigs: nuova }, sistemiCam);
       return { ...prev, basePrice, ...(unitPrice ? { unitPrice } : {}) };
     });
+  };
+
+  // Un modello della galleria riparte da ante senza tipo: senza questo
+  // un'anta segnata fissa sul serramento precedente restava fissa, anche nel
+  // prezzo, se il modello aveva lo stesso numero di ante.
+  const azzeraTipiAnte = () => {
+    const pulite = (paneConfigsRef.current || []).map(({ tipo, ...resto }) => resto);
+    paneConfigsRef.current = pulite;
+    setPaneConfigs(pulite);
   };
 
   const updateItemField = (field, value) => {
@@ -208,7 +224,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       if (['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId'].includes(field)) {
         // Le ante fisse contano nel prezzo. Cambiando il numero di ante pero'
         // la configurazione viene rifatta da capo, quindi quella vecchia non vale.
-        const conAnte = field === 'numAnte' ? updatedItem : { ...updatedItem, paneConfigs };
+        const conAnte = field === 'numAnte' ? updatedItem : { ...updatedItem, paneConfigs: paneConfigsRef.current };
         const { unitPrice, basePrice } = calculateWindowPrice(conAnte, sistemiCam);
         updatedItem.basePrice = basePrice;
         if (unitPrice) updatedItem.unitPrice = unitPrice;
@@ -583,7 +599,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, iva, setIva,
     items, setItems, itemType, setItemType, editingOrderId, setEditingOrderId,
     editingOrderStato, setEditingOrderStato,
-    showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte,
+    showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
     sistemiCam, handleAddItem, handleEditItem, handleCancelEdit, removeItem,
     updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,

@@ -66,7 +66,9 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
     const next = [...paneConfigs];
     const attuale = next[i] || {};
     const pos = ciclo.indexOf(attuale.tipo);
-    const tipo = ciclo[(pos < 0 ? 0 : pos + 1) % ciclo.length];
+    // Un'anta mai toccata vale come il primo del ciclo (apribile): il primo
+    // tocco la porta al secondo, cioe' fissa, che e' il caso piu' frequente.
+    const tipo = ciclo[((pos < 0 ? 0 : pos) + 1) % ciclo.length];
     next[i] = tipo === 'fissa'
       ? { ...attuale, tipo, handleEdge: null }
       : { ...attuale, tipo, handleEdge: attuale.handleEdge || bordoPredefinito(i) };
