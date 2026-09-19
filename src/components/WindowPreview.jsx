@@ -54,13 +54,10 @@ export default function WindowPreview({
     larghezzaPredefinita: 1000, altezzaPredefinita: 1000
   });
 
-  // Col traverso la parte sopra puo' avere un tipo suo. Conta solo se e'
-  // diverso da quello sotto (un'anta mai toccata sotto vale apribile).
-  const partiDiverse = (i) => {
-    const c = paneConfigs?.[i];
-    if (!hasTraverso || !c?.tipoSopra) return false;
-    return c.tipoSopra !== (c.tipo || 'battente');
-  };
+  // Col traverso un'anta toccata nel disegno sono due ante indipendenti,
+  // sopra e sotto, ognuna col suo tipo e la sua maniglia: anche quando sono
+  // uguali, perche' restano due ante con due ferramenta.
+  const partiDiverse = (i) => !!(hasTraverso && paneConfigs?.[i]?.tipoSopra);
 
   const getOpeningInfo = (i) => {
     if (apertura === 'Fisso') return { openingEdge: null, hasHandle: false };
@@ -431,8 +428,8 @@ export default function WindowPreview({
                   apertura, cerniere e maniglia, in scala con la parte. */}
               {partiDiverse(i) && (() => {
                 const c = paneConfigs[i];
-                const lato = c.handleEdge === 'left' ? 'left' : 'right';
-                const parte = (chiave, x, y, w, h, tipo) => {
+                const parte = (chiave, x, y, w, h, tipo, bordo) => {
+                  const lato = bordo === 'left' ? 'left' : 'right';
                   if (!tipo || tipo === 'fissa' || w <= 8 || h <= 8) return null;
                   const t = Math.max(2, Math.round(AT * 0.8));
                   const gx2 = x + t, gy2 = y + t, gw2 = w - 2 * t, gh2 = h - 2 * t;
@@ -479,8 +476,8 @@ export default function WindowPreview({
                 const sottoY0 = traversoY + FT / 2;
                 return (
                   <>
-                    {parte('sopra', ax, ay, aw, sopraY1 - ay, c.tipoSopra)}
-                    {parte('sotto', ax, sottoY0, aw, ay + ah - sottoY0, c.tipo || 'battente')}
+                    {parte('sopra', ax, ay, aw, sopraY1 - ay, c.tipoSopra, c.handleEdgeSopra)}
+                    {parte('sotto', ax, sottoY0, aw, ay + ah - sottoY0, c.tipo || 'battente', c.handleEdge)}
                   </>
                 );
               })()}

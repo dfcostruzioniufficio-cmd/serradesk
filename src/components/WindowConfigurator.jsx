@@ -49,7 +49,41 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   // anta ce l'ha a sinistra (dove incontra la vicina), le altre a destra.
   const bordoPredefinito = (i) => (i === count - 1 && count > 1 ? 'left' : 'right');
 
-  const setEdge = (paneIndex, edge) => {
+  // Col traverso ogni parte e' un'anta a se': maniglia e tipo suoi.
+  const CHIAVI = {
+    sopra: { tipo: 'tipoSopra', bordo: 'handleEdgeSopra' },
+    sotto: { tipo: 'tipo', bordo: 'handleEdge' },
+  };
+  const edgeParte = (i, parte) => paneConfigs[i]?.[CHIAVI[parte].bordo] || null;
+
+  // Prima volta che si tocca un'anta col traverso: tutte e due le parti
+  // prendono un tipo e una maniglia propri, cosi' da li' in poi si cambiano
+  // una senza l'altra.
+  const separa = (i, attuale) => {
+    const sotto = attuale.tipo || ciclo[0];
+    const sopra = attuale.tipoSopra || sotto;
+    const bordoSotto = sotto === 'fissa' ? null : (attuale.handleEdge || bordoPredefinito(i));
+    const bordoSopra = sopra === 'fissa' ? null
+      : (attuale.handleEdgeSopra || (attuale.tipoSopra ? bordoPredefinito(i) : bordoSotto) || bordoPredefinito(i));
+    return { ...attuale, tipo: sotto, tipoSopra: sopra, handleEdge: bordoSotto, handleEdgeSopra: bordoSopra };
+  };
+
+  const setEdge = (paneIndex, edge, parte) => {
+    if (aDueParti && parte) {
+      const next = [...paneConfigs];
+      const c = separa(paneIndex, next[paneIndex] || {});
+      const k = CHIAVI[parte];
+      if (c[k.tipo] === 'fissa') {
+        // La maniglia su una parte fissa la rende apribile.
+        c[k.tipo] = ciclo[0];
+        c[k.bordo] = edge;
+      } else {
+        c[k.bordo] = c[k.bordo] === edge ? null : edge;
+      }
+      next[paneIndex] = c;
+      onChange(next);
+      return;
+    }
     const next = [...paneConfigs];
     const attuale = next[paneIndex] || {};
     const current = getEdge(paneIndex);
@@ -82,12 +116,15 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
     if (!aDueParti) {
       tipo = successivo(tipo);
     } else {
-      // Toccando una parte l'altra resta com'era: se non aveva ancora un tipo
-      // suo lo prende adesso, altrimenti cambierebbe insieme a questa.
-      const sotto = tipo || ciclo[0];
-      const sopra = tipoSopra || sotto;
-      if (parte === 'sopra') { tipo = sotto; tipoSopra = successivo(sopra); }
-      else { tipoSopra = sopra; tipo = successivo(sotto); }
+      // Ogni parte e' un'anta a se': si cambia solo quella toccata.
+      const c = separa(i, attuale);
+      const k = CHIAVI[parte];
+      const nuovo = successivo(c[k.tipo]);
+      c[k.tipo] = nuovo;
+      c[k.bordo] = nuovo === 'fissa' ? null : (c[k.bordo] || bordoPredefinito(i));
+      next[i] = c;
+      onChange(next);
+      return;
     }
     const tuttaFissa = tipo === 'fissa' && (!aDueParti || tipoSopra === 'fissa');
     next[i] = {
@@ -102,8 +139,8 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   const tipoSopraDi = (i) => paneConfigs[i]?.tipoSopra || getTipo(i);
 
   /* ─── Opening lines ─── */
-  const openingLines = (i, px, py, pw, ph, tipoZona) => {
-    const edge = getEdge(i);
+  const openingLines = (i, px, py, pw, ph, tipoZona, edgeZona) => {
+    const edge = edgeZona === undefined ? getEdge(i) : edgeZona;
     const tipo = tipoZona === undefined ? getTipo(i) : tipoZona;
     if (tipo === 'fissa') return null;
     const ribalta = (tipo === 'ribalta' || tipo === 'vasistas') ? (
@@ -160,8 +197,8 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   };
 
   /* ─── Handle rectangle ─── */
-  const handleRect = (i, px, py, pw, ph) => {
-    const edge = getEdge(i);
+  const handleRect = (i, px, py, pw, ph, edgeZona) => {
+    const edge = edgeZona === undefined ? getEdge(i) : edgeZona;
     if (!edge) return null;
     const hl = Math.min(ph, pw) * 0.28;
     const ht = 6;
@@ -178,6 +215,30 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
 
   /* ─── Clickable edge zones ─── */
   const edgeZones = (i, px, py, pw, ph) => {
+    if (aDueParti) {
+      // Col traverso: bordo sinistro e destro di ciascuna parte.
+      const yT = py + ph * quotaTraverso;
+      const parti = [['sopra', py + ZONE / 2, yT - 4], ['sotto', yT + 4, py + ph - ZONE / 2]];
+      return parti.flatMap(([parte, y0, y1]) => ['left', 'right'].map((edge) => {
+        const chiave = `${parte}-${edge}`;
+        const sel = edgeParte(i, parte) === edge;
+        const hov = hovered?.pane === i && hovered?.edge === chiave;
+        return (
+          <rect
+            key={chiave}
+            x={edge === 'left' ? px : px + pw - ZONE} y={y0} width={ZONE} height={Math.max(0, y1 - y0)}
+            fill={sel ? 'rgba(59,130,246,0.32)' : hov ? 'rgba(59,130,246,0.14)' : 'transparent'}
+            stroke={sel ? 'rgba(59,130,246,0.75)' : hov ? 'rgba(59,130,246,0.4)' : 'transparent'}
+            strokeWidth="1.5"
+            rx="3"
+            style={{ cursor: 'pointer' }}
+            onMouseEnter={() => setHovered({ pane: i, edge: chiave })}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => setEdge(i, edge, parte)}
+          />
+        );
+      }));
+    }
     const zones = [
       { edge: 'top',    x: px+ZONE,    y: py,         w: pw-ZONE*2, h: ZONE },
       { edge: 'bottom', x: px+ZONE,    y: py+ph-ZONE, w: pw-ZONE*2, h: ZONE },
@@ -252,8 +313,10 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
                     );
                     return (
                       <>
-                        {openingLines(i, px, py, pw, yT - py, tipoSopraDi(i) || null)}
-                        {openingLines(i, px, yT, pw, py + ph - yT, getTipo(i) || null)}
+                        {openingLines(i, px, py, pw, yT - py, tipoSopraDi(i) || null, paneConfigs[i]?.tipoSopra ? edgeParte(i, 'sopra') : getEdge(i))}
+                        {openingLines(i, px, yT, pw, py + ph - yT, getTipo(i) || null, getEdge(i))}
+                        {tipoSopraDi(i) !== 'vasistas' && handleRect(i, px, py, pw, yT - py, paneConfigs[i]?.tipoSopra ? edgeParte(i, 'sopra') : getEdge(i))}
+                        {getTipo(i) !== 'vasistas' && handleRect(i, px, yT, pw, py + ph - yT, getEdge(i))}
                         <rect x={px} y={yT - 4} width={pw} height={8} fill={safeFrameColor} stroke="rgba(0,0,0,0.25)" strokeWidth="1"/>
                         {scritta(tipoSopraDi(i), py + (yT - py) / 2 + 5)}
                         {scritta(getTipo(i), yT + (py + ph - yT) / 2 + 5)}
@@ -306,8 +369,9 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
             // Un'anta mai toccata senza maniglia non e' fissa: si apre come
             // anta secondaria e nel prezzo conta come apribile.
             const sopra = aDueParti ? tipoSopraDi(i) : null;
-            const testo = sopra && sopra !== tipo
-              ? `Sopra: ${TIPI[sopra]} · Sotto: ${TIPI[tipo || ciclo[0]]}`
+            const lato = (e) => (e ? ` ${e === 'left' ? 'sx' : 'dx'}` : '');
+            const testo = aDueParti && paneConfigs[i]?.tipoSopra
+              ? `Sopra: ${TIPI[sopra]}${sopra !== 'fissa' && sopra !== 'vasistas' ? lato(edgeParte(i, 'sopra')) : ''} · Sotto: ${TIPI[tipo || ciclo[0]]}${tipo !== 'fissa' && tipo !== 'vasistas' ? lato(edge) : ''}`
               : tipo
                 ? `${TIPI[tipo]}${!fissa && edge ? ` · ${EDGE_LABELS[edge]}` : ''}`
                 : (edge ? `↕ ${EDGE_LABELS[edge]}` : 'Senza maniglia');

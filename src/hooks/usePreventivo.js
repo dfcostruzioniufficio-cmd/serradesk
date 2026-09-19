@@ -61,13 +61,17 @@ const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
   const gruppi = new Map();
   for (let i = 0; i < numAnte; i++) {
     const sotto = tipoDi(ante[i]?.tipo);
-    const sopra = traverso && ante[i]?.tipoSopra ? tipoDi(ante[i].tipoSopra) : sotto;
-    const chiave = sopra === sotto ? sotto : `${sopra}|${sotto}`;
+    const dueAnte = traverso && ante[i]?.tipoSopra;
+    const sopra = dueAnte ? tipoDi(ante[i].tipoSopra) : sotto;
+    // Due ante uguali sopra e sotto si scrivono "SOPRA E SOTTO", se no
+    // sembrerebbero una sola anta alta; due fisse sono semplicemente fisse.
+    const chiave = !dueAnte || (sopra === 'fissa' && sotto === 'fissa') ? sotto
+      : sopra === sotto ? `${sopra}|=` : `${sopra}|${sotto}`;
     if (!gruppi.has(chiave)) gruppi.set(chiave, []);
     gruppi.get(chiave).push(i + 1);
   }
-  const ordine = Object.keys(TIPI_ANTA);
-  const chiavi = [...gruppi.keys()].sort((a, b) => ordine.indexOf(a.split('|')[0]) - ordine.indexOf(b.split('|')[0]));
+  // Da sinistra a destra: ogni gruppo si scrive al posto della sua prima anta.
+  const chiavi = [...gruppi.keys()].sort((a, b) => gruppi.get(a)[0] - gruppi.get(b)[0]);
   return chiavi.map((chiave) => {
     const n = gruppi.get(chiave);
     const plurale = n.length === 1 ? 0 : 1;
@@ -75,7 +79,9 @@ const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
     const [sopra, sotto] = chiave.split('|');
     const come = sotto === undefined
       ? nomi[sopra][plurale]
-      : `SOPRA ${nomi[sopra][plurale]}, SOTTO ${nomi[sotto][plurale]}`;
+      : sotto === '='
+        ? `${nomi[sopra][plurale]} SOPRA E SOTTO`
+        : `SOPRA ${nomi[sopra][plurale]}, SOTTO ${nomi[sotto][plurale]}`;
     return `${n.length === 1 ? 'ANTA' : 'ANTE'} ${elenco} ${come}`;
   }).join('; ');
 };
@@ -222,7 +228,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // un'anta segnata fissa sul serramento precedente restava fissa, anche nel
   // prezzo, se il modello aveva lo stesso numero di ante.
   const azzeraTipiAnte = () => {
-    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, ...resto }) => resto);
+    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, handleEdgeSopra, ...resto }) => resto);
     paneConfigsRef.current = pulite;
     setPaneConfigs(pulite);
   };
