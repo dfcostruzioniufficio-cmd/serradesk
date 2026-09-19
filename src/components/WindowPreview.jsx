@@ -40,7 +40,9 @@ export default function WindowPreview({
   const anteCount = Math.max(1, Math.min(6, Number(numAnte)));
   const ante = Array.from({ length: anteCount });
 
-  const MAX_W = 160;
+  // La cella del PDF e' larga 160px con 8px di margine e 1px di bordo per
+  // lato: dentro ci stanno 142px. Con 160 le finestre larghe sbordavano.
+  const MAX_W = 142;
   const MAX_H = 200;
   const safeW = Number(width)  || 1000;
   const safeH = Number(height) || 1000;
@@ -58,7 +60,11 @@ export default function WindowPreview({
     // aprono dal lato della maniglia, o dal lato predefinito se non ce l'hanno.
     const tipo = paneConfigs?.[i]?.tipo;
     if (tipo === 'fissa') return { openingEdge: null, hasHandle: false };
-    if (tipo) {
+    // Appena un'anta del serramento ha un tipo, quelle mai toccate valgono
+    // come apribili: lo dicono la descrizione ("ANTA 2 APRIBILE") e il
+    // prezzo, e il disegno non puo' mostrarle ferme come fosse fisse.
+    const conTipi = Array.isArray(paneConfigs) && paneConfigs.slice(0, anteCount).some((c) => c && c.tipo);
+    if (tipo || conTipi) {
       const bordo = paneConfigs[i].handleEdge;
       if (bordo) return { openingEdge: bordo, hasHandle: true };
       return { openingEdge: i === anteCount - 1 && anteCount > 1 ? 'left' : 'right', hasHandle: false };
@@ -126,8 +132,21 @@ export default function WindowPreview({
   const accLight = lighten(accHex, 40);
 
 
-  const FT = Math.max(7, Math.round(dW * 0.055)); 
-  const AT = Math.max(5, Math.round(dW * 0.042));
+  // Spessori di telaio e anta presi dal lato corto. Sulle finestre larghe e
+  // basse (3600x1300, 2200x650) prenderli dalla larghezza faceva un telaio
+  // spesso quanto mezzo vetro. Sulle finestre verticali il lato corto e' la
+  // larghezza, quindi escono identiche a prima.
+  const latoCortoDisegno = Math.min(dW, dH);
+  const orizzontale = dH < dW;
+  const FT = Math.max(orizzontale ? 4 : 7, Math.round(latoCortoDisegno * 0.055));
+  const AT = Math.max(orizzontale ? 3 : 5, Math.round(latoCortoDisegno * 0.042));
+
+  // Maniglie e cerniere hanno misure fisse pensate per un'anta di dimensioni
+  // normali; su un'anta piccola coprivano mezzo vetro. Si rimpiccioliscono
+  // in proporzione all'anta, attorno al punto dove sono fissate. Sulle ante
+  // normali il fattore e' 1 e non cambia nulla.
+  const scalaFerramenta = (aw, ah) => Math.max(0.35, Math.min(1, ah / 110, aw / 55));
+  const scalaIntorno = (k, x, y) => (k >= 1 ? undefined : `translate(${x} ${y}) scale(${k}) translate(${-x} ${-y})`);
   
   const innerW = dW - FT * 2;
   const innerH = dH - FT * 2;
@@ -450,8 +469,9 @@ export default function WindowPreview({
               {edge && apertura !== 'Scorrevole' && vasistas && (() => {
                 // Vasistas: le cerniere stanno sulla traversa bassa, non di lato.
                 const hingeY = ay + ah - 6;
+                const kC = scalaFerramenta(aw, ah);
                 const cerniera = (x) => (
-                  <g key={x} filter="drop-shadow(1px 2px 2px rgba(0,0,0,0.4))">
+                  <g key={x} filter="drop-shadow(1px 2px 2px rgba(0,0,0,0.4))" transform={scalaIntorno(kC, x + 7, hingeY + 2.5)}>
                     <rect x={x} y={hingeY} width={14} height={5} rx="2" fill={`url(#metalCilinderV_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.5"/>
                     <rect x={x-2} y={hingeY+1} width={18} height={3} rx="1.5" fill={accLight} stroke={darken(accHex, 60)} strokeWidth="0.5"/>
                   </g>
@@ -462,8 +482,9 @@ export default function WindowPreview({
               {edge && apertura !== 'Scorrevole' && !vasistas && (() => {
                 const hingeX = edge === 'right' ? ax + 1 : edge === 'left' ? ax + aw - 5 : null;
                 if (!hingeX) return null;
+                const kC = scalaFerramenta(aw, ah);
                 const hinge = (y) => (
-                  <g key={y} filter="drop-shadow(1px 2px 2px rgba(0,0,0,0.4))">
+                  <g key={y} filter="drop-shadow(1px 2px 2px rgba(0,0,0,0.4))" transform={scalaIntorno(kC, hingeX + 2.5, y + 7)}>
                     <rect x={hingeX} y={y} width={5} height={14} rx="2" fill={`url(#metalCilinder_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.5"/>
                     <rect x={hingeX+1} y={y-2} width={3} height={18} rx="1.5" fill={accLight} stroke={darken(accHex, 60)} strokeWidth="0.5"/>
                   </g>
@@ -482,9 +503,10 @@ export default function WindowPreview({
                          : edge === 'top' ? ay + AT
                          : ay + ah - AT - 4;
 
+                const kM = scalaFerramenta(aw, ah);
                 if (apertura === 'Scorrevole') {
                   return (
-                    <g filter="drop-shadow(2px 3px 3px rgba(0,0,0,0.4))">
+                    <g filter="drop-shadow(2px 3px 3px rgba(0,0,0,0.4))" transform={scalaIntorno(kM, hx + 1, hy + 16)}>
                       <rect x={edge==='right'?hx-2:hx+2} y={hy-10} width={6} height={52} rx="3" fill={`url(#metalCilinder_${uid})`} stroke={darken(accHex, 70)} strokeWidth="0.5"/>
                       <line x1={edge==='right'?hx+1:hx+3} y1={hy-6} x2={edge==='right'?hx+1:hx+3} y2={hy+38} stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round"/>
                     </g>
@@ -492,7 +514,7 @@ export default function WindowPreview({
                 }
 
                 return (
-                  <g filter="drop-shadow(2px 3px 3px rgba(0,0,0,0.5))">
+                  <g filter="drop-shadow(2px 3px 3px rgba(0,0,0,0.5))" transform={scalaIntorno(kM, hx + 3, hy + 14)}>
                     {isV ? (
                       <rect x={hx-1} y={hy} width={8} height={28} rx="4"
                         fill={`url(#metalCilinder_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.5"/>

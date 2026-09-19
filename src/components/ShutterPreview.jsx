@@ -24,7 +24,7 @@ export default function ShutterPreview({
   const safeFrameColor = getFrameColorHex(frameColor);
   const anteCount = Math.max(1, Math.min(4, Number(numAnte)));
 
-  const MAX_W = 160;
+  const MAX_W = 142; // larghezza utile della cella del PDF
   const MAX_H = 200;
   const safeW = Number(width)  || 1000;
   const safeH = Number(height) || 1200;

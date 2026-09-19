@@ -8,7 +8,7 @@ export default function CassonettoPreview({
   maxQuoteHeight = null,
   isExporting = false
 }) {
-  const MAX_W = 160;
+  const MAX_W = 142; // larghezza utile della cella del PDF
   const MAX_H = 160;
   
   const w = Number(width) || 1000;
