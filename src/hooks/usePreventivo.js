@@ -46,8 +46,13 @@ const TIPI_ANTA = {
   vasistas: ['A VASISTAS', 'A VASISTAS'],
   apribile: ['APRIBILE', 'APRIBILI'],
 };
-const descriviAnte = (configurazione, numAnte) => {
+const descriviAnte = (configurazione, numAnte, apertura) => {
   const ante = (configurazione || []).slice(0, numAnte);
+  // Il titolo non ripete piu' "BATTENTE 5 ANTE": sullo scorrevole quindi le
+  // ante che si aprono si chiamano col loro nome, o il tipo andrebbe perso.
+  const nomi = apertura === 'Scorrevole'
+    ? { ...TIPI_ANTA, apribile: ['SCORREVOLE', 'SCORREVOLI'] }
+    : TIPI_ANTA;
   if (!ante.some((c) => c && c.tipo)) return '';
   const gruppi = {};
   for (let i = 0; i < numAnte; i++) {
@@ -57,7 +62,7 @@ const descriviAnte = (configurazione, numAnte) => {
   return Object.keys(TIPI_ANTA).filter((t) => gruppi[t]).map((t) => {
     const n = gruppi[t];
     const elenco = n.length === 1 ? String(n[0]) : `${n.slice(0, -1).join(', ')} E ${n[n.length - 1]}`;
-    return `${n.length === 1 ? 'ANTA' : 'ANTE'} ${elenco} ${TIPI_ANTA[t][n.length === 1 ? 0 : 1]}`;
+    return `${n.length === 1 ? 'ANTA' : 'ANTE'} ${elenco} ${nomi[t][n.length === 1 ? 0 : 1]}`;
   }).join('; ');
 };
 
@@ -364,9 +369,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const nomeApertura = soloRibalta ? 'VASISTAS' : newItem.apertura.toUpperCase();
       // Se nel disegno si e' scelto come si apre ogni anta, la descrizione lo
       // dice anta per anta e prende il posto della ribalta generica.
-      const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1));
+      // Niente "BATTENTE 5 ANTE:" davanti: l'elenco anta per anta dice gia'
+      // quante sono e come si aprono, ripeterlo allungava solo il titolo.
+      const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1), newItem.apertura);
       let desc2 = anteDescritte
-        ? `${[nomeApertura, anteText].filter(Boolean).join(' ')}: ${anteDescritte}`
+        ? anteDescritte
         : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
       if (newItem.hasSopraluce) desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm`;
       // Ante col maniglione, una sola volta per disegno e descrizione: se nel

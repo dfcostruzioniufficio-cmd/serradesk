@@ -38,7 +38,10 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   // momento di stampare, cosi' si correggono anche i preventivi gia' salvati:
   // il cassonetto non ha ante, e "Profilo Personalizzato" non dice niente.
   const titoloArticolo = (item) => {
-    const t = item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim();
+    let t = item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' Ante' : ''}`.trim();
+    // Gli articoli salvati prima avevano "BATTENTE 5 ANTE: ANTE 2, 3 E 4
+    // FISSE; ...": il prefisso ripeteva quello che l'elenco gia' dice.
+    t = t.replace(/^.*?\d+ ANT[AE]: (?=ANT[AE] \d)/, '');
     return item.apertura === 'Cassonetto' ? t.replace(/\s+\d+\s+ANT[AE]\b/i, '') : t;
   };
   const sottotitoloArticolo = (text) => String(text || '')
