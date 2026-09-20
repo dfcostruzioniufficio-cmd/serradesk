@@ -25,6 +25,7 @@ export default function WindowPreview({
   bottomIsPanel = false,
   hasSopraluce = false,
   sopraluceHeight = 400,
+  sopraluceDivisioni = 1,
   handlePosition = 'right',
   paneConfigs = {},
   anteWidths = null,
@@ -57,7 +58,10 @@ export default function WindowPreview({
   // Col traverso un'anta toccata nel disegno sono due ante indipendenti,
   // sopra e sotto, ognuna col suo tipo e la sua maniglia: anche quando sono
   // uguali, perche' restano due ante con due ferramenta.
-  const partiDiverse = (i) => !!(hasTraverso && paneConfigs?.[i]?.tipoSopra);
+  // Traverso acceso su questa anta: la spunta generale, o la scelta fatta
+  // sull'anta nel disegno (la P01 ha la traversa solo sui fissi laterali).
+  const traversoAnta = (i) => (paneConfigs?.[i]?.traverso ?? hasTraverso);
+  const partiDiverse = (i) => !!(traversoAnta(i) && paneConfigs?.[i]?.tipoSopra);
 
   const getOpeningInfo = (i) => {
     if (apertura === 'Fisso') return { openingEdge: null, hasHandle: false };
@@ -283,13 +287,30 @@ export default function WindowPreview({
               <rect x={0} y={sSvgH - FT/2} width={dW} height={2} fill={`url(#frameTop_${uid})`}/>
               <rect x={0} y={sSvgH + FT/2 - 2} width={dW} height={2} fill={`url(#frameBottom_${uid})`}/>
               
-              {sW > 0 && sInnerH > 0 && (
-                <g>
-                   <rect x={FT} y={FT} width={sW} height={sInnerH} fill={`url(#glassGrad_${uid})`}/>
-                   <rect x={FT} y={FT} width={sW} height={sInnerH} fill={`url(#glassShine_${uid})`}/>
-                   <rect x={FT} y={FT} width={sW} height={sInnerH} fill="none" stroke="#1a1a1a" strokeWidth="2.5" strokeLinejoin="round"/>
-                </g>
-              )}
+              {sW > 0 && sInnerH > 0 && (() => {
+                // Il sopraluce puo' essere diviso in piu' vetri fissi, come
+                // nella P01 degli abachi: due luci sopra la portafinestra.
+                const parti = Math.max(1, Math.min(6, Number(sopraluceDivisioni) || 1));
+                const larghezza = (sW - FT * (parti - 1)) / parti;
+                if (larghezza <= 0) return null;
+                return (
+                  <g>
+                    {Array.from({ length: parti }).map((_, n) => {
+                      const x = FT + n * (larghezza + FT);
+                      return (
+                        <g key={n}>
+                          <rect x={x} y={FT} width={larghezza} height={sInnerH} fill={`url(#glassGrad_${uid})`}/>
+                          <rect x={x} y={FT} width={larghezza} height={sInnerH} fill={`url(#glassShine_${uid})`}/>
+                          <rect x={x} y={FT} width={larghezza} height={sInnerH} fill="none" stroke="#1a1a1a" strokeWidth="2.5" strokeLinejoin="round"/>
+                        </g>
+                      );
+                    })}
+                    {Array.from({ length: parti - 1 }).map((_, n) => (
+                      <rect key={`m${n}`} x={FT + larghezza + n * (larghezza + FT)} y={FT} width={FT} height={sInnerH} fill={frameMid} stroke={frameShadow} strokeWidth="0.8"/>
+                    ))}
+                  </g>
+                );
+              })()}
             </g>
           );
         })()}
@@ -364,7 +385,7 @@ export default function WindowPreview({
 
               {gw > 0 && gh > 0 && (
                 <>
-                  {hasTraverso ? (
+                  {traversoAnta(i) ? (
                     <>
                       {topIsPanel ? (
                         <>
@@ -414,7 +435,7 @@ export default function WindowPreview({
                 </>
               )}
 
-              {hasTraverso && (
+              {traversoAnta(i) && (
                 <>
                   <rect x={ax} y={traversoY - FT/2} width={aw} height={FT} fill={frameMid}/>
                   <rect x={ax} y={traversoY - FT/2} width={aw} height={2} fill={`url(#frameTop_${uid})`}/>
@@ -618,7 +639,7 @@ export default function WindowPreview({
                 const interno0 = ax + AT;
                 const interno1 = ax + aw - AT;
                 // Con il traverso il maniglione si monta li', circa a un metro.
-                const pY = hasTraverso ? traversoY : ay + ah * 0.56;
+                const pY = traversoAnta(i) ? traversoY : ay + ah * 0.56;
                 const scala = Math.max(0.7, Math.min(1.2, ah / 200));
                 const barH = 5 * scala;
                 const testaW = 7 * scala;

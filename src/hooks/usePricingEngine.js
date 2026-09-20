@@ -45,7 +45,10 @@ export function anteApribili(item) {
   let apribili = 0;
   for (let i = 0; i < numAnte; i++) {
     const c = configurazione[i];
-    if (traverso && c?.tipoSopra) {
+    // Il traverso puo' essere acceso o spento sulla singola anta: la P01 ha
+    // la traversa solo sui due fissi laterali, non sulle ante della porta.
+    const traversoAnta = c?.traverso ?? traverso;
+    if (traversoAnta && c?.tipoSopra) {
       if (c.tipo !== 'fissa') apribili += 1;
       if (c.tipoSopra !== 'fissa') apribili += 1;
     } else if (c?.tipo !== 'fissa') {

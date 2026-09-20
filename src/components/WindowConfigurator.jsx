@@ -28,7 +28,9 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   const ciclo = CICLO[apertura] || null;
   // Col traverso ogni anta ha due parti, sopra e sotto, ciascuna col suo tipo
   // (la F06 degli abachi: tutto fisso tranne il vasistas in alto al centro).
-  const aDueParti = !!(hasTraverso && ciclo);
+  // Il traverso si puo' accendere o spegnere sulla singola anta: la P01 ha
+  // la traversa solo sui due fissi laterali, non sulle ante della porta.
+  const dueParti = (i) => !!(ciclo && (paneConfigs[i]?.traverso ?? hasTraverso));
   const quotaTraverso = Math.max(0.1, Math.min(0.9, 1 - (Number(traversoHeight) || 1000) / (Number(height) || 1000)));
   const safeFrameColor = getFrameColorHex(frameColor);
   const [hovered, setHovered] = useState(null); // { pane: i, edge: 'top'|'right'|... }
@@ -69,7 +71,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   };
 
   const setEdge = (paneIndex, edge, parte) => {
-    if (aDueParti && parte) {
+    if (dueParti(paneIndex) && parte) {
       const next = [...paneConfigs];
       const c = separa(paneIndex, next[paneIndex] || {});
       const k = CHIAVI[parte];
@@ -113,7 +115,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
     const attuale = next[i] || {};
     let tipo = attuale.tipo;
     let tipoSopra = attuale.tipoSopra;
-    if (!aDueParti) {
+    if (!dueParti(i)) {
       tipo = successivo(tipo);
     } else {
       // Ogni parte e' un'anta a se': si cambia solo quella toccata.
@@ -126,11 +128,11 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
       onChange(next);
       return;
     }
-    const tuttaFissa = tipo === 'fissa' && (!aDueParti || tipoSopra === 'fissa');
+    const tuttaFissa = tipo === 'fissa' && (!dueParti(i) || tipoSopra === 'fissa');
     next[i] = {
       ...attuale,
       tipo,
-      ...(aDueParti ? { tipoSopra } : {}),
+      ...(dueParti(i) ? { tipoSopra } : {}),
       handleEdge: tuttaFissa ? null : (attuale.handleEdge || bordoPredefinito(i)),
     };
     onChange(next);
@@ -186,7 +188,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
         />
       );
     };
-    if (!aDueParti) return zona('centro', py+ZONE, py+ph-ZONE, 'sotto');
+    if (!dueParti(i)) return zona('centro', py+ZONE, py+ph-ZONE, 'sotto');
     const yT = py + ph * quotaTraverso;
     return (
       <>
@@ -215,7 +217,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
 
   /* ─── Clickable edge zones ─── */
   const edgeZones = (i, px, py, pw, ph) => {
-    if (aDueParti) {
+    if (dueParti(i)) {
       // Col traverso: bordo sinistro e destro di ciascuna parte.
       const yT = py + ph * quotaTraverso;
       const parti = [['sopra', py + ZONE / 2, yT - 4], ['sotto', yT + 4, py + ph - ZONE / 2]];
@@ -276,7 +278,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
             <h2 className="text-xl font-bold text-gray-800">🖱️ Configuratore Visivo Infisso</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               {ciclo
-                ? (aDueParti
+                ? (hasTraverso
                   ? 'Col traverso ogni anta ha due parti: tocca la parte sopra o quella sotto per scegliere come si apre. Tocca un bordo per spostare la maniglia.'
                   : 'Tocca il centro di un\'anta per scegliere come si apre (anche fissa). Tocca un bordo per spostare la maniglia.')
                 : 'Clicca su un bordo per posizionare la maniglia. Clicca di nuovo per rimuoverla.'}
@@ -303,7 +305,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
                   <rect x={px} y={py} width={pw} height={ph} fill="#d6eff5" stroke={safeFrameColor} strokeWidth="3"/>
                   {/* Inner border */}
                   <rect x={px+9} y={py+9} width={pw-18} height={ph-18} fill="none" stroke="rgba(100,150,170,0.35)" strokeWidth="1"/>
-                  {aDueParti ? (() => {
+                  {dueParti(i) ? (() => {
                     // Traverso e due parti, ognuna con linee e nome suoi.
                     const yT = py + ph * quotaTraverso;
                     const scritta = (tipo, y) => tipo && (
@@ -368,17 +370,31 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
             const fissa = tipo === 'fissa';
             // Un'anta mai toccata senza maniglia non e' fissa: si apre come
             // anta secondaria e nel prezzo conta come apribile.
-            const sopra = aDueParti ? tipoSopraDi(i) : null;
+            const sopra = dueParti(i) ? tipoSopraDi(i) : null;
             const lato = (e) => (e ? ` ${e === 'left' ? 'sx' : 'dx'}` : '');
-            const testo = aDueParti && paneConfigs[i]?.tipoSopra
+            const testo = dueParti(i) && paneConfigs[i]?.tipoSopra
               ? `Sopra: ${TIPI[sopra]}${sopra !== 'fissa' && sopra !== 'vasistas' ? lato(edgeParte(i, 'sopra')) : ''} · Sotto: ${TIPI[tipo || ciclo[0]]}${tipo !== 'fissa' && tipo !== 'vasistas' ? lato(edge) : ''}`
               : tipo
                 ? `${TIPI[tipo]}${!fissa && edge ? ` · ${EDGE_LABELS[edge]}` : ''}`
                 : (edge ? `↕ ${EDGE_LABELS[edge]}` : 'Senza maniglia');
+            const conTraverso = dueParti(i);
             return (
               <div key={i} className={`rounded-lg p-2 text-center border text-xs font-semibold transition-all ${fissa ? 'bg-gray-100 border-gray-300 text-gray-600' : (edge || tipo) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
                 <div className="text-[10px] font-normal opacity-70 mb-0.5">Anta {i+1}</div>
                 {testo}
+                {ciclo && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...paneConfigs];
+                      next[i] = { ...(next[i] || {}), traverso: !conTraverso };
+                      onChange(next);
+                    }}
+                    className={`mt-1 w-full rounded px-1 py-0.5 text-[10px] font-semibold border transition-colors ${conTraverso ? 'bg-white border-blue-300 text-blue-700' : 'bg-white/60 border-gray-200 text-gray-400 hover:text-gray-600'}`}
+                  >
+                    {conTraverso ? '✓ traversa' : '+ traversa'}
+                  </button>
+                )}
               </div>
             );
           })}

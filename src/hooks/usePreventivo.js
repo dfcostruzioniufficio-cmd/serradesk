@@ -61,7 +61,7 @@ const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
   const gruppi = new Map();
   for (let i = 0; i < numAnte; i++) {
     const sotto = tipoDi(ante[i]?.tipo);
-    const dueAnte = traverso && ante[i]?.tipoSopra;
+    const dueAnte = (ante[i]?.traverso ?? traverso) && ante[i]?.tipoSopra;
     const sopra = dueAnte ? tipoDi(ante[i].tipoSopra) : sotto;
     // Due ante uguali sopra e sotto si scrivono "SOPRA E SOTTO", se no
     // sembrerebbero una sola anta alta; due fisse sono semplicemente fisse.
@@ -112,7 +112,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
   const defaultNewItem = {
     apertura: 'Battente', numAnte: 1, hasTraverso: false, traversoHeight: 1000,
-    vetroInferioreId: '', hasSopraluce: false, sopraluceHeight: '', handlePosition: 'Centrale',
+    vetroInferioreId: '', hasSopraluce: false, sopraluceHeight: '', sopraluceDivisioni: 1, handlePosition: 'Centrale',
     width: '', height: '', quantity: 1, frameColor: '#ffffff', colorName: '',
     sistemaCamId: '', complementoAction: 'Molla', complementoCalcType: 'mq', tapparellaAnte: 1,
     tapparelleEscluse: [], tapparelleDescrizione: 'Tapparelle in PVC',
@@ -228,7 +228,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // un'anta segnata fissa sul serramento precedente restava fissa, anche nel
   // prezzo, se il modello aveva lo stesso numero di ante.
   const azzeraTipiAnte = () => {
-    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, handleEdgeSopra, ...resto }) => resto);
+    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, handleEdgeSopra, traverso, ...resto }) => resto);
     paneConfigsRef.current = pulite;
     setPaneConfigs(pulite);
   };
@@ -415,7 +415,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       let desc2 = anteDescritte
         ? anteDescritte
         : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
-      if (newItem.hasSopraluce) desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm`;
+      if (newItem.hasSopraluce) {
+        const partiSopraluce = Math.max(1, Math.min(6, Number(newItem.sopraluceDivisioni) || 1));
+        desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm${partiSopraluce > 1 ? ` IN ${partiSopraluce} PARTI` : ''}`;
+      }
       // Ante col maniglione, una sola volta per disegno e descrizione: se nel
       // frattempo le ante sono diminuite si tolgono quelle che non esistono
       // piu', e se non ne resta nessuna si torna all'anta con la maniglia.
@@ -451,6 +454,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         apertura: newItem.apertura, numAnte: newItem.numAnte,
         antaRibalta: hasRibalta, soloRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
         hasSopraluce: newItem.hasSopraluce, sopraluceHeight: Number(newItem.sopraluceHeight),
+        sopraluceDivisioni: Math.max(1, Math.min(6, Number(newItem.sopraluceDivisioni) || 1)),
         handlePosition: newItem.handlePosition, paneConfigs: [...paneConfigs],
         // La spunta si vedeva nell'anteprima ma non veniva copiata
         // nell'articolo: nel preventivo e nel PDF tornava la maniglia normale.

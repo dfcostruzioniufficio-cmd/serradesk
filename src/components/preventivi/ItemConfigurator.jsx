@@ -483,6 +483,10 @@ export default function ItemConfigurator({
                   <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-lg border border-gray-200 shadow-sm">
                     <Label className="text-sm font-semibold text-gray-700">Alt. Sopraluce:</Label>
                     <Input type="number" value={newItem.sopraluceHeight} onChange={e => updateItemField('sopraluceHeight', e.target.value)} className="w-24 h-9" placeholder="mm" />
+                    {/* Il sopraluce puo' essere diviso in piu' vetri fissi:
+                        nella P01 degli abachi sono due sopra la portafinestra. */}
+                    <Label className="text-sm font-semibold text-gray-700">Divisioni:</Label>
+                    <Input type="number" min="1" max="6" value={newItem.sopraluceDivisioni ?? 1} onChange={e => updateItemField('sopraluceDivisioni', e.target.value)} className="w-16 h-9" />
                   </div>
                 )}
               </div>

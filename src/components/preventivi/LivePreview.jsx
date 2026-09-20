@@ -79,6 +79,7 @@ export default function LivePreview({ newItem, paneConfigs }) {
             bottomIsPanel={vetroInfPannello}
             hasSopraluce={newItem.hasSopraluce}
             sopraluceHeight={newItem.sopraluceHeight}
+            sopraluceDivisioni={newItem.sopraluceDivisioni}
             handlePosition={newItem.handlePosition}
             paneConfigs={paneConfigs}
             anteWidths={newItem.anteAsimmetriche ? newItem.anteWidths : null}
