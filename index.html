@@ -2,6 +2,59 @@
 <!doctype html>
 <html lang="it" translate="no">
 	<head><script>window.onerror = function(msg, url, line, col, error) { document.body.innerHTML += "<div style=\"color:red; background:white; position:fixed; top:0; left:0; z-index:9999; padding:20px; font-size:20px;\">" + msg + " " + line + ":" + col + "<br/>" + (error ? error.stack : "") + "</div>"; };</script>
+		<script>
+		/* Soccorso pagina bianca.
+		   A ogni pubblicazione i file dell'app cambiano nome. Un browser che si
+		   tiene una copia vecchia chiede file che non esistono piu': l'app non
+		   parte e resta lo schermo bianco, senza nulla che possa accorgersene,
+		   perche' a non partire e' proprio il codice dell'app. Questo pezzo sta
+		   nella pagina, quindi gira lo stesso: svuota service worker e cache e
+		   ricarica UNA volta. Il segno in sessione evita il giro infinito. */
+		(function () {
+			var CHIAVE = 'sd_soccorso_bianca';
+			var avviato = false;
+			function soccorso() {
+				if (avviato) return;
+				avviato = true;
+				var ora = Date.now(), ultimo = 0;
+				try { ultimo = Number(sessionStorage.getItem(CHIAVE)) || 0; } catch (e) {}
+				if (ora - ultimo < 120000) return;
+				try { sessionStorage.setItem(CHIAVE, String(ora)); } catch (e) {}
+				var ricarica = function () { location.reload(); };
+				try {
+					var lavori = [];
+					if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+						lavori.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+							return Promise.all(rs.map(function (r) { return r.unregister(); }));
+						}));
+					}
+					if (window.caches && caches.keys) {
+						lavori.push(caches.keys().then(function (ks) {
+							return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+						}));
+					}
+					Promise.all(lavori).then(ricarica, ricarica);
+					setTimeout(ricarica, 4000);
+				} catch (e) { ricarica(); }
+			}
+			/* Un file dell'app che non si carica. Solo i nostri: se a non caricarsi
+			   e' uno script di terzi (statistiche, bloccati da un'estensione) non
+			   c'e' niente da riparare. */
+			window.addEventListener('error', function (e) {
+				var t = e && e.target;
+				if (!t || (t.tagName !== 'SCRIPT' && t.tagName !== 'LINK')) return;
+				var indirizzo = t.src || t.href || '';
+				if (indirizzo.indexOf(location.origin + '/assets/') === 0) soccorso();
+			}, true);
+			/* Tutto caricato ma schermo vuoto. */
+			window.addEventListener('load', function () {
+				setTimeout(function () {
+					var radice = document.getElementById('root');
+					if (!radice || radice.children.length === 0) soccorso();
+				}, 12000);
+			});
+		})();
+		</script>
 		<meta charset="UTF-8" />
 		<meta name="google" content="notranslate" />
 		<link rel="icon" type="image/png" href="/logo_rounded.png?v=3" />
