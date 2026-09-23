@@ -15,10 +15,11 @@
 			var avviato = false;
 			function soccorso() {
 				if (avviato) return;
-				avviato = true;
 				/* Senza rete non c'e' niente da riparare: ricaricare butterebbe via
-				   la copia offline dell'app per un guasto passeggero. */
+				   la copia offline dell'app per un guasto passeggero. Il tentativo
+				   non si consuma: se la rete torna, il soccorso puo' ancora partire. */
 				if (navigator.onLine === false) return;
+				avviato = true;
 				var ora = Date.now(), ultimo = 0;
 				/* Se il browser nega la memoria di sessione non si puo' garantire un
 				   solo ricaricamento, e il rischio e' un giro infinito: meglio
