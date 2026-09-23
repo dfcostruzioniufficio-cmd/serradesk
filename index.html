@@ -16,10 +16,17 @@
 			function soccorso() {
 				if (avviato) return;
 				avviato = true;
+				/* Senza rete non c'e' niente da riparare: ricaricare butterebbe via
+				   la copia offline dell'app per un guasto passeggero. */
+				if (navigator.onLine === false) return;
 				var ora = Date.now(), ultimo = 0;
-				try { ultimo = Number(sessionStorage.getItem(CHIAVE)) || 0; } catch (e) {}
+				/* Se il browser nega la memoria di sessione non si puo' garantire un
+				   solo ricaricamento, e il rischio e' un giro infinito: meglio
+				   rinunciare. Succede dentro il preventivatore incorporato nei siti
+				   dei clienti. Stessa scelta di src/lib/caricaPagina.js. */
+				try { ultimo = Number(sessionStorage.getItem(CHIAVE)) || 0; } catch (e) { return; }
 				if (ora - ultimo < 120000) return;
-				try { sessionStorage.setItem(CHIAVE, String(ora)); } catch (e) {}
+				try { sessionStorage.setItem(CHIAVE, String(ora)); } catch (e) { return; }
 				var ricarica = function () { location.reload(); };
 				try {
 					var lavori = [];
