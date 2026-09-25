@@ -26,6 +26,33 @@ export default function ItemConfigurator({
   userEmail
 }) {
   const [showAdvanced, setShowAdvanced] = React.useState(false);
+
+  /**
+   * Invio passa al campo successivo. Si prendono le misure da un foglio e si
+   * digita a raffica: tornare al mouse fra larghezza e altezza, per venti
+   * serramenti, sono venti interruzioni. L'ordine e' quello in cui i campi
+   * stanno nella pagina, e dall'ultimo si va sul pulsante che aggiunge
+   * l'articolo, senza premerlo: preme chi vuole, con un altro Invio.
+   *
+   * Sta sul contenitore e non sui singoli campi perche' cosi' vale anche per
+   * quelli che si aggiungono da soli quando cambi tipo di articolo.
+   */
+  const invioVaAvanti = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const campo = e.target;
+    // Nelle note si va a capo, e i pulsanti hanno gia' il loro Invio.
+    if (!campo.matches('input:not([type="checkbox"]):not([type="radio"]), select')) return;
+    e.preventDefault();
+    const tutti = [...e.currentTarget.querySelectorAll('input, select, textarea')]
+      .filter((c) => !c.disabled && !c.readOnly && c.type !== 'hidden' && c.offsetParent !== null);
+    const prossimo = tutti[tutti.indexOf(campo) + 1];
+    if (prossimo) {
+      prossimo.focus();
+      if (typeof prossimo.select === 'function') prossimo.select();
+      return;
+    }
+    e.currentTarget.querySelector('[data-aggiungi]')?.focus();
+  };
   const isCustomImageEnabled = ['domenicopanico0303@gmail.com'].includes(userEmail);
   const isPuntoAlluminio = isClientePuntoAlluminio(userEmail);
 
@@ -58,7 +85,7 @@ export default function ItemConfigurator({
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100" onKeyDown={invioVaAvanti}>
       <div className="flex flex-wrap gap-2 md:gap-4 border-b pb-3 mb-6">
         <button 
           onClick={() => setItemType('window')} 
@@ -648,8 +675,9 @@ export default function ItemConfigurator({
             Annulla
           </Button>
         )}
-        <Button 
-          onClick={handleAddItem} 
+        <Button
+          onClick={handleAddItem}
+          data-aggiungi
           className={`h-11 px-8 rounded-xl font-bold flex items-center gap-2 shadow-sm ${editingIndex !== null ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-primary/90'}`}
         >
           {editingIndex !== null ? 'Salva Modifiche' : <><Plus size={18} /> Aggiungi Articolo</>}
