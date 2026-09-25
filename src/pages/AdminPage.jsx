@@ -53,6 +53,7 @@ export default function AdminPage() {
       .update({
         plan: editingUser.plan,
         trial_ends_at: editingUser.trial_ends_at,
+        preventivatore_web: editingUser.preventivatore_web,
       })
       .eq('user_id', editingUser.user_id);
 
@@ -266,7 +267,7 @@ export default function AdminPage() {
                                 <XCircle size={12} /> Scadi
                               </button>
                               <button
-                                onClick={() => setEditingUser({ user_id: u.user_id, plan: u.plan, trial_ends_at: u.trial_ends_at?.substring(0, 10) || '' })}
+                                onClick={() => setEditingUser({ user_id: u.user_id, plan: u.plan, trial_ends_at: u.trial_ends_at?.substring(0, 10) || '', preventivatore_web: !!u.preventivatore_web })}
                                 className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1"
                               >
                                 <Edit3 size={12} /> Modifica
@@ -318,6 +319,22 @@ export default function AdminPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Servizio venduto a parte: non segue il piano, si accende a mano. */}
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4"
+                  checked={!!editingUser.preventivatore_web}
+                  onChange={(e) => setEditingUser({ ...editingUser, preventivatore_web: e.target.checked })}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-gray-700">Preventivatore web</span>
+                  <span className="block text-xs text-gray-500">
+                    Pagina pubblica da mettere sul sito del cliente. Servizio a pagamento, non compreso nell'abbonamento.
+                  </span>
+                </span>
+              </label>
 
               {saveMessage && (
                 <div className={`p-3 rounded-lg text-sm font-medium ${saveMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>

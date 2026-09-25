@@ -11,6 +11,7 @@ export default function WidgetWebPage() {
   const [step, setStep] = useState(1);
   const [sistemi, setSistemi] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [attivo, setAttivo] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   
   // Carrello e Dati Cliente
@@ -32,14 +33,19 @@ export default function WidgetWebPage() {
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
-      // Fetch settings
-      const { data: setts } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
-      if (setts) setSettings(setts);
-      
-      // Fetch active sistemi
-      const { data: sists } = await supabase.from('sistemi_cam').select('*').eq('user_id', userId).eq('is_active', true);
-      if (sists) setSistemi(sists);
-      
+      // Chi apre questa pagina non ha un account: le tabelle restano chiuse
+      // dalle policy e si passa dalle funzioni pubbliche, che espongono solo
+      // nome, tipologia e marca. Il listino non esce di qui.
+      const [negozio, catalogo] = await Promise.all([
+        supabase.rpc('widget_negozio', { p_user_id: userId }),
+        supabase.rpc('widget_catalogo', { p_user_id: userId }),
+      ]);
+
+      const dati = negozio.data?.[0];
+      setAttivo(!!dati?.attivo);
+      if (dati?.attivo) setSettings({ company_name: dati.company_name, logo_base64: dati.logo_base64 });
+      if (catalogo.data) setSistemi(catalogo.data);
+
       setIsLoading(false);
     }
     if (userId) loadData();
@@ -83,28 +89,24 @@ export default function WidgetWebPage() {
     }
 
     setIsSubmitting(true);
-    
-    const payload = {
-      user_id: userId,
-      cliente: clientData.nome,
-      totale: 0,
-      stato: 'Bozza dal Web',
-      items: [
+
+    const { error } = await supabase.rpc('widget_richiesta', {
+      p_user_id: userId,
+      p_cliente: clientData.nome,
+      p_items: [
         ...cart,
-        { 
-          type: 'metadata', 
-          clientData: { 
-            phone: clientData.telefono, 
-            email: clientData.email, 
+        {
+          type: 'metadata',
+          clientData: {
+            phone: clientData.telefono,
+            email: clientData.email,
             address: clientData.citta,
             notes: clientData.note
-          } 
+          }
         }
       ]
-    };
+    });
 
-    const { error } = await supabase.from('ordini').insert([payload]);
-    
     setIsSubmitting(false);
     
     if (error) {
@@ -119,6 +121,22 @@ export default function WidgetWebPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Il preventivatore si acquista a parte: se non e' attivo la pagina non
+  // dice se l'indirizzo esista o meno, dice solo che non e' disponibile.
+  if (!attivo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center border-t-4 border-gray-300">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Preventivatore non disponibile</h2>
+          <p className="text-gray-600">
+            Questo indirizzo non e' attivo. Contatta direttamente l'azienda per richiedere un preventivo.
+          </p>
+          <div className="mt-8 text-xs text-gray-400 font-medium">Powered by SerraDesk</div>
+        </div>
       </div>
     );
   }
