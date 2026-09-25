@@ -533,46 +533,46 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   );
 
   const renderAbaco = () => (
-    <div className="mt-8 flex justify-between items-stretch abaco-container break-inside-avoid gap-6">
-      <div className="w-1/3 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+    <div className="mt-5 flex justify-between items-stretch abaco-container break-inside-avoid gap-4">
+      <div className="w-1/3 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400"></div>
-        <h4 className="font-extrabold text-[11px] text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-200 pb-3 pl-2">Riepilogo Misure</h4>
-        <div className="space-y-3 text-xs pl-2">
+        <h4 className="font-extrabold text-[10px] text-slate-800 uppercase tracking-widest mb-2 border-b border-slate-200 pb-2 pl-2">Riepilogo Misure</h4>
+        <div className="space-y-1.5 text-[11px] pl-2">
           <div className="flex justify-between items-center">
             <span className="text-slate-500 font-medium tracking-wide">Quadratura Totale</span>
-            <span className="font-bold text-slate-800 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">{totalQuadratura.toFixed(2).replace('.', ',')} m²</span>
+            <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{totalQuadratura.toFixed(2).replace('.', ',')} m²</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-slate-500 font-medium tracking-wide">Perimetro Totale</span>
-            <span className="font-bold text-slate-800 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">{totalPerimetro.toFixed(2).replace('.', ',')} m</span>
+            <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{totalPerimetro.toFixed(2).replace('.', ',')} m</span>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 p-6 bg-white rounded-2xl border border-slate-200 shadow-md relative overflow-hidden">
+      <div className="flex-1 px-5 py-3.5 bg-white rounded-xl border border-slate-200 shadow-md relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
-        <div className="space-y-3 pl-2">
+        <div className="space-y-1.5 pl-2">
           <div className="flex justify-between items-center text-sm">
             <span className="text-slate-500 font-medium tracking-wide">Totale Articoli</span>
             <span className="font-semibold text-slate-900">{formatCurrency(imponibile)}</span>
           </div>
           {scontoAmount > 0 && (
-            <div className="flex justify-between items-center text-sm bg-emerald-50 text-emerald-700 -mx-6 px-6 py-2 border-y border-emerald-100/50">
+            <div className="flex justify-between items-center text-sm bg-emerald-50 text-emerald-700 -mx-5 px-5 py-1.5 border-y border-emerald-100/50">
               <span className="font-bold tracking-wide">Sconto applicato ({discountPercent}%)</span>
               <span className="font-bold text-emerald-800">- {formatCurrency(scontoAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between items-center text-sm pt-1">
+          <div className="flex justify-between items-center text-sm">
             <span className="text-slate-500 font-medium tracking-wide">Imponibile Scontato</span>
             <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
           </div>
-          <div className="flex justify-between items-center text-sm pb-4 border-b border-slate-100">
+          <div className="flex justify-between items-center text-sm pb-2.5 border-b border-slate-100">
             <span className="text-slate-500 font-medium tracking-wide">I.V.A. ({iva || 10}%)</span>
             <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
           </div>
-          <div className="flex justify-between items-center pt-3">
-            <span className="font-black text-[16px] text-slate-900 uppercase tracking-widest">TOTALE DA PAGARE</span>
-            <span className="font-black text-xl text-blue-700">{formatCurrency(totaleIvato)}</span>
+          <div className="flex justify-between items-center pt-2">
+            <span className="font-black text-[14px] text-slate-900 uppercase tracking-widest">TOTALE DA PAGARE</span>
+            <span className="font-black text-lg text-blue-700">{formatCurrency(totaleIvato)}</span>
           </div>
         </div>
       </div>

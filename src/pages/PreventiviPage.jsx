@@ -683,6 +683,7 @@ export default function PreventiviPage() {
             <ItemsList 
               items={p.items}
               onEdit={p.handleEditItem}
+              onDuplica={p.duplicaItem}
               onRemove={p.removeItem}
               editingIndex={p.editingIndex}
               isCustomerMode={isCustomerMode}

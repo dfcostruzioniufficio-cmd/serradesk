@@ -1,11 +1,12 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Settings2, Trash2 } from 'lucide-react';
+import { Settings2, Trash2, Copy } from 'lucide-react';
 import { righeTapparelle, totaleTapparelle } from '../../utils/tapparella';
 
 export default function ItemsList({
   items,
   onEdit,
+  onDuplica,
   onRemove,
   editingIndex,
   isCustomerMode
@@ -95,6 +96,20 @@ export default function ItemsList({
                     >
                       <Settings2 size={20} />
                     </Button>
+                    {/* Gli articoli dei preventivi vecchi non hanno rawInput:
+                        non si possono ricomporre, e un pulsante che non fa
+                        niente e' peggio di un pulsante che non c'e'. */}
+                    {onDuplica && item.rawInput && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Duplica: ricarica questo articolo nel modulo, pronto da modificare"
+                        className="text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                        onClick={() => onDuplica(index)}
+                      >
+                        <Copy size={18} />
+                      </Button>
+                    )}
                     <Button 
                       variant="ghost" 
                       size="icon" 

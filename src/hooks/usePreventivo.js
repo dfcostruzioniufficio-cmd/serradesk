@@ -514,6 +514,27 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  /**
+   * Ricarica un articolo nel modulo come se lo stessi componendo adesso, ma
+   * senza collegarlo a quello in elenco: quando premi Aggiungi ne nasce uno
+   * nuovo. In un appartamento le finestre si somigliano tutte e cambiano di
+   * dieci centimetri: rifarle da capo, con traverso, ante e sopraluce, e'
+   * il lavoro piu' inutile che c'e'.
+   */
+  const duplicaItem = (index) => {
+    const item = items[index];
+    if (!item?.rawInput) return false;
+    setItemType(item.rawInput.itemType || 'window');
+    if (item.paneConfigs) {
+      skipPaneResetRef.current = true;
+      setPaneConfigs([...item.paneConfigs]);
+    }
+    setNewItem({ ...item.rawInput });
+    setEditingIndex(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return true;
+  };
+
   const handleCancelEdit = () => {
     setEditingIndex(null);
     setNewItem(defaultNewItem);
@@ -656,7 +677,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     editingOrderStato, setEditingOrderStato,
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
-    sistemiCam, handleAddItem, handleEditItem, handleCancelEdit, removeItem,
+    sistemiCam, handleAddItem, handleEditItem, duplicaItem, handleCancelEdit, removeItem,
     updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,
     totaleIva, totalePreventivo, handleSpalmaQuadratura, handleCambiaProfiloGlobale
   };
