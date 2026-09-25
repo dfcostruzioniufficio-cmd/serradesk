@@ -1,7 +1,11 @@
 
 <!doctype html>
 <html lang="it" translate="no">
-	<head><script>window.onerror = function(msg, url, line, col, error) { document.body.innerHTML += "<div style=\"color:red; background:white; position:fixed; top:0; left:0; z-index:9999; padding:20px; font-size:20px;\">" + msg + " " + line + ":" + col + "<br/>" + (error ? error.stack : "") + "</div>"; };</script>
+	<head><script>/* Gli errori vanno nella console, non addosso al cliente: la versione
+	   precedente stampava il messaggio e lo stack in rosso sopra la pagina, e
+	   per farlo riscriveva document.body.innerHTML, cioe' ricostruiva tutto il
+	   DOM e staccava React. Un errore da niente diventava l'app morta. */
+	window.onerror = function (msg, url, line, col, error) { console.error('[SerraDesk]', msg, url + ':' + line + ':' + col, error); };</script>
 		<script>
 		/* Soccorso pagina bianca.
 		   A ogni pubblicazione i file dell'app cambiano nome. Un browser che si
