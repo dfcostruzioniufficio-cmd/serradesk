@@ -494,6 +494,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
     setItems(newItemsList);
     setEditingIndex(null);
+    // Dice a chi chiama che l'articolo e' entrato davvero: i controlli qui
+    // sopra escono con return secco, e il modulo deve sapere se rimettere il
+    // cursore sulla larghezza o lasciare l'utente sull'errore.
+    return true;
   };
 
   const handleEditItem = (index) => {

@@ -37,6 +37,22 @@ export default function ItemConfigurator({
    * Sta sul contenitore e non sui singoli campi perche' cosi' vale anche per
    * quelli che si aggiungono da soli quando cambi tipo di articolo.
    */
+  /**
+   * Aggiunge l'articolo e, se e' entrato, rimette il cursore sulla prima
+   * misura con il valore gia' selezionato: il preventivo si compila in un
+   * giro solo di tastiera, senza tornare al mouse fra un serramento e
+   * l'altro. Se il controllo ha respinto l'articolo il cursore non si
+   * muove, altrimenti l'errore appena mostrato scivolerebbe via.
+   */
+  const contenitore = React.useRef(null);
+  const aggiungiERiparti = () => {
+    if (!handleAddItem()) return;
+    const primo = contenitore.current?.querySelector('[data-prima-misura]');
+    if (!primo || primo.offsetParent === null) return;
+    primo.focus();
+    primo.select?.();
+  };
+
   const invioVaAvanti = (e) => {
     if (e.key !== 'Enter' || e.shiftKey) return;
     const campo = e.target;
@@ -85,7 +101,7 @@ export default function ItemConfigurator({
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100" onKeyDown={invioVaAvanti}>
+    <div ref={contenitore} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100" onKeyDown={invioVaAvanti}>
       <div className="flex flex-wrap gap-2 md:gap-4 border-b pb-3 mb-6">
         <button 
           onClick={() => setItemType('window')} 
@@ -299,7 +315,7 @@ export default function ItemConfigurator({
 
           <div id="tour-step-2" className="col-span-2 md:col-span-1">
             <Label className="font-semibold text-gray-700">Larghezza (mm)</Label>
-            <Input type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
+            <Input data-prima-misura type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
           </div>
 
           <div className="col-span-2 md:col-span-1">
@@ -581,7 +597,7 @@ export default function ItemConfigurator({
           </div>
           <div className="col-span-2 md:col-span-1">
             <Label className="font-semibold text-gray-700">Larghezza (mm)</Label>
-            <Input type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value)} className="mt-1.5 h-11 rounded-xl" />
+            <Input data-prima-misura type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value)} className="mt-1.5 h-11 rounded-xl" />
           </div>
           <div className="col-span-2 md:col-span-1">
             <Label className="font-semibold text-gray-700">Altezza (mm)</Label>
@@ -676,7 +692,7 @@ export default function ItemConfigurator({
           </Button>
         )}
         <Button
-          onClick={handleAddItem}
+          onClick={aggiungiERiparti}
           data-aggiungi
           className={`h-11 px-8 rounded-xl font-bold flex items-center gap-2 shadow-sm ${editingIndex !== null ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-primary/90'}`}
         >
