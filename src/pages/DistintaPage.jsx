@@ -16,6 +16,9 @@ export default function DistintaPage() {
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [barLength, setBarLength] = useState(6500);
+  // Ordinare e tagliare sono due mestieri diversi: chi ordina vuole una
+  // pagina sola, chi taglia le vuole tutte.
+  const [soloOrdine, setSoloOrdine] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -91,7 +94,9 @@ export default function DistintaPage() {
       return;
     }
     const clientName = selectedOrder?.cliente || 'Ordine';
-    const filename = `Distinta_Taglio_${clientName.replace(/\s+/g, '_')}.pdf`;
+    const filename = soloOrdine
+      ? `Ordine_Barre_${clientName.replace(/\s+/g, '_')}.pdf`
+      : `Distinta_Taglio_${clientName.replace(/\s+/g, '_')}.pdf`;
     const opt = {
       // 7,5 mm e non 8: html2pdf decide dove spezzare le pagine con
       // floor(194 x 96/25,4) = 733 px, ma poi ritaglia l'immagine ogni
@@ -305,6 +310,23 @@ export default function DistintaPage() {
             Genera Distinta
           </Button>
 
+          <div className="flex rounded-xl border-2 border-gray-200 overflow-hidden h-11">
+            <button
+              type="button"
+              onClick={() => setSoloOrdine(false)}
+              className={`px-4 text-sm font-bold transition-colors ${!soloOrdine ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              Distinta completa
+            </button>
+            <button
+              type="button"
+              onClick={() => setSoloOrdine(true)}
+              className={`px-4 text-sm font-bold transition-colors border-l-2 border-gray-200 ${soloOrdine ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              Solo ordine barre
+            </button>
+          </div>
+
           <Button
             onClick={handleExportPDF}
             disabled={!selectedOrder || windowItems.length === 0}
@@ -336,6 +358,7 @@ export default function DistintaPage() {
               camResult={camResult}
               userSettings={userSettings}
               barLength={barLength}
+              soloOrdine={soloOrdine}
             />
           </div>
         </div>

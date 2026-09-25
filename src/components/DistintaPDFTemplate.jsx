@@ -113,13 +113,25 @@ function listaDiTaglio(itemResults, nesting) {
   }));
 }
 
-export default function DistintaPDFTemplate({ clientName, items, camResult, userSettings, barLength }) {
+export default function DistintaPDFTemplate({ clientName, items, camResult, userSettings, barLength, soloOrdine = false }) {
   if (!camResult || !camResult.itemResults) return null;
   const { itemResults, nesting, ferramentaRiepilogo } = camResult;
   const today = new Date().toLocaleDateString('it-IT');
   const gruppi = listaDiTaglio(itemResults, nesting);
   const barreTotali = (nesting || []).reduce((s, n) => s + n.bars_required, 0);
   const barra = barLength || 6500;
+
+  // Sfrido per profilo: quanto resta delle barre comprate dopo aver tagliato
+  // tutti i pezzi. E' il numero con cui si giudica il piazzamento, e quello
+  // che il fornitore mette sulla sua distinta.
+  const sfrido = (n) => {
+    const comprato = n.bars_required * barra;
+    if (comprato <= 0) return 0;
+    return ((comprato - n.total_mm_cut) / comprato) * 100;
+  };
+  const mmComprati = (nesting || []).reduce((s, n) => s + n.bars_required * barra, 0);
+  const mmTagliati = (nesting || []).reduce((s, n) => s + n.total_mm_cut, 0);
+  const sfridoTotale = mmComprati > 0 ? ((mmComprati - mmTagliati) / mmComprati) * 100 : 0;
 
   return (
     <div style={FOGLIO}>
@@ -131,9 +143,13 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
           <div style={{ fontSize: '15px', fontWeight: 800, color: BLU, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             {userSettings?.company_name || 'SerraDesk'}
           </div>
-          <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '2px' }}>Distinta di taglio</div>
+          <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '2px' }}>
+            {soloOrdine ? 'Ordine barre' : 'Distinta di taglio'}
+          </div>
           <div style={{ fontSize: '8px', color: GRIGIO, marginTop: '1px' }}>
-            Documento di officina — non allegare al preventivo del cliente
+            {soloOrdine
+              ? 'Materiale da ordinare al fornitore — non allegare al preventivo del cliente'
+              : 'Documento di officina — non allegare al preventivo del cliente'}
           </div>
         </div>
         <table style={{ borderCollapse: 'collapse', fontSize: '9px' }}>
@@ -157,23 +173,34 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
             <tr>
               <th style={{ ...TH, textAlign: 'left', width: '22%' }}>Profilo</th>
               <th style={{ ...TH, textAlign: 'left' }}>Descrizione</th>
-              <th style={{ ...TH, width: '11%' }}>Pezzi</th>
-              <th style={{ ...TH, width: '13%' }}>Metri</th>
-              <th style={{ ...TH, width: '13%' }}>Barre</th>
+              <th style={{ ...TH, width: '10%' }}>Pezzi</th>
+              <th style={{ ...TH, width: '12%' }}>Metri</th>
+              <th style={{ ...TH, width: '12%' }}>Sfrido</th>
+              <th style={{ ...TH, width: '12%' }}>Barre</th>
             </tr>
           </thead>
           <tbody>
-            {(nesting || []).map((n) => (
-              <tr key={n.profile_code}>
-                <td style={{ ...TD, fontWeight: 700, fontFamily: MONO }}>{n.profile_code}</td>
-                <td style={TD}>{n.profile_label}</td>
-                <td style={{ ...TD, textAlign: 'center' }}>{n.pieces_count}</td>
-                <td style={{ ...TD, textAlign: 'center' }}>{(n.total_mm_cut / 1000).toFixed(2)}</td>
-                <td style={{ ...TD, textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>{n.bars_required}</td>
-              </tr>
-            ))}
+            {(nesting || []).map((n) => {
+              const s = sfrido(n);
+              return (
+                <tr key={n.profile_code}>
+                  <td style={{ ...TD, fontWeight: 700, fontFamily: MONO }}>{n.profile_code}</td>
+                  <td style={TD}>{n.profile_label}</td>
+                  <td style={{ ...TD, textAlign: 'center' }}>{n.pieces_count}</td>
+                  <td style={{ ...TD, textAlign: 'center' }}>{(n.total_mm_cut / 1000).toFixed(2)}</td>
+                  {/* Sopra il 15% conviene rivedere le misure o la barra: si
+                      sta comprando profilo per buttarlo. */}
+                  <td style={{ ...TD, textAlign: 'center', fontWeight: s > 15 ? 800 : 400,
+                               color: s > 15 ? '#b4530f' : undefined }}>
+                    {s.toFixed(1).replace('.', ',')}%
+                  </td>
+                  <td style={{ ...TD, textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>{n.bars_required}</td>
+                </tr>
+              );
+            })}
             <tr style={{ background: '#eef2f6' }}>
               <td colSpan={4} style={{ ...TD, textAlign: 'right', fontWeight: 700 }}>Totale barre da ordinare</td>
+              <td style={{ ...TD, textAlign: 'center', fontWeight: 700 }}>{sfridoTotale.toFixed(1).replace('.', ',')}%</td>
               <td style={{ ...TD, textAlign: 'center', fontWeight: 900, fontSize: '14px' }}>{barreTotali}</td>
             </tr>
           </tbody>
@@ -201,6 +228,11 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
         </div>
       )}
       </div>
+
+      {/* Le pagine di taglio servono a chi sta alla troncatrice: un disegno
+          per ogni barra e una scheda per ogni serramento, quindi tante
+          pagine. Chi deve solo ordinare il materiale si ferma qui sopra. */}
+      {!soloOrdine && (<>
 
       {/* ═══ 2. LISTA DI TAGLIO ═══ */}
       <Sezione n="2" titolo="Lista di taglio"
@@ -328,11 +360,14 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
         ))}
       </div>
 
+      </>)}
+
       <div style={{ marginTop: '10px', paddingTop: '5px', borderTop: '1px solid #d8e0e8',
                     fontSize: '7.5px', color: '#8a97a4', textAlign: 'center',
                     breakInside: 'avoid', pageBreakInside: 'avoid' }}>
-        Le misure derivano dai parametri del profilo impostati in archivio.
-        Verificare i profilati prima di tagliare in serie. · SerraDesk · {today}
+        {soloOrdine
+          ? `Quantità calcolate sul piazzamento dei pezzi in barre da ${(barra / 1000).toFixed(1)} m. Verificare la disponibilità dei profilati prima di ordinare. · SerraDesk · ${today}`
+          : `Le misure derivano dai parametri del profilo impostati in archivio. Verificare i profilati prima di tagliare in serie. · SerraDesk · ${today}`}
       </div>
     </div>
   );
