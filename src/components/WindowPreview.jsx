@@ -355,7 +355,7 @@ export default function WindowPreview({
           const paneAT = edge ? AT : 0;
           const gx = ax + paneAT, gy = ay + paneAT, gw = Math.max(0, aw - paneAT * 2), gh = Math.max(0, ah - paneAT * 2);
 
-          const tH = Number(traversoHeight) || 1000;
+          const tH = Number(paneConfigs?.[i]?.traversoH) || Number(traversoHeight) || 1000;
           const pctTraverso = Math.max(0.1, Math.min(0.9, 1 - (tH / safeH)));
           const traversoY = ay + ah * pctTraverso;
 

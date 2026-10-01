@@ -31,7 +31,11 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   // Il traverso si puo' accendere o spegnere sulla singola anta: la P01 ha
   // la traversa solo sui due fissi laterali, non sulle ante della porta.
   const dueParti = (i) => !!(ciclo && (paneConfigs[i]?.traverso ?? hasTraverso));
-  const quotaTraverso = Math.max(0.1, Math.min(0.9, 1 - (Number(traversoHeight) || 1000) / (Number(height) || 1000)));
+  // Ogni anta porta la sua altezza di traverso: su una porta finestra con i
+  // fissi laterali il traverso dei fissi quasi mai sta alla stessa quota di
+  // quello dell'anta. Senza un valore suo, l'anta usa quello del serramento.
+  const altezzaTraverso = (i) => Number(paneConfigs[i]?.traversoH) || Number(traversoHeight) || 1000;
+  const quotaTraverso = (i) => Math.max(0.1, Math.min(0.9, 1 - altezzaTraverso(i) / (Number(height) || 1000)));
   const safeFrameColor = getFrameColorHex(frameColor);
   const [hovered, setHovered] = useState(null); // { pane: i, edge: 'top'|'right'|... }
 
@@ -189,7 +193,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
       );
     };
     if (!dueParti(i)) return zona('centro', py+ZONE, py+ph-ZONE, 'sotto');
-    const yT = py + ph * quotaTraverso;
+    const yT = py + ph * quotaTraverso(i);
     return (
       <>
         {zona('sopra', py+ZONE, yT-4, 'sopra')}
@@ -219,7 +223,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   const edgeZones = (i, px, py, pw, ph) => {
     if (dueParti(i)) {
       // Col traverso: bordo sinistro e destro di ciascuna parte.
-      const yT = py + ph * quotaTraverso;
+      const yT = py + ph * quotaTraverso(i);
       const parti = [['sopra', py + ZONE / 2, yT - 4], ['sotto', yT + 4, py + ph - ZONE / 2]];
       return parti.flatMap(([parte, y0, y1]) => ['left', 'right'].map((edge) => {
         const chiave = `${parte}-${edge}`;
@@ -307,7 +311,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
                   <rect x={px+9} y={py+9} width={pw-18} height={ph-18} fill="none" stroke="rgba(100,150,170,0.35)" strokeWidth="1"/>
                   {dueParti(i) ? (() => {
                     // Traverso e due parti, ognuna con linee e nome suoi.
-                    const yT = py + ph * quotaTraverso;
+                    const yT = py + ph * quotaTraverso(i);
                     const scritta = (tipo, y) => tipo && (
                       <text x={px+pw/2} y={y} textAnchor="middle" fontSize={count > 4 ? 12 : 15} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
                         {TIPI[tipo]}
@@ -394,6 +398,25 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
                   >
                     {conTraverso ? '✓ traversa' : '+ traversa'}
                   </button>
+                )}
+                {conTraverso && (
+                  <label className="mt-1 flex items-center justify-center gap-1" title="Altezza del traverso misurata dal basso del telaio">
+                    <span className="text-[9px] font-normal text-gray-400">h</span>
+                    <input
+                      type="number"
+                      step="50"
+                      min="100"
+                      value={paneConfigs[i]?.traversoH ?? traversoHeight ?? ''}
+                      onChange={(e) => {
+                        const next = [...paneConfigs];
+                        const v = e.target.value;
+                        next[i] = { ...(next[i] || {}), traversoH: v === '' ? undefined : Number(v) };
+                        onChange(next);
+                      }}
+                      className="w-14 rounded border border-gray-200 px-1 py-0.5 text-[10px] text-center font-semibold text-gray-700"
+                    />
+                    <span className="text-[9px] font-normal text-gray-400">mm</span>
+                  </label>
                 )}
               </div>
             );

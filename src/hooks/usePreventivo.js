@@ -228,7 +228,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // un'anta segnata fissa sul serramento precedente restava fissa, anche nel
   // prezzo, se il modello aveva lo stesso numero di ante.
   const azzeraTipiAnte = () => {
-    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, handleEdgeSopra, traverso, ...resto }) => resto);
+    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, handleEdgeSopra, traverso, traversoH, ...resto }) => resto);
     paneConfigsRef.current = pulite;
     setPaneConfigs(pulite);
   };
