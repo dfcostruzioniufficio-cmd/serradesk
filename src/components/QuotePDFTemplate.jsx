@@ -1,5 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import WindowPreview from './WindowPreview';
+import CompostoPreview from './CompostoPreview';
 import ShutterPreview from './ShutterPreview';
 import CassonettoPreview from './CassonettoPreview';
 import BlindataPreview from './BlindataPreview';
@@ -469,6 +470,14 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 </svg>
                 <span className="text-[10px] font-bold text-slate-500">TAPPARELLA</span>
               </div>
+            ) : (item.composto && (item.moduli || item.rawInput?.moduli)) ? (
+              <CompostoPreview
+                width={item.width} height={item.height}
+                moduli={item.moduli || item.rawInput?.moduli}
+                accoppiamento={item.accoppiamentoMm || item.rawInput?.accoppiamentoMm}
+                frameColor={item.previewColor || item.frameColor}
+                accessoriColore={item.previewAccessoriColor || item.accessori}
+                maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting} />
             ) : (
               <WindowPreview numAnte={item.numAnte} apertura={item.apertura} antaRibalta={item.antaRibalta} soloRibalta={item.soloRibalta} frameColor={item.previewColor || item.frameColor} accessoriColore={item.previewAccessoriColor || item.accessori} width={item.width} height={item.height} hasTraverso={item.hasTraverso} traversoHeight={item.traversoHeight} topIsPanel={topIsPanel} bottomIsPanel={bottomIsPanel} hasSopraluce={item.hasSopraluce} sopraluceHeight={item.sopraluceHeight} sopraluceDivisioni={item.sopraluceDivisioni} handlePosition={item.handlePosition} paneConfigs={item.paneConfigs} anteWidths={item.anteAsimmetriche ? item.anteWidths : null} maniglioneAntipanico={item.maniglioneAntipanico} maniglioneAnte={item.maniglioneAnte} maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting} />
             )}

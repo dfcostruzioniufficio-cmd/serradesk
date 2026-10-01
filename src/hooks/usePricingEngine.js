@@ -60,6 +60,10 @@ export function anteApribili(item) {
 
 /** Minimo fatturabile e maggiorazione per ante, contando solo le apribili. */
 function mqConMinimiAnte(item, mq) {
+  // Un composto si fattura sul rettangolo d'ingombro, che e' grande per
+  // definizione: i minimi e le maggiorazioni per anta sono tarati su un
+  // serramento singolo e qui non c'entrano niente.
+  if (item.composto) return mq;
   if (item.apertura === 'Fisso' || item.apertura === 'Cassonetto') return mq;
   const apribili = anteApribili(item);
   // Tutte fisse: si fattura come un fisso, a misura, senza minimo.

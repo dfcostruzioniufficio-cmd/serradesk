@@ -229,16 +229,22 @@ export default function DistintaPage() {
       {camResult?.apertureNonSupportate?.length > 0 && (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
           <h2 className="font-bold text-slate-800 flex items-center gap-2 mb-2">
-            <Lock size={18} /> Scorrevoli esclusi dalla distinta
+            <Lock size={18} /> Articoli esclusi dalla distinta
           </h2>
           <p className="text-sm text-slate-600 mb-3">
-            Uno scorrevole non si costruisce come un battente: le ante si sormontano
-            fra loro e l&#39;altezza dipende dal binario. Il calcolo dedicato non c&#39;è
-            ancora, e preferiamo non darti misure che sembrano giuste e non lo sono.
+            Per questi articoli il calcolo dedicato non c&#39;è ancora, e preferiamo
+            non darti misure che sembrano giuste e non lo sono.
           </p>
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {camResult.apertureNonSupportate.map((a, i) => (
-              <li key={i} className="text-sm text-slate-700">{a.descrizione}</li>
+              <li key={i} className="text-sm text-slate-700">
+                <span className="font-semibold">{a.descrizione}</span>
+                <span className="block text-xs text-slate-500">
+                  {a.apertura === 'Serramento composto'
+                    ? 'Un composto va tagliato modulo per modulo, piu\' il profilo di accoppiamento.'
+                    : 'Uno scorrevole non si costruisce come un battente: le ante si sormontano fra loro e l\'altezza dipende dal binario.'}
+                </span>
+              </li>
             ))}
           </ul>
         </div>

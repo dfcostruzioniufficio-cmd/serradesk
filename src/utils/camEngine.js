@@ -84,6 +84,20 @@ export function runCamEngine(items, barLength = 6500) {
     // Se non c'è un sistema CAM (inserimento manuale o legacy), non calcoliamo i tagli
     if (!sys) continue;
 
+    // Un serramento composto e' piu' serramenti uniti da un profilo di
+    // accoppiamento: i tagli andrebbero fatti modulo per modulo, piu' il
+    // profilo. Preso per un serramento unico, il motore taglierebbe un
+    // battente da 3720x2440 che nella realta' non esiste - misure sbagliate
+    // con l'aria di essere giuste, le piu' pericolose che ci siano.
+    if (item.composto || item.rawInput?.composto) {
+      apertureNonSupportate.push({
+        itemId: item.id,
+        apertura: 'Serramento composto',
+        descrizione: item.model || 'Serramento composto',
+      });
+      continue;
+    }
+
     // Uno scorrevole non si costruisce come un battente: le ante non
     // sormontano il telaio allo stesso modo, si sormontano fra loro al nodo
     // centrale, e l'altezza dipende dal binario. Applicare qui la formula del

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq, anteApribili } from './usePricingEngine';
 import { calcolaUw, formattaUw } from '../utils/trasmittanza';
+import { descriviComposto, moduliValidi } from '../utils/composto';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
 import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
@@ -117,7 +118,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     sistemaCamId: '', complementoAction: 'Molla', complementoCalcType: 'mq', tapparellaAnte: 1,
     tapparelleEscluse: [], tapparelleDescrizione: 'Tapparelle in PVC',
     marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: '',
-    noteArticolo: ''
+    noteArticolo: '',
+    composto: false, moduli: [], accoppiamentoMm: 30
   };
 
   const [newItem, setNewItem] = useState(defaultNewItem);
@@ -299,7 +301,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         updatedItem.isManualBasePrice = true;
       }
 
-      if (['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId'].includes(field)) {
+      // 'composto' entra qui perche' cambia la regola: sul composto i minimi
+      // e le maggiorazioni per anta non si applicano. Senza, accendendo la
+      // spunta restava il prezzo di prima e la differenza finiva al cliente.
+      if (['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId', 'composto'].includes(field)) {
         // Le ante fisse contano nel prezzo. Cambiando il numero di ante pero'
         // la configurazione viene rifatta da capo, quindi quella vecchia non vale.
         const conAnte = field === 'numAnte' ? updatedItem : { ...updatedItem, paneConfigs: paneConfigsRef.current };
@@ -329,6 +334,14 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       }
       if (!Number(newItem.unitPrice)) {
         toast.error('Inserisci un prezzo valido prima di aggiungere il serramento.');
+        return;
+      }
+      // Un composto senza almeno due moduli misurati non e' un composto: la
+      // descrizione uscirebbe vuota, il disegno non si farebbe, e il cliente
+      // riceverebbe un articolo prezzato su tutto l'ingombro senza sapere
+      // cosa ci sia dentro.
+      if (newItem.composto && moduliValidi(newItem.moduli).length < 2) {
+        toast.error('Il serramento composto vuole almeno due moduli con larghezza e altezza.');
         return;
       }
     } else if (itemType === 'complemento') {
@@ -445,9 +458,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // Niente "BATTENTE 5 ANTE:" davanti: l'elenco anta per anta dice gia'
       // quante sono e come si aprono, ripeterlo allungava solo il titolo.
       const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1), newItem.apertura, !!newItem.hasTraverso);
-      let desc2 = anteDescritte
-        ? anteDescritte
-        : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
+      let desc2 = newItem.composto
+        ? descriviComposto(newItem.moduli)
+        : anteDescritte
+          ? anteDescritte
+          : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
       if (newItem.hasSopraluce) {
         const partiSopraluce = Math.max(1, Math.min(6, Number(newItem.sopraluceDivisioni) || 1));
         desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm${partiSopraluce > 1 ? ` IN ${partiSopraluce} PARTI` : ''}`;
@@ -483,7 +498,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // loro id (l'unica che hanno) andrebbe persa, rimettendo in conto una
         // tapparella che il cliente non ha.
         uid: isEditing ? items[editingIndex]?.uid : nuovoUid(),
-        model: [nomeApertura, anteText].filter(Boolean).join(' '),
+        // Su un composto "BATTENTE 4 ANTE" non vuol dire niente: nell'elenco
+        // e nel titolo del PDF ci va quello che il serramento e' davvero.
+        model: newItem.composto
+          ? 'SERRAMENTO COMPOSTO'
+          : [nomeApertura, anteText].filter(Boolean).join(' '),
         apertura: newItem.apertura, numAnte: newItem.numAnte,
         antaRibalta: hasRibalta, soloRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
         hasSopraluce: newItem.hasSopraluce, sopraluceHeight: Number(newItem.sopraluceHeight),
@@ -519,6 +538,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // La configurazione delle ante va anche qui: cambio profilo e prezzo
         // dal totale ricalcolano da rawInput, e senza vedrebbero apribili
         // anche le ante fisse, tornando al prezzo pieno.
+        composto: !!newItem.composto,
+        moduli: newItem.composto ? (newItem.moduli || []).map((m) => ({ ...m })) : null,
+        accoppiamentoMm: Number(newItem.accoppiamentoMm) || 30,
         rawInput: { ...newItem, itemType: 'window', paneConfigs: [...paneConfigs] }
       };
       if (isEditing) newItemsList[targetIndex] = newItemObj;

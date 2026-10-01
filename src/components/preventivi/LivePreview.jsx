@@ -1,5 +1,6 @@
 import React from 'react';
 import WindowPreview from '../WindowPreview';
+import CompostoPreview from '../CompostoPreview';
 import ShutterPreview from '../ShutterPreview';
 import CassonettoPreview from '../CassonettoPreview';
 import BlindataPreview from '../BlindataPreview';
@@ -64,6 +65,16 @@ export default function LivePreview({ newItem, paneConfigs }) {
             <span className="text-sm text-gray-500 font-medium mt-1">{newItem.width} x {newItem.height} mm</span>
           </div>
         ) : (
+          newItem.composto ? (
+          <CompostoPreview
+            width={newItem.width}
+            height={newItem.height}
+            moduli={newItem.moduli}
+            accoppiamento={newItem.accoppiamentoMm}
+            frameColor={newItem.previewColor || newItem.frameColor}
+            accessoriColore={newItem.previewAccessoriColor || newItem.accessoriColore}
+          />
+          ) : (
           <WindowPreview
             numAnte={newItem.numAnte}
             apertura={newItem.apertura}
@@ -86,6 +97,7 @@ export default function LivePreview({ newItem, paneConfigs }) {
             maniglioneAntipanico={newItem.maniglioneAntipanico}
             maniglioneAnte={newItem.maniglioneAnte}
           />
+          )
         )}
       </div>
     </div>

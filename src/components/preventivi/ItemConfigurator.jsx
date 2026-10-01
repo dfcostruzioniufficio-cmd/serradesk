@@ -8,6 +8,7 @@ import { Settings2, Plus, Ruler, Palette } from 'lucide-react';
 import { getFrameColorHex, getAccessoriHex } from '../../utils/colors';
 import { isClientePuntoAlluminio } from '../../lib/personalizzazioni';
 import TapparellePreventivoPanel from './TapparellePreventivoPanel';
+import { moduloVuoto, larghezzaModuli, superficieModuli, moduliValidi } from '../../utils/composto';
 
 export default function ItemConfigurator({
   itemType,
@@ -674,6 +675,120 @@ export default function ItemConfigurator({
               </select>
             </div>
           </div>
+        </div>
+      )}
+
+      {itemType === 'window' && (
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded"
+              checked={!!newItem.composto}
+              onChange={(e) => {
+                // Prima i moduli, poi il flag: 'composto' passa dal ricalcolo
+                // del prezzo e deve trovare l'articolo gia' completo.
+                if (e.target.checked && !(newItem.moduli || []).length) {
+                  updateItemField('moduli', [moduloVuoto(), moduloVuoto()]);
+                }
+                updateItemField('composto', e.target.checked);
+              }}
+            />
+            <span>
+              <span className="block text-sm font-bold text-gray-800">Serramento composto</span>
+              <span className="block text-xs text-gray-500">
+                Piu' serramenti uniti da un profilo di accoppiamento, preventivati come un pezzo solo.
+                Larghezza e altezza qui sopra sono la misura d&#39;ingombro, ed e&#39; su quella che si calcola il prezzo.
+              </span>
+            </span>
+          </label>
+
+          {newItem.composto && (() => {
+            const moduli = newItem.moduli || [];
+            const aggiorna = (i, patch) => updateItemField('moduli', moduli.map((m, k) => (k === i ? { ...m, ...patch } : m)));
+            const occupata = larghezzaModuli(moduli, newItem.accoppiamentoMm);
+            const ingombro = Number(newItem.width) || 0;
+            const scarto = ingombro ? occupata - ingombro : 0;
+            const supModuli = superficieModuli(moduli);
+            const supIngombro = (ingombro * (Number(newItem.height) || 0)) / 1000000;
+            return (
+              <div className="mt-4 space-y-3">
+                {moduli.map((m, i) => (
+                  <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                    <span className="text-xs font-bold text-gray-400 w-12 pb-2.5">Mod. {i + 1}</span>
+                    <div className="w-24">
+                      <Label className="text-[11px] font-semibold text-gray-600">Largh. (mm)</Label>
+                      <Input type="number" value={m.larghezza} onChange={(e) => aggiorna(i, { larghezza: e.target.value })} className="mt-1 h-9 rounded-lg" />
+                    </div>
+                    <div className="w-24">
+                      <Label className="text-[11px] font-semibold text-gray-600">Alt. (mm)</Label>
+                      <Input type="number" value={m.altezza} onChange={(e) => aggiorna(i, { altezza: e.target.value })} className="mt-1 h-9 rounded-lg" />
+                    </div>
+                    <div className="w-32">
+                      <Label className="text-[11px] font-semibold text-gray-600">Apertura</Label>
+                      <select value={m.apertura} onChange={(e) => aggiorna(i, { apertura: e.target.value })}
+                        className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                        <option value="Battente">Battente</option>
+                        <option value="Scorrevole">Scorrevole</option>
+                        <option value="Fisso">Fisso</option>
+                      </select>
+                    </div>
+                    <div className="w-20">
+                      <Label className="text-[11px] font-semibold text-gray-600">Ante</Label>
+                      <Input type="number" min="1" max="6" value={m.numAnte} onChange={(e) => aggiorna(i, { numAnte: Number(e.target.value) || 1 })} className="mt-1 h-9 rounded-lg" />
+                    </div>
+                    <div className="w-32">
+                      <Label className="text-[11px] font-semibold text-gray-600">Appoggiato</Label>
+                      <select value={m.ancoraggio || 'basso'} onChange={(e) => aggiorna(i, { ancoraggio: e.target.value })}
+                        className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                        <option value="basso">In basso</option>
+                        <option value="alto">In alto</option>
+                      </select>
+                    </div>
+                    {moduli.length > 2 && (
+                      <button type="button" onClick={() => updateItemField('moduli', moduli.filter((_, k) => k !== i))}
+                        className="h-9 px-3 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:text-red-600 hover:border-red-200">
+                        Togli
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={() => updateItemField('moduli', [...moduli, moduloVuoto()])}
+                    className="h-9 px-4 rounded-lg border-2 border-dashed border-slate-300 text-xs font-bold text-gray-500 hover:border-blue-300 hover:text-blue-600">
+                    + Aggiungi modulo
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-[11px] font-semibold text-gray-600">Accoppiamento (mm)</Label>
+                    <Input type="number" value={newItem.accoppiamentoMm ?? 30}
+                      onChange={(e) => updateItemField('accoppiamentoMm', e.target.value === '' ? '' : Number(e.target.value))}
+                      className="h-9 w-20 rounded-lg" />
+                  </div>
+                </div>
+
+                {moduliValidi(moduli).length > 0 && (
+                  <div className="rounded-lg bg-white border border-slate-200 px-3 py-2 text-xs text-gray-600 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Larghezza dei moduli con gli accoppiamenti</span>
+                      <span className={`font-bold ${Math.abs(scarto) > 2 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                        {occupata} mm{ingombro ? ` su ${ingombro}` : ''}
+                        {ingombro && Math.abs(scarto) > 2 ? ` · ${scarto > 0 ? 'sfora di' : 'mancano'} ${Math.abs(scarto)} mm` : ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-100 pt-1">
+                      <span>Superficie vera dei moduli</span>
+                      <span className="font-bold text-gray-800">{supModuli.toFixed(2).replace('.', ',')} m²</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Quadratura d&#39;ingombro, quella che paga</span>
+                      <span className="font-bold text-gray-800">{supIngombro.toFixed(2).replace('.', ',')} m²</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
