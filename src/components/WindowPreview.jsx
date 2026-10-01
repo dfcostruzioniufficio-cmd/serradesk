@@ -588,7 +588,7 @@ export default function WindowPreview({
                 const isV = edge === 'right' || edge === 'left';
                 const hx = edge === 'right' ? ax + aw - AT - 2
                          : edge === 'left'  ? ax + AT - 4
-                         : ax + aw / 2 - 5;
+                         : ax + aw / 2 - 14;
                 const hy = edge === 'right' || edge === 'left'
                          ? ay + ah * 0.5 - 16
                          : edge === 'top' ? ay + AT
@@ -605,7 +605,7 @@ export default function WindowPreview({
                 }
 
                 return (
-                  <g filter="drop-shadow(2px 3px 3px rgba(0,0,0,0.5))" transform={scalaIntorno(kM, hx + 3, hy + 14)}>
+                  <g filter="drop-shadow(2px 3px 3px rgba(0,0,0,0.5))" transform={scalaIntorno(kM, isV ? hx + 3 : hx + 14, isV ? hy + 14 : hy + 3)}>
                     {isV ? (
                       <rect x={hx-1} y={hy} width={8} height={28} rx="4"
                         fill={`url(#metalCilinder_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.5"/>
@@ -613,7 +613,7 @@ export default function WindowPreview({
                       <rect x={hx} y={hy-1} width={28} height={8} rx="4"
                         fill={`url(#metalCilinderV_${uid})`} stroke={darken(accHex, 80)} strokeWidth="0.5"/>
                     )}
-                    <circle cx={hx+3} cy={hy+14} r="3.5" fill={accDark}/>
+                    <circle cx={isV ? hx+3 : hx+14} cy={isV ? hy+14 : hy+3} r="3.5" fill={accDark}/>
                     {isV ? (
                       <>
                         <rect x={hx-6} y={hy+11} width={16} height={6} rx="3"
@@ -622,9 +622,15 @@ export default function WindowPreview({
                       </>
                     ) : (
                       <>
-                        <rect x={hx+11} y={hy-6} width={6} height={16} rx="3"
+                        {/* Maniglia sul traverso: la leva sta in orizzontale,
+                            come sta davvero quando l'anta e' aperta a ribalta.
+                            Puntata in basso finiva sul vertice del tratteggio
+                            d'apertura, che nasce nello stesso punto, e i due
+                            disegni si impastavano in una macchia. */}
+                        <rect x={hx+14} y={hy} width={21} height={6} rx="3"
                           fill={`url(#metalCilinder_${uid})`} stroke={darken(accHex, 70)} strokeWidth="0.5"/>
-                        <path d={`M ${hx+12} ${hy-4} Q ${hx+12.5} ${hy} ${hx+12} ${hy+8}`} stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                        <path d={`M ${hx+16} ${hy+1.5} Q ${hx+24} ${hy+2} ${hx+33} ${hy+1.5}`}
+                          stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
                       </>
                     )}
                   </g>
