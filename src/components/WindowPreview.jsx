@@ -592,7 +592,13 @@ export default function WindowPreview({
                 // Oltre i due metri l'anta pesa e si monta la terza
                 // cerniera: due sole, su un'anta da due metri e mezzo,
                 // lasciavano il montante vuoto e il disegno falso.
-                return safeH >= 2000
+                // L'altezza che conta e' quella dell'anta: con un sopraluce
+                // da 600 su un serramento da 2100 l'anta e' 1500, e due
+                // cerniere bastano.
+                const hAntaReale = hasSopraluce
+                  ? Math.max(1, safeH - (Number(sopraluceHeight) || 400))
+                  : safeH;
+                return hAntaReale >= 2000
                   ? <>{hinge(ay + ah * 0.10)} {hinge(ay + ah * 0.46)} {hinge(ay + ah * 0.82)}</>
                   : <>{hinge(ay + ah * 0.15)} {hinge(ay + ah * 0.80)}</>;
               })()}

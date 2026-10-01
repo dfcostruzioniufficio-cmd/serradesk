@@ -356,7 +356,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               <text x="12" y="16" fill="#ffffff" fontSize="12" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">{item.id}</text>
             </svg>
           </div>
-          <div className="flex-1 px-4">
+          <div className="flex-1 min-w-0 px-4">
             {item.titolo && <h3 className="font-bold text-gray-900 text-[13px] mb-1 uppercase tracking-wide">{item.titolo}</h3>}
             <p className="text-gray-600 text-xs whitespace-pre-wrap leading-relaxed">{item.customDescription}</p>
             {rigaNoteArticolo(noteDi(item))}
@@ -475,7 +475,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             </div>
           </div>
           
-          <div className="flex-1 pr-2">
+          <div className="flex-1 min-w-0 pr-2">
             <h3 className="font-extrabold text-slate-900 text-[13px] uppercase leading-tight tracking-wide mb-1">
               {mainTitle}
             </h3>
