@@ -24,8 +24,14 @@ const CICLO = {
   Scorrevole: ['apribile', 'fissa'],
 };
 
-export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose, hasTraverso = false, traversoHeight = 1000, height = 1000 }) {
+export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose, hasTraverso = false, traversoHeight = 1000, height = 1000, maniglioneAntipanico = false, maniglioneAnte = null }) {
   const ciclo = CICLO[apertura] || null;
+  // Chi porta il maniglione, con la stessa ricaduta che usa il disegno: senza
+  // di essa, su un preventivo vecchio il pulsante direbbe "+ maniglione" su
+  // un'anta che la barra ce l'ha gia', e al primo tocco su un'altra anta
+  // quella barra sparirebbe senza che nessuno se ne accorga.
+  const haManiglione = (i) => paneConfigs[i]?.maniglione
+    ?? !!(maniglioneAntipanico && (Array.isArray(maniglioneAnte) ? maniglioneAnte.includes(i) : true));
   // Col traverso ogni anta ha due parti, sopra e sotto, ciascuna col suo tipo
   // (la F06 degli abachi: tutto fisso tranne il vasistas in alto al centro).
   // Il traverso si puo' accendere o spegnere sulla singola anta: la P01 ha
@@ -398,6 +404,35 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
                   >
                     {conTraverso ? '✓ traversa' : '+ traversa'}
                   </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = [...paneConfigs];
+                    next[i] = { ...(next[i] || {}), maniglione: !haManiglione(i) };
+                    onChange(next);
+                  }}
+                  className={`mt-1 w-full rounded px-1 py-0.5 text-[10px] font-semibold border transition-colors ${haManiglione(i) ? 'bg-white border-amber-400 text-amber-700' : 'bg-white/60 border-gray-200 text-gray-400 hover:text-gray-600'}`}
+                >
+                  {haManiglione(i) ? '✓ maniglione' : '+ maniglione'}
+                </button>
+                {haManiglione(i) && (
+                  <label className="mt-1 flex items-center justify-center gap-1" title="Altezza della barra misurata dal pavimento. La EN 1125 la vuole fra 900 e 1100 mm.">
+                    <span className="text-[9px] font-normal text-amber-600">barra</span>
+                    <input
+                      type="number"
+                      step="50"
+                      value={paneConfigs[i]?.maniglioneH ?? 1050}
+                      onChange={(e) => {
+                        const next = [...paneConfigs];
+                        const v = e.target.value;
+                        next[i] = { ...(next[i] || {}), maniglioneH: v === '' ? undefined : Number(v) };
+                        onChange(next);
+                      }}
+                      className="w-14 rounded border border-amber-200 px-1 py-0.5 text-[10px] text-center font-semibold text-amber-800"
+                    />
+                    <span className="text-[9px] font-normal text-gray-400">mm</span>
+                  </label>
                 )}
                 {conTraverso && (
                   <label className="mt-1 flex items-center justify-center gap-1" title="Altezza del traverso misurata dal basso del telaio">

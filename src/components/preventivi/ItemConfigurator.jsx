@@ -426,28 +426,20 @@ export default function ItemConfigurator({
                 />
                 <span className="text-sm font-medium text-gray-700">Ante Asimmetriche</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
-                <input type="checkbox" checked={!!newItem.maniglioneAntipanico} onChange={e => attivaManiglione(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                <span className="text-sm font-medium text-gray-700">Maniglione Antipanico</span>
-              </label>
-              {newItem.maniglioneAntipanico && Number(newItem.numAnte) > 1 && (
-                // Su quale anta: di solito solo quella che apre per prima.
-                <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
-                  <span className="text-sm font-medium text-gray-700">Su anta:</span>
-                  {Array.from({ length: Number(newItem.numAnte) }, (_, i) => {
-                    const scelte = Array.isArray(newItem.maniglioneAnte) ? newItem.maniglioneAnte : [];
-                    const attiva = scelte.includes(i);
-                    return (
-                      <button key={i} type="button"
-                        // L'ultima anta scelta non si toglie: per non volere il
-                        // maniglione si toglie la spunta, cosi' disegno e
-                        // preventivo dicono sempre la stessa cosa.
-                        onClick={() => { if (attiva && scelte.filter(x => x < Number(newItem.numAnte)).length <= 1) return; updateItemField('maniglioneAnte', attiva ? scelte.filter(x => x !== i) : [...scelte, i]); }}
-                        className={`h-8 min-w-8 px-2.5 rounded-md text-sm font-bold border transition-colors ${attiva ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
-                        {i + 1}
-                      </button>
-                    );
-                  })}
+              {/* La spunta del maniglione e la scelta delle ante stavano qui
+                  e, identiche, anche nel riquadro sopra. Adesso il maniglione
+                  si accende nel disegno sull'anta che lo porta, con la sua
+                  quota: una cosa sola, nel posto dove si scelgono anche le
+                  maniglie. Sulle porte blindate, che disegno interattivo non
+                  hanno, resta la spunta nel riquadro sopra. */}
+              {!!newItem.maniglioneAntipanico && newItem.apertura?.toLowerCase() !== 'porta blindata' && (
+                <div className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                  <span className="text-sm font-medium text-amber-800">
+                    Maniglione antipanico sull&#39;anta {Array.isArray(newItem.maniglioneAnte) && newItem.maniglioneAnte.length
+                      ? newItem.maniglioneAnte.map((i) => i + 1).join(', ')
+                      : '1'}
+                  </span>
+                  <span className="text-xs text-amber-600">— si cambia in Apri Disegno</span>
                 </div>
               )}
             </div>

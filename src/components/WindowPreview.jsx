@@ -318,8 +318,11 @@ export default function WindowPreview({
         {/* ── ANTE ── */}
         {ante.map((_, i) => {
           const { openingEdge: edge, hasHandle } = getOpeningInfo(i);
-          const conManiglione = maniglioneAntipanico
-            && (Array.isArray(maniglioneAnte) ? maniglioneAnte.includes(i) : true);
+          // Il maniglione si sceglie nel disegno, anta per anta. I due campi
+          // vecchi dell'articolo restano per i preventivi gia' salvati, che
+          // non hanno la scelta dentro l'anta.
+          const conManiglione = paneConfigs?.[i]?.maniglione
+            ?? (maniglioneAntipanico && (Array.isArray(maniglioneAnte) ? maniglioneAnte.includes(i) : true));
           // Vasistas: l'anta si apre soltanto in alto, quindi resta il
           // triangolo della ribalta e sparisce quello del battente. Qui non si
           // guarda la maniglia: un'anta senza maniglia (la fissa di una due
@@ -644,13 +647,32 @@ export default function WindowPreview({
               {conManiglione && aw > AT * 2 + 12 && (() => {
                 const interno0 = ax + AT;
                 const interno1 = ax + aw - AT;
-                // Con il traverso il maniglione si monta li', circa a un metro.
-                const pY = traversoAnta(i) ? traversoY : ay + ah * 0.56;
                 const scala = Math.max(0.7, Math.min(1.2, ah / 200));
                 const barH = 5 * scala;
                 const testaW = 7 * scala;
                 const testaHCerniera = 16 * scala;
                 const testaHSerratura = 24 * scala;
+                // La barra sta a una quota vera dal pavimento, non in
+                // percentuale e non appesa al traverso: la EN 1125 la vuole
+                // fra 900 e 1100 mm, e un traverso puo' stare a 1800.
+                const hBarra = Number(paneConfigs?.[i]?.maniglioneH) || 1050;
+                // La quota va misurata sull'anta, non sul serramento: col
+                // sopraluce l'anta comincia piu' in basso, e una barra a 1050
+                // finirebbe disegnata a ottocento e rotti.
+                const hAnta = hasSopraluce
+                  ? Math.max(1, safeH - (Number(sopraluceHeight) || 400))
+                  : safeH;
+                const quotaBarra = Math.max(0.05, Math.min(0.95, 1 - hBarra / hAnta));
+                // Con il traverso la barra sta nella parte sotto, che e'
+                // l'anta che si apre; e comunque mai fuori dal telaio. Su una
+                // parte sotto bassissima i due limiti si incrociano, e allora
+                // comanda quello di sotto: meglio dentro che sopra il telaio.
+                const bassoMax = ay + ah - testaHSerratura / 2 - 1;
+                const altoMax = Math.min(
+                  bassoMax,
+                  (traversoAnta(i) ? traversoY + FT / 2 : ay) + testaHSerratura / 2 + 1,
+                );
+                const pY = Math.max(altoMax, Math.min(bassoMax, ay + ah * quotaBarra));
                 // La scatola della serratura sta sul lato che apre.
                 const serraturaDestra = edge !== 'left';
                 const hSx = serraturaDestra ? testaHCerniera : testaHSerratura;

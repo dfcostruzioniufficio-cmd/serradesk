@@ -804,6 +804,8 @@ export default function PreventiviPage() {
           traversoHeight={p.newItem.traversoHeight}
           height={p.newItem.height}
           frameColor={p.newItem.previewColor || p.newItem.frameColor}
+          maniglioneAntipanico={!!p.newItem.maniglioneAntipanico}
+          maniglioneAnte={p.newItem.maniglioneAnte}
           paneConfigs={p.paneConfigs}
           onChange={p.aggiornaAnte}
           onClose={() => p.setShowConfigurator(false)}

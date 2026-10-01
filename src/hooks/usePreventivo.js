@@ -208,18 +208,45 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       }))
       : proposta;
 
+    // Il maniglione adesso vive sull'anta, come le aperture. I due campi
+    // dell'articolo restano come specchio: li leggono la descrizione, il PDF
+    // e i preventivi salvati prima di questa modifica.
+    // Appena una sola anta dichiara il maniglione, lo dichiarano tutte: finche'
+    // alcune hanno la chiave e altre ricadono sui campi vecchi, le due fonti
+    // si contraddicono e al primo tocco una barra sparisce dal disegno.
+    const toccato = Array.isArray(nuova) && nuova.some((c) => c && 'maniglione' in c);
+    const conManiglione = toccato
+      ? nuova.map((c, i) => ({
+        ...(c || {}),
+        maniglione: c?.maniglione
+          ?? !!(newItem.maniglioneAntipanico
+            && (Array.isArray(newItem.maniglioneAnte) ? newItem.maniglioneAnte.includes(i) : true)),
+      }))
+      : nuova;
+    const anteManiglione = toccato
+      ? conManiglione.reduce((acc, c, i) => (c.maniglione ? [...acc, i] : acc), [])
+      : null;
+    const specchio = toccato
+      ? { maniglioneAntipanico: anteManiglione.length > 0, maniglioneAnte: anteManiglione }
+      : null;
+    const cambiaSpecchio = !!specchio && (
+      !!newItem.maniglioneAntipanico !== specchio.maniglioneAntipanico
+      || JSON.stringify(newItem.maniglioneAnte || []) !== JSON.stringify(specchio.maniglioneAnte)
+    );
+
     const numAnte = newItem.numAnte;
     const hasTraverso = !!newItem.hasTraverso;
     const prima = anteApribili({ numAnte, hasTraverso, paneConfigs: paneConfigsRef.current });
-    const dopo = anteApribili({ numAnte, hasTraverso, paneConfigs: nuova });
-    paneConfigsRef.current = nuova;
-    setPaneConfigs(nuova);
+    const dopo = anteApribili({ numAnte, hasTraverso, paneConfigs: conManiglione });
+    paneConfigsRef.current = conManiglione;
+    setPaneConfigs(conManiglione);
     const ricalcola = prima !== dopo && itemType === 'window';
-    if (!ricalcola && !spegni) return;
+    if (!ricalcola && !spegni && !cambiaSpecchio) return;
     setNewItem((prev) => {
-      const agg = spegni ? { ...prev, antaRibalta: false, soloRibalta: false } : prev;
+      let agg = spegni ? { ...prev, antaRibalta: false, soloRibalta: false } : prev;
+      if (cambiaSpecchio) agg = { ...agg, ...specchio };
       if (!ricalcola) return agg;
-      const { unitPrice, basePrice } = calculateWindowPrice({ ...agg, paneConfigs: nuova }, sistemiCam);
+      const { unitPrice, basePrice } = calculateWindowPrice({ ...agg, paneConfigs: conManiglione }, sistemiCam);
       return { ...agg, basePrice, ...(unitPrice ? { unitPrice } : {}) };
     });
   };
@@ -228,9 +255,14 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // un'anta segnata fissa sul serramento precedente restava fissa, anche nel
   // prezzo, se il modello aveva lo stesso numero di ante.
   const azzeraTipiAnte = () => {
-    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, handleEdgeSopra, traverso, traversoH, ...resto }) => resto);
+    const pulite = (paneConfigsRef.current || []).map(({ tipo, tipoSopra, handleEdgeSopra, traverso, traversoH, maniglione, maniglioneH, ...resto }) => resto);
     paneConfigsRef.current = pulite;
     setPaneConfigs(pulite);
+    // Togliendo la chiave dalle ante resterebbero accesi i due campi vecchi,
+    // e il maniglione del serramento precedente ricomparirebbe dalla ricaduta.
+    setNewItem((prev) => (prev.maniglioneAntipanico || prev.maniglioneAnte
+      ? { ...prev, maniglioneAntipanico: false, maniglioneAnte: null }
+      : prev));
   };
 
   const updateItemField = (field, value) => {
