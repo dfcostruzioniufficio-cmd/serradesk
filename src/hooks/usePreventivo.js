@@ -116,7 +116,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     width: '', height: '', quantity: 1, frameColor: '#ffffff', colorName: '',
     sistemaCamId: '', complementoAction: 'Molla', complementoCalcType: 'mq', tapparellaAnte: 1,
     tapparelleEscluse: [], tapparelleDescrizione: 'Tapparelle in PVC',
-    marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: ''
+    marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: '',
+    noteArticolo: ''
   };
 
   const [newItem, setNewItem] = useState(defaultNewItem);
@@ -526,6 +527,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
     setItems(newItemsList);
     setEditingIndex(null);
+    // Il modulo resta compilato apposta, per ripartire dalla misura. Le note
+    // no: riguardano un pezzo solo, e lasciate li' si sarebbero ricopiate su
+    // tutti i serramenti aggiunti dopo, fino al cliente. Il duplica le
+    // riporta lo stesso, perche' ricarica l'articolo intero.
+    setNewItem((prev) => (prev.noteArticolo ? { ...prev, noteArticolo: '' } : prev));
     // Dice a chi chiama che l'articolo e' entrato davvero: i controlli qui
     // sopra escono con return secco, e il modulo deve sapere se rimettere il
     // cursore sulla larghezza o lasciare l'utente sull'errore.

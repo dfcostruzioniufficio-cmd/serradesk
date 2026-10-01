@@ -677,6 +677,21 @@ export default function ItemConfigurator({
         </div>
       )}
 
+      {/* Note del singolo articolo: quelle in fondo al preventivo valgono per
+          tutto il lavoro, ma "questa finestra va sul lato strada, misura da
+          verificare dopo lo smontaggio" riguarda un pezzo solo e deve stare
+          scritta accanto a quel pezzo. */}
+      <div className="mt-5">
+        <Label className="font-semibold text-gray-700">Note su questo articolo</Label>
+        <textarea
+          rows={2}
+          value={newItem.noteArticolo || ''}
+          onChange={e => updateItemField('noteArticolo', e.target.value)}
+          placeholder="Es. misura da verificare dopo lo smontaggio · soglia ribassata · colore diverso all'esterno"
+          className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+        />
+      </div>
+
       <div id="tour-step-4" className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
         {editingIndex !== null && (
           <Button onClick={handleCancelEdit} variant="outline" className="border-gray-200 text-gray-600 hover:bg-gray-50 h-11 px-6 rounded-xl font-semibold">

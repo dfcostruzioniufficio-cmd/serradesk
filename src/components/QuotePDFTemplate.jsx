@@ -155,7 +155,10 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const heightSignature = actualItems.map(i => [
     i.id, i.type, i.width, i.height, i.description2, i.description3,
     i.marca, i.colInt, i.colorName, i.colore, i.vetro, i.hasTraverso,
-    i.hasSopraluce, i.customDescription, i.quantity, i.unitPrice, i.trasmittanza
+    i.hasSopraluce, i.customDescription, i.quantity, i.unitPrice, i.trasmittanza,
+    // Le note allungano la riga dell'articolo: senza di loro qui, cambiandole
+    // l'impaginazione resterebbe quella di prima e l'ultima riga sborderebbe.
+    i.noteArticolo ?? i.rawInput?.noteArticolo
   ]).join('|');
 
   useLayoutEffect(() => {
@@ -325,6 +328,16 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const recapPages = getRecapPages();
   const recapPageCount = recapPages.length;
 
+  // Le note stanno sull'articolo, e sui preventivi salvati prima che il campo
+  // esistesse sull'oggetto vero e proprio restano nel rawInput. Si disegnano
+  // uguali in tutti i tipi di riga, serramenti e non.
+  const noteDi = (item) => (item.noteArticolo ?? item.rawInput?.noteArticolo ?? '').trim();
+  const rigaNoteArticolo = (testo) => testo ? (
+    <p className="mt-2 text-[9.5px] leading-snug text-slate-600 whitespace-pre-wrap break-words border-l-2 border-amber-300 pl-2">
+      {testo}
+    </p>
+  ) : null;
+
   const renderItemRow = (item, index) => {
     const totale = item.unitPrice * item.quantity;
 
@@ -346,6 +359,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           <div className="flex-1 px-4">
             {item.titolo && <h3 className="font-bold text-gray-900 text-[13px] mb-1 uppercase tracking-wide">{item.titolo}</h3>}
             <p className="text-gray-600 text-xs whitespace-pre-wrap leading-relaxed">{item.customDescription}</p>
+            {rigaNoteArticolo(noteDi(item))}
           </div>
           <div className="w-24 text-right px-2 text-sm text-gray-600">{formatCurrency(item.unitPrice)}</div>
           <div className="w-16 text-center px-2 text-sm text-gray-600">{formatQta(item.quantity)} {item.unita || 'pz'}</div>
@@ -394,6 +408,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                   <span className="font-bold text-gray-800">{areaText}</span>
                 </div>
               </div>
+              {rigaNoteArticolo(noteDi(item))}
             </div>
           </div>
           <div className="w-24 text-right px-2 text-sm text-gray-600">{formatCurrency(item.unitPrice)}</div>
@@ -505,6 +520,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 <span className="font-bold text-slate-800 text-[10px] leading-tight">{superficie.replace('.', ',')} m² / {perimetro.replace('.', ',')} m</span>
               </div>
             </div>
+
+            {rigaNoteArticolo(noteDi(item))}
           </div>
         </div>
 
