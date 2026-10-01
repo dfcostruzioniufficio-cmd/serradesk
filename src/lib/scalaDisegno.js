@@ -18,8 +18,20 @@
  * applicata a entrambi i lati insieme: le proporzioni reali non cambiano mai.
  */
 
-// Quanto deve riempire il riquadro, come minimo, l'articolo piu' piccolo.
+// Quanto deve riempire, come minimo, l'articolo piu' piccolo rispetto al
+// riquadro che occuperebbe l'articolo piu' grande.
 const OCCUPAZIONE_MINIMA = 0.55;
+
+// E quanto deve riempire, come minimo, la cella in cui sta.
+//
+// La misura di sopra non basta quando il piu' grande ha proporzioni molto
+// diverse dalla cella: un composto 3720x2440 si prende tutta la larghezza ma
+// solo 93 pixel dei 200 disponibili in altezza, e da li' in giu' nessun
+// disegno puo' superarli. Una finestra normale finiva a 70x75 in mezzo al
+// bianco: in scala giusta, e illeggibile. Qui le differenze di dimensione si
+// vedono ancora, solo compresse - e accanto a ogni disegno le misure vere
+// sono comunque scritte.
+const OCCUPAZIONE_CELLA = 0.70;
 
 export function dimensioniDisegno({
   width,
@@ -74,6 +86,20 @@ export function dimensioniDisegno({
     } else {
       dH = maxH;
       dW = maxH * rapporto;
+    }
+  }
+
+  // Pavimento sulla cella: si ingrandisce finche' il lato piu' pieno non
+  // arriva alla quota minima, sempre su entrambi i lati insieme e senza mai
+  // sfondare il riquadro.
+  if (maxQuoteWidth && maxQuoteHeight) {
+    const pieno = Math.max(dW / maxW, dH / maxH);
+    if (pieno > 0 && pieno < OCCUPAZIONE_CELLA) {
+      const fattore = Math.min(OCCUPAZIONE_CELLA / pieno, maxW / dW, maxH / dH);
+      if (fattore > 1) {
+        dW *= fattore;
+        dH *= fattore;
+      }
     }
   }
 
