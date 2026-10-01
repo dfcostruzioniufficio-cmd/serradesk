@@ -334,7 +334,12 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   // uguali in tutti i tipi di riga, serramenti e non.
   const noteDi = (item) => (item.noteArticolo ?? item.rawInput?.noteArticolo ?? '').trim();
   const rigaNoteArticolo = (testo) => testo ? (
-    <p className="mt-2 text-[9.5px] leading-snug text-slate-600 whitespace-pre-wrap break-words border-l-2 border-amber-300 pl-2">
+    // La barra arriva un filo sopra e un filo sotto il testo. In pagina il
+    // testo sta esattamente in mezzo alla riga, ma html2canvas lo disegna
+    // qualche pixel piu' in basso quando genera il PDF: con la barra alta
+    // quanto la riga, li' si vedeva sfalsata. Con due pixel di respiro lo
+    // scarto del renderer non si nota piu'.
+    <p className="mt-2 py-[2px] text-[9.5px] leading-snug text-slate-600 whitespace-pre-wrap break-words border-l-2 border-amber-300 pl-2">
       {testo}
     </p>
   ) : null;
