@@ -357,6 +357,12 @@ export default function WindowPreview({
           const sepX = ax + aw;
           const paneAT = edge ? AT : 0;
           const gx = ax + paneAT, gy = ay + paneAT, gw = Math.max(0, aw - paneAT * 2), gh = Math.max(0, ah - paneAT * 2);
+          // I contorni del vetro sono tarati su un'anta di larghezza normale.
+          // Su una finestra stretta e alta (117x250 a due ante: trenta punti
+          // di vetro) due guarnizioni da 2,5 piu' le ombre si mangiavano un
+          // terzo del vetro, e il disegno diventava tutto bordi. Si
+          // assottigliano con l'anta; su un'anta normale il fattore e' 1.
+          const kTratto = Math.max(0.4, Math.min(1, gw / 55));
 
           const tH = Number(paneConfigs?.[i]?.traversoH) || Number(traversoHeight) || 1000;
           const pctTraverso = Math.max(0.1, Math.min(0.9, 1 - (tH / safeH)));
@@ -380,9 +386,9 @@ export default function WindowPreview({
                   <rect x={ax} y={ay} width={paneAT} height={ah} fill={`url(#frameLeft_${uid})`}/>
                   <rect x={ax+aw-paneAT} y={ay} width={paneAT} height={ah} fill={`url(#frameRight_${uid})`}/>
                   <rect x={ax} y={ay+ah-paneAT} width={aw} height={paneAT} fill={`url(#frameBottom_${uid})`}/>
-                  <rect x={ax+paneAT-1} y={ay+paneAT-1} width={gw+2} height={gh+2} fill="none" stroke={frameShadow} strokeWidth="1.2"/>
+                  <rect x={ax+paneAT-1} y={ay+paneAT-1} width={gw+2} height={gh+2} fill="none" stroke={frameShadow} strokeWidth={1.2 * kTratto}/>
                   {/* Ombra di profondità interna dell'anta */}
-                  <rect x={ax+paneAT} y={ay+paneAT} width={gw} height={gh} fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="3"/>
+                  <rect x={ax+paneAT} y={ay+paneAT} width={gw} height={gh} fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth={3 * kTratto}/>
                 </>
               )}
 
@@ -433,8 +439,8 @@ export default function WindowPreview({
                   )}
                   
                   {/* Guarnizione in EPDM Nera Iper-Realistica */}
-                  <rect x={gx} y={gy} width={gw} height={gh} fill="none" stroke="#1a1a1a" strokeWidth="2.5" strokeLinejoin="round" />
-                  <rect x={gx+1} y={gy+1} width={gw-2} height={gh-2} fill="none" stroke="#444" strokeWidth="0.5" strokeLinejoin="round" opacity="0.8"/>
+                  <rect x={gx} y={gy} width={gw} height={gh} fill="none" stroke="#1a1a1a" strokeWidth={2.5 * kTratto} strokeLinejoin="round" />
+                  <rect x={gx+kTratto} y={gy+kTratto} width={gw-kTratto*2} height={gh-kTratto*2} fill="none" stroke="#444" strokeWidth={0.5 * kTratto} strokeLinejoin="round" opacity="0.8"/>
                 </>
               )}
 
@@ -583,7 +589,12 @@ export default function WindowPreview({
                     <rect x={hingeX+1} y={y-2} width={3} height={18} rx="1.5" fill={accLight} stroke={darken(accHex, 60)} strokeWidth="0.5"/>
                   </g>
                 );
-                return <>{hinge(ay + ah * 0.15)} {hinge(ay + ah * 0.80)}</>;
+                // Oltre i due metri l'anta pesa e si monta la terza
+                // cerniera: due sole, su un'anta da due metri e mezzo,
+                // lasciavano il montante vuoto e il disegno falso.
+                return safeH >= 2000
+                  ? <>{hinge(ay + ah * 0.10)} {hinge(ay + ah * 0.46)} {hinge(ay + ah * 0.82)}</>
+                  : <>{hinge(ay + ah * 0.15)} {hinge(ay + ah * 0.80)}</>;
               })()}
 
               {/* ── MANIGLIA CREMONESE 3D ── */}
