@@ -186,10 +186,10 @@ export default function WindowPreview({
     : Array(anteCount).fill(1);
   const totalRaw = rawWidths.reduce((s, w) => s + w, 0);
   const anteRealWidths = rawWidths.map(w => (w / totalRaw) * innerW);
-  const anteXPos = anteRealWidths.reduce((acc, w, i) => {
-    acc.push(FT + (i === 0 ? 0 : acc[i-1] + anteRealWidths[i-1]));
-    return acc;
-  }, []);
+  // Dove comincia ogni anta: come la disegna il blocco ANTE, telaio piu' le
+  // ante prima. La versione di prima rimetteva il telaio a ogni anta, e le
+  // quote scivolavano a destra fino a uscire dal disegno.
+  const anteXPos = anteRealWidths.map((_, i) => FT + anteRealWidths.slice(0, i).reduce((s, w) => s + w, 0));
 
   const renderOpeningLines = (ax, ay, aw, ah, i) => {
     const { openingEdge: edge, hasHandle } = getOpeningInfo(i);
@@ -411,25 +411,25 @@ export default function WindowPreview({
                     <>
                       {topIsPanel ? (
                         <>
-                          <rect x={gx} y={gy} width={gw} height={traversoY - gy} fill={frameMid}/>
-                          <rect x={gx+3} y={gy+3} width={gw-6} height={traversoY - gy - 6} fill={frameHex}/>
+                          <rect x={gx} y={gy} width={gw} height={Math.max(0, traversoY - gy)} fill={frameMid}/>
+                          <rect x={gx+3} y={gy+3} width={Math.max(0, gw-6)} height={Math.max(0, traversoY - gy - 6)} fill={frameHex}/>
                         </>
                       ) : (
                         <>
-                          <rect x={gx} y={gy} width={gw} height={traversoY - gy} fill={`url(#glassGrad_${uid})`}/>
-                          <rect x={gx} y={gy} width={gw} height={traversoY - gy} fill={`url(#glassShine_${uid})`}/>
+                          <rect x={gx} y={gy} width={gw} height={Math.max(0, traversoY - gy)} fill={`url(#glassGrad_${uid})`}/>
+                          <rect x={gx} y={gy} width={gw} height={Math.max(0, traversoY - gy)} fill={`url(#glassShine_${uid})`}/>
                         </>
                       )}
                       
                       {bottomIsPanel ? (
                         <>
-                          <rect x={gx} y={traversoY} width={gw} height={gy + gh - traversoY} fill={frameMid}/>
-                          <rect x={gx+3} y={traversoY+3} width={gw-6} height={gy + gh - traversoY - 6} fill={frameHex}/>
+                          <rect x={gx} y={traversoY} width={gw} height={Math.max(0, gy + gh - traversoY)} fill={frameMid}/>
+                          <rect x={gx+3} y={traversoY+3} width={Math.max(0, gw-6)} height={Math.max(0, gy + gh - traversoY - 6)} fill={frameHex}/>
                         </>
                       ) : (
                         <>
-                          <rect x={gx} y={traversoY} width={gw} height={gy + gh - traversoY} fill={`url(#glassGrad_${uid})`}/>
-                          <rect x={gx} y={traversoY} width={gw} height={gy + gh - traversoY} fill={`url(#glassShine_${uid})`}/>
+                          <rect x={gx} y={traversoY} width={gw} height={Math.max(0, gy + gh - traversoY)} fill={`url(#glassGrad_${uid})`}/>
+                          <rect x={gx} y={traversoY} width={gw} height={Math.max(0, gy + gh - traversoY)} fill={`url(#glassShine_${uid})`}/>
                         </>
                       )}
                     </>
@@ -438,7 +438,7 @@ export default function WindowPreview({
                       {topIsPanel || apertura === 'Porta Blindata' ? (
                         <>
                           <rect x={gx} y={gy} width={gw} height={gh} fill={frameMid}/>
-                          <rect x={gx+3} y={gy+3} width={gw-6} height={gh-6} fill={frameHex}/>
+                          <rect x={gx+3} y={gy+3} width={Math.max(0, gw-6)} height={Math.max(0, gh-6)} fill={frameHex}/>
                         </>
                       ) : apertura === 'Persiana' ? (
                         <rect x={gx} y={gy} width={gw} height={gh} fill={`url(#louver_${uid})`}/>
@@ -743,6 +743,10 @@ export default function WindowPreview({
           if (!anteWidths || anteWidths.length !== anteCount || anteCount < 2) return null;
           const mm = anteWidths.map((w) => Number(w) || 0);
           if (mm.some((w) => w <= 0) || mm.every((w) => w === mm[0])) return null;
+          // Se le ante scritte non fanno la larghezza del serramento, le
+          // misure sul PDF non tornerebbero: meglio nessuna quota che una
+          // quota sbagliata davanti al cliente.
+          if (Math.abs(mm.reduce((a, w) => a + w, 0) - safeW) > 5) return null;
           const y = dH + 7;
           const colore = '#475569';
           return (
