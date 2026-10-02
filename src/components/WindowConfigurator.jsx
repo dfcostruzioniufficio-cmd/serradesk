@@ -24,7 +24,14 @@ const CICLO = {
   Scorrevole: ['apribile', 'fissa'],
 };
 
-export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose, hasTraverso = false, traversoHeight = 1000, height = 1000, maniglioneAntipanico = false, maniglioneAnte = null }) {
+/**
+ * Il disegno su cui si sceglie come si apre ogni anta.
+ *
+ * inline: sta dentro il modulo dell'articolo invece che in una finestra a
+ * parte. Ogni tocco viene gia' applicato subito (onChange), quindi aprire e
+ * chiudere una finestra apposta per tre clic era solo strada in piu'.
+ */
+export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose, hasTraverso = false, traversoHeight = 1000, height = 1000, maniglioneAntipanico = false, maniglioneAnte = null, inline = false }) {
   const ciclo = CICLO[apertura] || null;
   // Chi porta il maniglione, con la stessa ricaduta che usa il disegno: senza
   // di essa, su un preventivo vecchio il pulsante direbbe "+ maniglione" su
@@ -278,6 +285,172 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
     });
   };
 
+  const spiegazione = ciclo
+    ? (hasTraverso
+      ? 'Col traverso ogni anta ha due parti: tocca la parte sopra o quella sotto per scegliere come si apre. Tocca un bordo per spostare la maniglia.'
+      : 'Tocca il centro di un\'anta per scegliere come si apre (anche fissa). Tocca un bordo per spostare la maniglia.')
+    : 'Clicca su un bordo per posizionare la maniglia. Clicca di nuovo per rimuoverla.';
+
+  const disegno = (
+  <svg
+    width="100%"
+    viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+    style={{ display: 'block', maxHeight: inline ? '210px' : '340px', borderRadius: '12px', overflow: 'visible' }}
+  >
+    {/* Frame */}
+    <rect x={0} y={0} width={CANVAS_W} height={CANVAS_H} fill={safeFrameColor} rx="6"/>
+
+    {Array.from({ length: count }).map((_, i) => {
+      const px = getPX(i), py = getPY(), pw = paneW, ph = paneH;
+      return (
+        <g key={i}>
+          {/* Glass */}
+          <rect x={px} y={py} width={pw} height={ph} fill="#d6eff5" stroke={safeFrameColor} strokeWidth="3"/>
+          {/* Inner border */}
+          <rect x={px+9} y={py+9} width={pw-18} height={ph-18} fill="none" stroke="rgba(100,150,170,0.35)" strokeWidth="1"/>
+          {dueParti(i) ? (() => {
+            // Traverso e due parti, ognuna con linee e nome suoi.
+            const yT = py + ph * quotaTraverso(i);
+            const scritta = (tipo, y) => tipo && (
+              <text x={px+pw/2} y={y} textAnchor="middle" fontSize={count > 4 ? 12 : 15} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                {TIPI[tipo]}
+              </text>
+            );
+            return (
+              <>
+                {openingLines(i, px, py, pw, yT - py, tipoSopraDi(i) || null, paneConfigs[i]?.tipoSopra ? edgeParte(i, 'sopra') : getEdge(i))}
+                {openingLines(i, px, yT, pw, py + ph - yT, getTipo(i) || null, getEdge(i))}
+                {tipoSopraDi(i) !== 'vasistas' && handleRect(i, px, py, pw, yT - py, paneConfigs[i]?.tipoSopra ? edgeParte(i, 'sopra') : getEdge(i))}
+                {getTipo(i) !== 'vasistas' && handleRect(i, px, yT, pw, py + ph - yT, getEdge(i))}
+                <rect x={px} y={yT - 4} width={pw} height={8} fill={safeFrameColor} stroke="rgba(0,0,0,0.25)" strokeWidth="1"/>
+                {scritta(tipoSopraDi(i), py + (yT - py) / 2 + 5)}
+                {scritta(getTipo(i), yT + (py + ph - yT) / 2 + 5)}
+              </>
+            );
+          })() : (
+            <>
+              {/* Opening lines */}
+              {openingLines(i, px, py, pw, ph)}
+              {/* Handle */}
+              {handleRect(i, px, py, pw, ph)}
+              {/* Tipo dell'anta, scritto in grande nel vetro */}
+              {getTipo(i) && (
+                <text x={px+pw/2} y={py+ph/2+6} textAnchor="middle" fontSize={count > 4 ? 13 : 16} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                  {TIPI[getTipo(i)]}
+                </text>
+              )}
+            </>
+          )}
+          {/* Clickable zones */}
+          {zonaTipo(i, px, py, pw, ph)}
+          {edgeZones(i, px, py, pw, ph)}
+          {/* Pane label */}
+          <text x={px+pw/2} y={py+ph-7} textAnchor="middle" fontSize="13" fill="rgba(0,0,0,0.2)" fontWeight="bold">{i+1}</text>
+        </g>
+      );
+    })}
+  </svg>
+  );
+
+  const schede = (
+  <div className={inline ? 'grid grid-cols-2 sm:grid-cols-3 gap-2' : 'px-6 py-3 grid grid-cols-3 sm:grid-cols-6 gap-2'}>
+    {Array.from({ length: count }).map((_, i) => {
+      const edge = getEdge(i);
+      const tipo = getTipo(i);
+      const fissa = tipo === 'fissa';
+      // Un'anta mai toccata senza maniglia non e' fissa: si apre come
+      // anta secondaria e nel prezzo conta come apribile.
+      const sopra = dueParti(i) ? tipoSopraDi(i) : null;
+      const lato = (e) => (e ? ` ${e === 'left' ? 'sx' : 'dx'}` : '');
+      const testo = dueParti(i) && paneConfigs[i]?.tipoSopra
+        ? `Sopra: ${TIPI[sopra]}${sopra !== 'fissa' && sopra !== 'vasistas' ? lato(edgeParte(i, 'sopra')) : ''} · Sotto: ${TIPI[tipo || ciclo[0]]}${tipo !== 'fissa' && tipo !== 'vasistas' ? lato(edge) : ''}`
+        : tipo
+          ? `${TIPI[tipo]}${!fissa && edge ? ` · ${EDGE_LABELS[edge]}` : ''}`
+          : (edge ? `↕ ${EDGE_LABELS[edge]}` : 'Senza maniglia');
+      const conTraverso = dueParti(i);
+      return (
+        <div key={i} className={`rounded-lg p-2 text-center border text-xs font-semibold transition-all ${fissa ? 'bg-gray-100 border-gray-300 text-gray-600' : (edge || tipo) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
+          <div className="text-[10px] font-normal opacity-70 mb-0.5">Anta {i+1}</div>
+          {testo}
+          {ciclo && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = [...paneConfigs];
+                next[i] = { ...(next[i] || {}), traverso: !conTraverso };
+                onChange(next);
+              }}
+              className={`mt-1 w-full rounded px-1 py-0.5 text-[10px] font-semibold border transition-colors ${conTraverso ? 'bg-white border-blue-300 text-blue-700' : 'bg-white/60 border-gray-200 text-gray-400 hover:text-gray-600'}`}
+            >
+              {conTraverso ? '✓ traversa' : '+ traversa'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              const next = [...paneConfigs];
+              next[i] = { ...(next[i] || {}), maniglione: !haManiglione(i) };
+              onChange(next);
+            }}
+            className={`mt-1 w-full rounded px-1 py-0.5 text-[10px] font-semibold border transition-colors ${haManiglione(i) ? 'bg-white border-amber-400 text-amber-700' : 'bg-white/60 border-gray-200 text-gray-400 hover:text-gray-600'}`}
+          >
+            {haManiglione(i) ? '✓ maniglione' : '+ maniglione'}
+          </button>
+          {haManiglione(i) && (
+            <label className="mt-1 flex items-center justify-center gap-1" title="Altezza della barra misurata dal pavimento. La EN 1125 la vuole fra 900 e 1100 mm.">
+              <span className="text-[9px] font-normal text-amber-600">barra</span>
+              <input
+                type="number"
+                step="50"
+                value={paneConfigs[i]?.maniglioneH ?? 1050}
+                onChange={(e) => {
+                  const next = [...paneConfigs];
+                  const v = e.target.value;
+                  next[i] = { ...(next[i] || {}), maniglioneH: v === '' ? undefined : Number(v) };
+                  onChange(next);
+                }}
+                className="w-14 rounded border border-amber-200 px-1 py-0.5 text-[10px] text-center font-semibold text-amber-800"
+              />
+              <span className="text-[9px] font-normal text-gray-400">mm</span>
+            </label>
+          )}
+          {conTraverso && (
+            <label className="mt-1 flex items-center justify-center gap-1" title="Altezza del traverso misurata dal basso del telaio">
+              <span className="text-[9px] font-normal text-gray-400">h</span>
+              <input
+                type="number"
+                step="50"
+                min="100"
+                value={paneConfigs[i]?.traversoH ?? traversoHeight ?? ''}
+                onChange={(e) => {
+                  const next = [...paneConfigs];
+                  const v = e.target.value;
+                  next[i] = { ...(next[i] || {}), traversoH: v === '' ? undefined : Number(v) };
+                  onChange(next);
+                }}
+                className="w-14 rounded border border-gray-200 px-1 py-0.5 text-[10px] text-center font-semibold text-gray-700"
+              />
+              <span className="text-[9px] font-normal text-gray-400">mm</span>
+            </label>
+          )}
+        </div>
+      );
+    })}
+  </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="grid gap-4 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)] items-start">
+        <div className="rounded-xl bg-gray-50 p-2">{disegno}</div>
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">{spiegazione}</p>
+          {schede}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
@@ -286,77 +459,14 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-xl font-bold text-gray-800">🖱️ Configuratore Visivo Infisso</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {ciclo
-                ? (hasTraverso
-                  ? 'Col traverso ogni anta ha due parti: tocca la parte sopra o quella sotto per scegliere come si apre. Tocca un bordo per spostare la maniglia.'
-                  : 'Tocca il centro di un\'anta per scegliere come si apre (anche fissa). Tocca un bordo per spostare la maniglia.')
-                : 'Clicca su un bordo per posizionare la maniglia. Clicca di nuovo per rimuoverla.'}
-            </p>
+            <p className="text-sm text-gray-500 mt-0.5">{spiegazione}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-3xl font-light leading-none w-8 h-8 flex items-center justify-center">×</button>
         </div>
 
         {/* Canvas */}
         <div className="px-6 pt-4 pb-2 bg-gray-50">
-          <svg
-            width="100%"
-            viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-            style={{ display: 'block', maxHeight: '340px', borderRadius: '12px', overflow: 'visible' }}
-          >
-            {/* Frame */}
-            <rect x={0} y={0} width={CANVAS_W} height={CANVAS_H} fill={safeFrameColor} rx="6"/>
-
-            {Array.from({ length: count }).map((_, i) => {
-              const px = getPX(i), py = getPY(), pw = paneW, ph = paneH;
-              return (
-                <g key={i}>
-                  {/* Glass */}
-                  <rect x={px} y={py} width={pw} height={ph} fill="#d6eff5" stroke={safeFrameColor} strokeWidth="3"/>
-                  {/* Inner border */}
-                  <rect x={px+9} y={py+9} width={pw-18} height={ph-18} fill="none" stroke="rgba(100,150,170,0.35)" strokeWidth="1"/>
-                  {dueParti(i) ? (() => {
-                    // Traverso e due parti, ognuna con linee e nome suoi.
-                    const yT = py + ph * quotaTraverso(i);
-                    const scritta = (tipo, y) => tipo && (
-                      <text x={px+pw/2} y={y} textAnchor="middle" fontSize={count > 4 ? 12 : 15} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
-                        {TIPI[tipo]}
-                      </text>
-                    );
-                    return (
-                      <>
-                        {openingLines(i, px, py, pw, yT - py, tipoSopraDi(i) || null, paneConfigs[i]?.tipoSopra ? edgeParte(i, 'sopra') : getEdge(i))}
-                        {openingLines(i, px, yT, pw, py + ph - yT, getTipo(i) || null, getEdge(i))}
-                        {tipoSopraDi(i) !== 'vasistas' && handleRect(i, px, py, pw, yT - py, paneConfigs[i]?.tipoSopra ? edgeParte(i, 'sopra') : getEdge(i))}
-                        {getTipo(i) !== 'vasistas' && handleRect(i, px, yT, pw, py + ph - yT, getEdge(i))}
-                        <rect x={px} y={yT - 4} width={pw} height={8} fill={safeFrameColor} stroke="rgba(0,0,0,0.25)" strokeWidth="1"/>
-                        {scritta(tipoSopraDi(i), py + (yT - py) / 2 + 5)}
-                        {scritta(getTipo(i), yT + (py + ph - yT) / 2 + 5)}
-                      </>
-                    );
-                  })() : (
-                    <>
-                      {/* Opening lines */}
-                      {openingLines(i, px, py, pw, ph)}
-                      {/* Handle */}
-                      {handleRect(i, px, py, pw, ph)}
-                      {/* Tipo dell'anta, scritto in grande nel vetro */}
-                      {getTipo(i) && (
-                        <text x={px+pw/2} y={py+ph/2+6} textAnchor="middle" fontSize={count > 4 ? 13 : 16} fill="rgba(30,60,150,0.7)" fontWeight="bold" style={{ pointerEvents: 'none' }}>
-                          {TIPI[getTipo(i)]}
-                        </text>
-                      )}
-                    </>
-                  )}
-                  {/* Clickable zones */}
-                  {zonaTipo(i, px, py, pw, ph)}
-                  {edgeZones(i, px, py, pw, ph)}
-                  {/* Pane label */}
-                  <text x={px+pw/2} y={py+ph-7} textAnchor="middle" fontSize="13" fill="rgba(0,0,0,0.2)" fontWeight="bold">{i+1}</text>
-                </g>
-              );
-            })}
-          </svg>
+          {disegno}
         </div>
 
         {/* Legend */}
@@ -372,91 +482,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
           </span>
         </div>
 
-        {/* Pane summary chips */}
-        <div className="px-6 py-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {Array.from({ length: count }).map((_, i) => {
-            const edge = getEdge(i);
-            const tipo = getTipo(i);
-            const fissa = tipo === 'fissa';
-            // Un'anta mai toccata senza maniglia non e' fissa: si apre come
-            // anta secondaria e nel prezzo conta come apribile.
-            const sopra = dueParti(i) ? tipoSopraDi(i) : null;
-            const lato = (e) => (e ? ` ${e === 'left' ? 'sx' : 'dx'}` : '');
-            const testo = dueParti(i) && paneConfigs[i]?.tipoSopra
-              ? `Sopra: ${TIPI[sopra]}${sopra !== 'fissa' && sopra !== 'vasistas' ? lato(edgeParte(i, 'sopra')) : ''} · Sotto: ${TIPI[tipo || ciclo[0]]}${tipo !== 'fissa' && tipo !== 'vasistas' ? lato(edge) : ''}`
-              : tipo
-                ? `${TIPI[tipo]}${!fissa && edge ? ` · ${EDGE_LABELS[edge]}` : ''}`
-                : (edge ? `↕ ${EDGE_LABELS[edge]}` : 'Senza maniglia');
-            const conTraverso = dueParti(i);
-            return (
-              <div key={i} className={`rounded-lg p-2 text-center border text-xs font-semibold transition-all ${fissa ? 'bg-gray-100 border-gray-300 text-gray-600' : (edge || tipo) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
-                <div className="text-[10px] font-normal opacity-70 mb-0.5">Anta {i+1}</div>
-                {testo}
-                {ciclo && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = [...paneConfigs];
-                      next[i] = { ...(next[i] || {}), traverso: !conTraverso };
-                      onChange(next);
-                    }}
-                    className={`mt-1 w-full rounded px-1 py-0.5 text-[10px] font-semibold border transition-colors ${conTraverso ? 'bg-white border-blue-300 text-blue-700' : 'bg-white/60 border-gray-200 text-gray-400 hover:text-gray-600'}`}
-                  >
-                    {conTraverso ? '✓ traversa' : '+ traversa'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = [...paneConfigs];
-                    next[i] = { ...(next[i] || {}), maniglione: !haManiglione(i) };
-                    onChange(next);
-                  }}
-                  className={`mt-1 w-full rounded px-1 py-0.5 text-[10px] font-semibold border transition-colors ${haManiglione(i) ? 'bg-white border-amber-400 text-amber-700' : 'bg-white/60 border-gray-200 text-gray-400 hover:text-gray-600'}`}
-                >
-                  {haManiglione(i) ? '✓ maniglione' : '+ maniglione'}
-                </button>
-                {haManiglione(i) && (
-                  <label className="mt-1 flex items-center justify-center gap-1" title="Altezza della barra misurata dal pavimento. La EN 1125 la vuole fra 900 e 1100 mm.">
-                    <span className="text-[9px] font-normal text-amber-600">barra</span>
-                    <input
-                      type="number"
-                      step="50"
-                      value={paneConfigs[i]?.maniglioneH ?? 1050}
-                      onChange={(e) => {
-                        const next = [...paneConfigs];
-                        const v = e.target.value;
-                        next[i] = { ...(next[i] || {}), maniglioneH: v === '' ? undefined : Number(v) };
-                        onChange(next);
-                      }}
-                      className="w-14 rounded border border-amber-200 px-1 py-0.5 text-[10px] text-center font-semibold text-amber-800"
-                    />
-                    <span className="text-[9px] font-normal text-gray-400">mm</span>
-                  </label>
-                )}
-                {conTraverso && (
-                  <label className="mt-1 flex items-center justify-center gap-1" title="Altezza del traverso misurata dal basso del telaio">
-                    <span className="text-[9px] font-normal text-gray-400">h</span>
-                    <input
-                      type="number"
-                      step="50"
-                      min="100"
-                      value={paneConfigs[i]?.traversoH ?? traversoHeight ?? ''}
-                      onChange={(e) => {
-                        const next = [...paneConfigs];
-                        const v = e.target.value;
-                        next[i] = { ...(next[i] || {}), traversoH: v === '' ? undefined : Number(v) };
-                        onChange(next);
-                      }}
-                      className="w-14 rounded border border-gray-200 px-1 py-0.5 text-[10px] text-center font-semibold text-gray-700"
-                    />
-                    <span className="text-[9px] font-normal text-gray-400">mm</span>
-                  </label>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {schede}
 
         {/* Footer buttons */}
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">

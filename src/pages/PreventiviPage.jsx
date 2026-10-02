@@ -17,7 +17,6 @@ import ItemConfigurator from '../components/preventivi/ItemConfigurator';
 import InteractiveGuide from '../components/preventivi/InteractiveGuide';
 
 import QuotePDFTemplate from '../components/QuotePDFTemplate';
-import WindowConfigurator from '../components/WindowConfigurator';
 import TemplateGalleryModal from '../components/preventivi/TemplateGalleryModal';
 import ChangeProfileModal from '../components/preventivi/ChangeProfileModal';
 import AIPdfImporter from '../components/AIPdfImporter';
@@ -616,14 +615,18 @@ export default function PreventiviPage() {
       />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex flex-wrap items-center gap-2">
+          {/* Il titolo lungo serve a Google, che la pagina la vede senza
+              account. Chi ci lavora vede solo dove si trova. */}
+          <h1 className={`${userProfile ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 tracking-tight flex flex-wrap items-center gap-2`}>
             <FileText className="w-6 h-6 text-primary" />
-            Generatore gratuito preventivi e distinte di taglio serramenti
+            {userProfile ? 'Preventivo' : 'Generatore gratuito preventivi e distinte di taglio serramenti'}
             {p.editingOrderId && <span className="ml-0 sm:ml-3 px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 rounded-full border border-amber-200 shadow-sm">Modifica Ordine</span>}
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Configura serramenti, crea il preventivo e genera i documenti per il cliente.
-          </p>
+          {!userProfile && (
+            <p className="text-gray-500 text-sm mt-1">
+              Configura serramenti, crea il preventivo e genera i documenti per il cliente.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -674,8 +677,10 @@ export default function PreventiviPage() {
               newItem={p.newItem} updateItemField={p.updateItemField} updateItemFields={p.updateItemFields}
               sistemiCam={p.sistemiCam} editingIndex={p.editingIndex}
               handleCancelEdit={p.handleCancelEdit} handleAddItem={p.handleAddItem}
-              setShowConfigurator={p.setShowConfigurator}
               setShowGallery={p.setShowGallery}
+              applicaModello={p.applicaModello}
+              paneConfigs={p.paneConfigs}
+              aggiornaAnte={p.aggiornaAnte}
               isCustomerMode={isCustomerMode}
               userEmail={userEmail}
             />
@@ -796,33 +801,13 @@ export default function PreventiviPage() {
          </div>
       </div>
 
-      {p.showConfigurator && ['Battente', 'Scorrevole', 'Vasistas', 'Bilico', 'Persiana'].includes(p.newItem.apertura) && (
-        <WindowConfigurator
-          numAnte={p.newItem.numAnte}
-          apertura={p.newItem.apertura}
-          hasTraverso={!!p.newItem.hasTraverso}
-          traversoHeight={p.newItem.traversoHeight}
-          height={p.newItem.height}
-          frameColor={p.newItem.previewColor || p.newItem.frameColor}
-          maniglioneAntipanico={!!p.newItem.maniglioneAntipanico}
-          maniglioneAnte={p.newItem.maniglioneAnte}
-          paneConfigs={p.paneConfigs}
-          onChange={p.aggiornaAnte}
-          onClose={() => p.setShowConfigurator(false)}
-        />
-      )}
 
       {p.showGallery && (
         <TemplateGalleryModal
           onSelectTemplate={(template) => {
-            // I modelli azzerano solo i campi che dichiarano: senza questo
-            // reset, scegliendo "Battente" dopo aver configurato un vasistas
-            // l'articolo restava un vasistas, disegno e descrizione compresi.
-            p.updateItemFields({ antaRibalta: false, soloRibalta: false });
-            p.azzeraTipiAnte();
-            Object.entries(template).forEach(([key, val]) => {
-              p.updateItemField(key, val);
-            });
+            // Ripulisce ribalta e ante del serramento prima e lascia le
+            // misure gia' scritte: vedi applicaModello.
+            p.applicaModello(template);
             p.setShowGallery(false);
           }}
           onClose={() => p.setShowGallery(false)}

@@ -87,6 +87,34 @@ const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
   }).join('; ');
 };
 
+/**
+ * Il vetro che spetta al serramento, dai due vetri del preventivo.
+ *
+ * Nello stesso lavoro finestre e balconi di solito hanno vetri diversi: sulle
+ * porte finestre ci vuole un vetro piu' importante (33.1/16/33.1). Si
+ * scelgono una volta in cima al modulo e ogni serramento prende il suo
+ * dall'altezza: da 2 metri in su e' un balcone. Scegliendo a mano il vetro
+ * di un serramento (vetroScelto) la regola si ferma per quel pezzo.
+ *
+ * Senza vetri del preventivo non cambia niente: e' il caso di tutti gli
+ * articoli fatti prima di questa regola, che riaperti non devono cambiare
+ * vetro, e prezzo, da soli. Persiane, blindate e cassonetti non hanno vetro.
+ */
+export const ALTEZZA_BALCONE_MM = 2000;
+const SENZA_VETRO = ['Persiana', 'Persiana Balcone', 'Porta Blindata', 'Cassonetto', 'Tapparella'];
+export const vetroAutomatico = (item, sistemiCam) => {
+  if (!item || item.vetroScelto || SENZA_VETRO.includes(item.apertura)) return item;
+  const balcone = Number(item.height) >= ALTEZZA_BALCONE_MM;
+  const id = (balcone && item.vetroBalconiId) || item.vetroFinestreId;
+  if (!id) return item;
+  const v = (sistemiCam || []).find((x) => x.id === id);
+  // Anche il nome: scegliendo il profilo il nome del vetro viene riscritto
+  // con quello della sua scheda, e il PDF direbbe un vetro e ne farebbe
+  // pagare un altro.
+  if (!v || (id === item.vetroId && item.vetro === v.nome)) return item;
+  return { ...item, vetroId: id, vetro: v.nome };
+};
+
 const nuovoUid = () => (
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -119,7 +147,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     tapparelleEscluse: [], tapparelleDescrizione: 'Tapparelle in PVC',
     marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: '',
     noteArticolo: '',
-    composto: false, moduli: [], accoppiamentoMm: 30
+    composto: false, moduli: [], accoppiamentoMm: 30,
+    vetroFinestreId: '', vetroBalconiId: '', vetroScelto: false
   };
 
   const [newItem, setNewItem] = useState(defaultNewItem);
@@ -289,6 +318,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         updatedItem.isManualBasePrice = false;
       }
 
+      // Il vetro scelto a mano su un serramento vale per quel serramento:
+      // da qui in poi l'altezza non glielo cambia piu'.
+      if (field === 'vetroId') updatedItem.vetroScelto = true;
+      if (['height', 'vetroFinestreId', 'vetroBalconiId', 'vetroScelto', 'apertura', 'sistemaCamId'].includes(field)) {
+        updatedItem = vetroAutomatico(updatedItem, sistemiCam);
+      }
+
       // Ribalta e vasistas esistono solo sul battente: cambiando apertura si
       // spengono subito, se no l'anteprima mostrava una persiana disegnata
       // come un vasistas mentre l'articolo salvato era una persiana normale.
@@ -308,7 +344,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // fisso) scritto dall'utente: il calcolo da finestra lo sostituiva con
       // il prezzo del profilo, minimi per anta compresi, appena si toccavano
       // le misure. Una zanzariera da 25 €/m² usciva a 840 €/m².
-      if (itemType === 'window' && ['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId', 'composto'].includes(field)) {
+      if (itemType === 'window' && ['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId', 'composto', 'vetroFinestreId', 'vetroBalconiId', 'vetroScelto'].includes(field)) {
         // Le ante fisse contano nel prezzo. Cambiando il numero di ante pero'
         // la configurazione viene rifatta da capo, quindi quella vecchia non vale.
         const conAnte = field === 'numAnte' ? updatedItem : { ...updatedItem, paneConfigs: paneConfigsRef.current };
@@ -357,6 +393,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         toast.error('Inserisci un prezzo valido prima di aggiungere il serramento.');
         return;
       }
+      // La quantita' puo' arrivare scritta all'italiana da una voce libera
+      // ("12,5"): il campo numerico la mostra vuota, Number() la legge NaN e
+      // il totale del preventivo diventava "NaN €".
+      if (!(Number(newItem.quantity) > 0)) {
+        toast.error('Scrivi la quantità del serramento.');
+        return;
+      }
       // Un composto senza almeno due moduli misurati non e' un composto: la
       // descrizione uscirebbe vuota, il disegno non si farebbe, e il cliente
       // riceverebbe un articolo prezzato su tutto l'ingombro senza sapere
@@ -373,6 +416,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       }
       if (!Number(newItem.unitPrice)) {
         toast.error('Inserisci un prezzo valido prima di aggiungere.');
+        return;
+      }
+      if (!(Number(newItem.quantity) > 0)) {
+        toast.error('Scrivi la quantità del complemento.');
         return;
       }
     } else if (itemType === 'tapparelle') {
@@ -583,12 +630,14 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // Sul composto si svuotano anche le misure dei moduli: sono del pezzo
       // come l'ingombro, e lasciate li' passerebbero il controllo dei due
       // moduli anche su un composto diverso. Apertura e ante restano.
-      setNewItem((prev) => ({
-        ...prev, width: '', height: '', quantity: 1, manualMq: '', noteArticolo: '',
+      // Il vetro scelto a mano era di quel pezzo: il prossimo riparte dai
+      // vetri del preventivo.
+      setNewItem((prev) => vetroAutomatico({
+        ...prev, width: '', height: '', quantity: 1, manualMq: '', noteArticolo: '', vetroScelto: false,
         ...(Array.isArray(prev.moduli) && prev.moduli.length
           ? { moduli: prev.moduli.map((m) => ({ ...m, larghezza: '', altezza: '' })) }
           : {}),
-      }));
+      }, sistemiCam));
     } else {
       setNewItem((prev) => (prev.noteArticolo ? { ...prev, noteArticolo: '' } : prev));
     }
@@ -596,6 +645,34 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     // sopra escono con return secco, e il modulo deve sapere se rimettere il
     // cursore sulla larghezza o lasciare l'utente sull'errore.
     return true;
+  };
+
+  /**
+   * Un articolo riaperto (modifica o duplica) torna nel modulo com'era. I due
+   * vetri del preventivo pero' sono del lavoro, non del pezzo: un articolo
+   * fatto prima che esistessero non li ha, e riaprendolo si sarebbero persi
+   * per tutti i serramenti dopo. Il suo vetro invece resta il suo: sugli
+   * articoli di prima vale come scelto a mano, cosi' non cambia da solo.
+   */
+  const ricarica = (raw, prev) => ({
+    ...raw,
+    vetroFinestreId: raw.vetroFinestreId || prev.vetroFinestreId || '',
+    vetroBalconiId: raw.vetroBalconiId || prev.vetroBalconiId || '',
+    vetroScelto: raw.vetroScelto ?? true,
+  });
+
+  /**
+   * Un modello (bottoni rapidi o galleria) dice che cosa e' il serramento:
+   * apertura, ante, traverso. Le misure gia' scritte restano: la galleria le
+   * riscriveva con le sue (1200x1400) e andavano rifatte.
+   */
+  const applicaModello = (props) => {
+    updateItemFields({ antaRibalta: false, soloRibalta: false });
+    azzeraTipiAnte();
+    Object.entries(props).forEach(([chiave, valore]) => {
+      if ((chiave === 'width' || chiave === 'height') && Number(newItem[chiave]) > 0) return;
+      updateItemField(chiave, valore);
+    });
   };
 
   const handleEditItem = (index) => {
@@ -606,7 +683,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         skipPaneResetRef.current = true;
         setPaneConfigs([...item.paneConfigs]);
       }
-      setNewItem({ ...item.rawInput });
+      setNewItem((prev) => ricarica(item.rawInput, prev));
     }
     setEditingIndex(index);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -627,7 +704,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       skipPaneResetRef.current = true;
       setPaneConfigs([...item.paneConfigs]);
     }
-    setNewItem({ ...item.rawInput });
+    setNewItem((prev) => ricarica(item.rawInput, prev));
     setEditingIndex(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return true;
@@ -775,7 +852,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     editingOrderStato, setEditingOrderStato,
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
-    sistemiCam, handleAddItem, handleEditItem, duplicaItem, handleCancelEdit, removeItem,
+    sistemiCam, handleAddItem, handleEditItem, duplicaItem, applicaModello, handleCancelEdit, removeItem,
     updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,
     totaleIva, totalePreventivo, handleSpalmaQuadratura, handleCambiaProfiloGlobale
   };
