@@ -1,6 +1,7 @@
 import React from 'react';
 import { getFrameColorHex, getAccessoriHex } from '../utils/colors';
 import { dimensioniDisegno } from '../lib/scalaDisegno';
+import { vistaProfili } from '../utils/trasmittanza';
 
 /**
  * WindowPreview — Finestra PVC iper-realistica con:
@@ -34,6 +35,8 @@ export default function WindowPreview({
   maniglioneAnte = null,
   maxQuoteWidth = null,
   maxQuoteHeight = null,
+  // Il sistema dell'archivio: da qui le larghezze a vista dei profili.
+  profilo = null,
   isExporting = false
 }) {
   const uid = React.useId().replace(/:/g, ''); 
@@ -147,14 +150,24 @@ export default function WindowPreview({
   const accLight = lighten(accHex, 40);
 
 
-  // Spessori di telaio e anta presi dal lato corto. Sulle finestre larghe e
-  // basse (3600x1300, 2200x650) prenderli dalla larghezza faceva un telaio
-  // spesso quanto mezzo vetro. Sulle finestre verticali il lato corto e' la
-  // larghezza, quindi escono identiche a prima.
-  const latoCortoDisegno = Math.min(dW, dH);
-  const orizzontale = dH < dW;
-  const FT = Math.max(orizzontale ? 4 : 7, Math.round(latoCortoDisegno * 0.055));
-  const AT = Math.max(orizzontale ? 3 : 5, Math.round(latoCortoDisegno * 0.042));
+  // Spessori di telaio e anta nella scala vera del serramento, dalle
+  // larghezze a vista dei profili (Archivio, o i valori tipici del
+  // materiale). Prima erano una percentuale fissa del disegno: una finestra
+  // da 60 e una porta finestra da 2 metri avevano gli stessi profili, e la
+  // finestrella sembrava tutta vetro. Nella realta' e' quasi tutta telaio.
+  //   lato: dal bordo esterno al vetro, telaio + anta
+  //   nodo: fra il vetro di un'anta e quello della vicina, due ante
+  // L'anta vale meta' del nodo, il telaio il resto del lato. Sotto i 2,5
+  // punti un profilo non si vede piu': li' ci si ferma.
+  const mmPx = Math.min(dW / safeW, dH / safeH);
+  const vista = vistaProfili(profilo);
+  const latoPx = vista.lato * mmPx;
+  const AT = Math.max(2.5, Math.min(latoPx * 0.75, (vista.nodo / 2) * mmPx));
+  const FT = apertura === 'Fisso'
+    ? Math.max(3, vista.fisso * mmPx)
+    : Math.max(2.5, latoPx - AT);
+  // Il traverso (dell'anta e quello che separa il sopraluce).
+  const TT = Math.max(2.5, vista.traverso * mmPx);
 
   // Maniglie e cerniere hanno misure fisse pensate per un'anta di dimensioni
   // normali; su un'anta piccola coprivano mezzo vetro. Si rimpiccioliscono
@@ -279,13 +292,13 @@ export default function WindowPreview({
           const clampedSH = Math.min(rawSH, realH * 0.7); 
           const sSvgH = (clampedSH / realH) * dH;
           const sW = Math.max(0, dW - FT * 2);
-          const sInnerH = Math.max(0, sSvgH - (FT * 1.5)); 
+          const sInnerH = Math.max(0, sSvgH - FT - TT / 2);
           
           return (
             <g>
-              <rect x={0} y={sSvgH - FT/2} width={dW} height={FT} fill={frameMid}/>
-              <rect x={0} y={sSvgH - FT/2} width={dW} height={2} fill={`url(#frameTop_${uid})`}/>
-              <rect x={0} y={sSvgH + FT/2 - 2} width={dW} height={2} fill={`url(#frameBottom_${uid})`}/>
+              <rect x={0} y={sSvgH - TT/2} width={dW} height={TT} fill={frameMid}/>
+              <rect x={0} y={sSvgH - TT/2} width={dW} height={2} fill={`url(#frameTop_${uid})`}/>
+              <rect x={0} y={sSvgH + TT/2 - 2} width={dW} height={2} fill={`url(#frameBottom_${uid})`}/>
               
               {sW > 0 && sInnerH > 0 && (() => {
                 // Il sopraluce puo' essere diviso in piu' vetri fissi, come
@@ -350,7 +363,7 @@ export default function WindowPreview({
           const realH = Math.max(1, safeH);
           const sSvgH = hasSopraluce ? ((Math.min(Number(sopraluceHeight) || 400, realH * 0.7) / realH) * dH) : 0;
           
-          const ay = hasSopraluce ? sSvgH + FT/2 : FT;
+          const ay = hasSopraluce ? sSvgH + TT/2 : FT;
           const aw = Math.max(0, antaW);
           const ah = Math.max(0, dH - FT - ay); 
           const isLast = i === anteCount - 1;
@@ -446,10 +459,10 @@ export default function WindowPreview({
 
               {traversoAnta(i) && (
                 <>
-                  <rect x={ax} y={traversoY - FT/2} width={aw} height={FT} fill={frameMid}/>
-                  <rect x={ax} y={traversoY - FT/2} width={aw} height={2} fill={`url(#frameTop_${uid})`}/>
-                  <rect x={ax} y={traversoY + FT/2 - 2} width={aw} height={2} fill={`url(#frameBottom_${uid})`}/>
-                  <rect x={ax} y={traversoY - FT/2} width={aw} height={FT} fill="none" stroke={frameShadow} strokeWidth="0.8"/>
+                  <rect x={ax} y={traversoY - TT/2} width={aw} height={TT} fill={frameMid}/>
+                  <rect x={ax} y={traversoY - TT/2} width={aw} height={2} fill={`url(#frameTop_${uid})`}/>
+                  <rect x={ax} y={traversoY + TT/2 - 2} width={aw} height={2} fill={`url(#frameBottom_${uid})`}/>
+                  <rect x={ax} y={traversoY - TT/2} width={aw} height={TT} fill="none" stroke={frameShadow} strokeWidth="0.8"/>
                 </>
               )}
 
@@ -502,8 +515,8 @@ export default function WindowPreview({
                     </g>
                   );
                 };
-                const sopraY1 = traversoY - FT / 2;
-                const sottoY0 = traversoY + FT / 2;
+                const sopraY1 = traversoY - TT / 2;
+                const sottoY0 = traversoY + TT / 2;
                 return (
                   <>
                     {parte('sopra', ax, ay, aw, sopraY1 - ay, c.tipoSopra, c.handleEdgeSopra)}
@@ -687,7 +700,7 @@ export default function WindowPreview({
                 const bassoMax = ay + ah - testaHSerratura / 2 - 1;
                 const altoMax = Math.min(
                   bassoMax,
-                  (traversoAnta(i) ? traversoY + FT / 2 : ay) + testaHSerratura / 2 + 1,
+                  (traversoAnta(i) ? traversoY + TT / 2 : ay) + testaHSerratura / 2 + 1,
                 );
                 const pY = Math.max(altoMax, Math.min(bassoMax, ay + ah * quotaBarra));
                 // La scatola della serratura sta sul lato che apre.
@@ -720,6 +733,37 @@ export default function WindowPreview({
             </g>
           );
         })}
+
+        {/* ── QUOTE DELLE ANTE ──
+            Solo quando le ante sono diverse: su una 3 ante con il fisso
+            laterale da 500 il cliente deve vedere quale anta e' quella da
+            500. Con le ante uguali la misura del telaio, scritta accanto,
+            basta. Stanno nella striscia sotto il disegno, gia' riservata. */}
+        {(() => {
+          if (!anteWidths || anteWidths.length !== anteCount || anteCount < 2) return null;
+          const mm = anteWidths.map((w) => Number(w) || 0);
+          if (mm.some((w) => w <= 0) || mm.every((w) => w === mm[0])) return null;
+          const y = dH + 7;
+          const colore = '#475569';
+          return (
+            <g>
+              {anteRealWidths.map((w, i) => {
+                const x0 = anteXPos[i];
+                const x1 = x0 + w;
+                const testo = String(Math.round(mm[i]));
+                const fs = Math.max(5, Math.min(8, w / (testo.length * 0.62 + 0.8)));
+                return (
+                  <g key={i}>
+                    <line x1={x0 + 0.5} y1={y} x2={x1 - 0.5} y2={y} stroke={colore} strokeWidth="0.6"/>
+                    <line x1={x0 + 0.5} y1={y - 2.5} x2={x0 + 0.5} y2={y + 2.5} stroke={colore} strokeWidth="0.6"/>
+                    <line x1={x1 - 0.5} y1={y - 2.5} x2={x1 - 0.5} y2={y + 2.5} stroke={colore} strokeWidth="0.6"/>
+                    <text x={(x0 + x1) / 2} y={y + 3 + fs} textAnchor="middle" fontSize={fs} fill={colore} fontFamily="sans-serif" fontWeight="600">{testo}</text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })()}
       </svg>
     </div>
   );

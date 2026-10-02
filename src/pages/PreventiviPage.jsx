@@ -725,6 +725,7 @@ export default function PreventiviPage() {
             <LivePreview 
               newItem={p.newItem}
               paneConfigs={p.paneConfigs}
+              profilo={p.sistemiCam.find((s) => s.id === p.newItem.sistemaCamId) || null}
             />
             
             <CostSummary 

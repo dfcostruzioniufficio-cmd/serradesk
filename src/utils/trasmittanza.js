@@ -143,6 +143,22 @@ export function calcolaUw(item, sistemiCam) {
   };
 }
 
+/**
+ * Larghezze a vista dei profili in mm, per il disegno: quelle del sistema
+ * in archivio, o i valori tipici del materiale (gli stessi della stima della
+ * Uw). Senza sistema si usano quelli del PVC.
+ */
+export function vistaProfili(sys) {
+  const t = VISTA_TIPICA[categoria(sys)];
+  const v = sys?.specs?.vista || {};
+  return {
+    lato: leggiNumero(v.lato_mm) || t.lato,
+    nodo: leggiNumero(v.nodo_mm) || t.nodo,
+    traverso: leggiNumero(v.traverso_mm) || t.traverso,
+    fisso: leggiNumero(v.fisso_mm) || t.fisso,
+  };
+}
+
 /** Testo per preventivo e PDF: "1,23 W/m²K". */
 export function formattaUw(uw) {
   return uw == null ? '' : `${uw.toFixed(2).replace('.', ',')} W/m²K`;

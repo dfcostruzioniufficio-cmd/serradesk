@@ -29,6 +29,8 @@ export default function CompostoPreview({
   accessoriColore = 'Argento',
   maxQuoteWidth = null,
   maxQuoteHeight = null,
+  // Il sistema dell'archivio, per gli spessori dei profili di ogni modulo.
+  profilo = null,
   isExporting = false,
 }) {
   const validi = moduliValidi(moduli);
@@ -100,6 +102,7 @@ export default function CompostoPreview({
                   paneConfigs={p.m.paneConfigs || {}}
                   hasTraverso={!!p.m.hasTraverso}
                   traversoHeight={p.m.traversoHeight}
+                  profilo={profilo}
                   isExporting={isExporting}
                 />
               </div>

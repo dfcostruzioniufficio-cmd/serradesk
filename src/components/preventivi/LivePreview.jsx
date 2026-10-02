@@ -5,7 +5,7 @@ import ShutterPreview from '../ShutterPreview';
 import CassonettoPreview from '../CassonettoPreview';
 import BlindataPreview from '../BlindataPreview';
 
-export default function LivePreview({ newItem, paneConfigs }) {
+export default function LivePreview({ newItem, paneConfigs, profilo = null }) {
   const isShutter = newItem.apertura === 'Persiana' || newItem.apertura === 'Persiana Balcone';
   const isCassonetto = newItem.apertura === 'Cassonetto';
   const isTapparella = newItem.apertura?.toLowerCase() === 'tapparella';
@@ -71,6 +71,7 @@ export default function LivePreview({ newItem, paneConfigs }) {
             height={newItem.height}
             moduli={newItem.moduli}
             accoppiamento={newItem.accoppiamentoMm}
+            profilo={profilo}
             frameColor={newItem.previewColor || newItem.frameColor}
             accessoriColore={newItem.previewAccessoriColor || newItem.accessoriColore}
           />
@@ -96,6 +97,7 @@ export default function LivePreview({ newItem, paneConfigs }) {
             anteWidths={newItem.anteAsimmetriche ? newItem.anteWidths : null}
             maniglioneAntipanico={newItem.maniglioneAntipanico}
             maniglioneAnte={newItem.maniglioneAnte}
+            profilo={profilo}
           />
           )
         )}

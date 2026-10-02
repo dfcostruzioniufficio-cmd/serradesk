@@ -480,11 +480,12 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 width={item.width} height={item.height}
                 moduli={item.moduli || item.rawInput?.moduli}
                 accoppiamento={item.accoppiamentoMm || item.rawInput?.accoppiamentoMm}
+                profilo={item.sistema_cam}
                 frameColor={item.previewColor || item.frameColor}
                 accessoriColore={item.previewAccessoriColor || item.accessori}
                 maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting} />
             ) : (
-              <WindowPreview numAnte={item.numAnte} apertura={item.apertura} antaRibalta={item.antaRibalta} soloRibalta={item.soloRibalta} frameColor={item.previewColor || item.frameColor} accessoriColore={item.previewAccessoriColor || item.accessori} width={item.width} height={item.height} hasTraverso={item.hasTraverso} traversoHeight={item.traversoHeight} topIsPanel={topIsPanel} bottomIsPanel={bottomIsPanel} hasSopraluce={item.hasSopraluce} sopraluceHeight={item.sopraluceHeight} sopraluceDivisioni={item.sopraluceDivisioni} handlePosition={item.handlePosition} paneConfigs={item.paneConfigs} anteWidths={item.anteAsimmetriche ? item.anteWidths : null} maniglioneAntipanico={item.maniglioneAntipanico} maniglioneAnte={item.maniglioneAnte} maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting} />
+              <WindowPreview numAnte={item.numAnte} apertura={item.apertura} antaRibalta={item.antaRibalta} soloRibalta={item.soloRibalta} frameColor={item.previewColor || item.frameColor} accessoriColore={item.previewAccessoriColor || item.accessori} width={item.width} height={item.height} hasTraverso={item.hasTraverso} traversoHeight={item.traversoHeight} topIsPanel={topIsPanel} bottomIsPanel={bottomIsPanel} hasSopraluce={item.hasSopraluce} sopraluceHeight={item.sopraluceHeight} sopraluceDivisioni={item.sopraluceDivisioni} handlePosition={item.handlePosition} paneConfigs={item.paneConfigs} anteWidths={item.anteAsimmetriche ? item.anteWidths : null} maniglioneAntipanico={item.maniglioneAntipanico} maniglioneAnte={item.maniglioneAnte} profilo={item.sistema_cam} maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting} />
             )}
             </div>
           </div>

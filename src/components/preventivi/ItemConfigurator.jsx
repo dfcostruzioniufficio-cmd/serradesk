@@ -432,21 +432,24 @@ export default function ItemConfigurator({
           {/* ── 3. Misure ── */}
           <section>
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Misure</p>
-            <div className={`grid grid-cols-2 ${prezzoBaseInRiga ? 'md:grid-cols-[repeat(5,minmax(0,1fr))_auto]' : 'md:grid-cols-[repeat(4,minmax(0,1fr))_auto]'} gap-4 items-end`}>
-              <div id="tour-step-2">
+            {/* Campi a larghezza fissa che vanno a capo insieme: in una griglia
+                a colonne uguali, col prezzo base in piu', le etichette andavano
+                a capo una si' e una no e i campi si sfalsavano. */}
+            <div className="flex flex-wrap gap-3 items-end [&>div]:shrink-0">
+              <div id="tour-step-2" className="w-32">
                 <Label className="font-semibold text-gray-700">Larghezza (mm)</Label>
                 <Input data-prima-misura data-misura="larghezza" type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
               </div>
-              <div>
+              <div className="w-32">
                 <Label className="font-semibold text-gray-700">Altezza (mm)</Label>
                 <Input data-misura="altezza" type="number" value={newItem.height} onChange={e => updateItemField('height', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
               </div>
-              <div>
+              <div className="w-24">
                 <Label className="font-semibold text-gray-700">Quantità</Label>
                 <Input data-misura="qta" type="number" value={newItem.quantity} onChange={e => updateItemField('quantity', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl" />
               </div>
-              {prezzoBaseInRiga && campoPrezzoBase}
-              <div>
+              {prezzoBaseInRiga && <div className="w-36">{campoPrezzoBase}</div>}
+              <div className="w-32">
                 <Label className="font-semibold text-gray-700">Totale (€)</Label>
                 <Input data-misura="totale" type="number" step="0.01" value={newItem.unitPrice} onChange={e => {
                   const valore = e.target.value.replace(/^0+(?=\d)/, '');
@@ -458,7 +461,7 @@ export default function ItemConfigurator({
                   else updateItemField('unitPrice', valore);
                 }} className="mt-1.5 h-11 rounded-xl font-bold text-green-700 bg-green-50 border-green-200" />
               </div>
-              <div id="tour-step-4" className="col-span-2 md:col-span-1 flex gap-2">
+              <div id="tour-step-4" className="flex gap-2">
                 {editingIndex !== null && (
                   <Button onClick={handleCancelEdit} variant="outline" className="border-gray-200 text-gray-600 hover:bg-gray-50 h-11 px-4 rounded-xl font-semibold">
                     Annulla
