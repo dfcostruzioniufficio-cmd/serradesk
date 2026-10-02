@@ -122,6 +122,16 @@ export const vetroAutomatico = (item, sistemiCam) => {
   return { ...item, vetroId: id, vetro: v.nome };
 };
 
+/** L'apertura che un profilo dell'archivio porta con se', dalla sua tipologia. */
+const aperturaDelProfilo = (s) => (
+  s?.tipologia === 'FISSO' ? 'Fisso'
+    : s?.tipologia === 'SCORREVOLE' ? 'Scorrevole'
+      : s?.tipologia === 'TAPPARELLA' ? 'Tapparella'
+        : s?.tipologia === 'CASSONETTO' ? 'Cassonetto'
+          : s?.tipologia === 'PORTA_BLINDATA' ? 'Porta Blindata'
+            : 'Battente'
+);
+
 const nuovoUid = () => (
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -311,7 +321,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       if (field === 'sistemaCamId' && value) {
         const s = sistemiCam.find(sys => sys.id === value);
         if (s) {
-          updatedItem.apertura = s.tipologia === 'FISSO' ? 'Fisso' : s.tipologia === 'SCORREVOLE' ? 'Scorrevole' : s.tipologia === 'TAPPARELLA' ? 'Tapparella' : s.tipologia === 'CASSONETTO' ? 'Cassonetto' : s.tipologia === 'PORTA_BLINDATA' ? 'Porta Blindata' : 'Battente';
+          updatedItem.apertura = aperturaDelProfilo(s);
           updatedItem.marca = s.marca || '';
           updatedItem.vetro = s.specs?.vetro || '';
           updatedItem.accessoriColore = s.specs?.accessori || '';
@@ -669,6 +679,14 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const moduloPulito = (prev) => vetroAutomatico({
     ...defaultNewItem,
     unitPrice: '',
+    // "Da zero" vuol dire 1 anta, ma dell'apertura del profilo tenuto: un
+    // profilo da fisso, scorrevole o blindata che ripartisse "Battente"
+    // farebbe pagare minimi e ante che non ci sono (un fisso 60x60 da 54 €
+    // usciva a 225), e il PDF direbbe battente su un fisso. Le persiane non
+    // hanno una tipologia di profilo loro: restano persiane.
+    apertura: /^Persiana/.test(prev.apertura || '')
+      ? prev.apertura
+      : aperturaDelProfilo(sistemiCam.find((x) => x.id === prev.sistemaCamId)),
     sistemaCamId: prev.sistemaCamId || '', calcType: prev.calcType || 'mq',
     basePrice: prev.basePrice, isManualBasePrice: !!prev.isManualBasePrice,
     marca: prev.marca || '', frameColor: prev.frameColor, colorName: prev.colorName || '',
@@ -678,12 +696,25 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     vetroId: prev.vetroId || '', vetro: prev.vetro || '', vetroUg: prev.vetroUg || '',
     vetroScelto: false,
     ...(prev.fermavetro ? { fermavetro: prev.fermavetro } : {}),
+    // Le altre schede del modulo non c'entrano col serramento e restano come
+    // le si era lasciate: le finestre tolte dal conto delle tapparelle (se no
+    // rientravano tutte, e il cliente pagava tapparelle che non ha) e il
+    // complemento che si stava facendo.
+    tapparelleEscluse: prev.tapparelleEscluse || [],
+    tapparelleDescrizione: prev.tapparelleDescrizione ?? defaultNewItem.tapparelleDescrizione,
+    complementoType: prev.complementoType, complementoMaterial: prev.complementoMaterial,
+    complementoAction: prev.complementoAction ?? defaultNewItem.complementoAction,
+    complementoCalcType: prev.complementoCalcType ?? defaultNewItem.complementoCalcType,
+    tapparellaAnte: prev.tapparellaAnte ?? defaultNewItem.tapparellaAnte,
   }, sistemiCam);
 
   // Anche il disegno: se il pezzo prima era gia' a 1 anta, il numero di ante
   // non cambia e le ante non si rifarebbero da sole (una fissa restava fissa).
   const azzeraModulo = () => {
     const ante = [{ handleEdge: 'right' }];
+    // Un duplica o una modifica con lo stesso numero di ante lascia il segnale
+    // acceso: il prossimo cambio di ante non rifarebbe la configurazione.
+    skipPaneResetRef.current = false;
     paneConfigsRef.current = ante;
     setPaneConfigs(ante);
     setNewItem((prev) => moduloPulito(prev));
