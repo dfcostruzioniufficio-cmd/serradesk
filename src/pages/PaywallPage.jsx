@@ -71,9 +71,9 @@ export default function PaywallPage() {
         
         {/* MESSAGE */}
         <div className="text-center mb-12">
-          <div className="inline-block bg-blue-500/20 text-blue-400 font-bold px-5 py-2 rounded-full mb-6 border border-blue-500/30 animate-pulse">
-            Promozione attiva: Contattaci per sbloccare il 1° mese a soli 5€!
-          </div>
+          {/* Qui lampeggiava "Promozione attiva: 1° mese a 5€", una promozione
+              che non esiste piu'. Non rimetterla senza che sia vera: chi ci
+              scrive la chiede, e il prezzo scritto sulla pagina e' un impegno. */}
           <h1 className="text-4xl md:text-5xl font-black mb-4">
             Scegli il tuo piano
           </h1>
