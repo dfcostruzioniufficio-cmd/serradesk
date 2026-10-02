@@ -671,7 +671,10 @@ export default function PreventiviPage() {
 
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 relative">
          {/* Configurazione (Colonna Sinistra 2/3) */}
-         <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
+         {/* Sul telefono prima il modulo e l'elenco, poi i totali: prima il
+             modulo stava sotto anteprima, riepilogo e prezzo dal totale, e per
+             aggiungere una finestra bisognava scorrere mezza pagina. */}
+         <div className="lg:col-span-2 space-y-6 order-1">
             <ItemConfigurator 
               itemType={p.itemType} setItemType={p.scegliTipo} items={p.items}
               newItem={p.newItem} updateItemField={p.updateItemField} updateItemFields={p.updateItemFields}
@@ -721,12 +724,16 @@ export default function PreventiviPage() {
          </div>
          
          {/* Preview e Totali (Colonna Destra 1/3) */}
-         <div className="space-y-6 order-1 lg:order-2 lg:sticky lg:top-8 self-start">
+         <div className="space-y-6 order-2 lg:sticky lg:top-8 lg:self-start">
+            {/* L'anteprima grande serve accanto al modulo; sul telefono
+                starebbe in fondo, e il disegno c'e' gia' nel modulo. */}
+            <div className="hidden lg:block">
             <LivePreview 
               newItem={p.newItem}
               paneConfigs={p.paneConfigs}
               profilo={p.sistemiCam.find((s) => s.id === p.newItem.sistemaCamId) || null}
             />
+            </div>
             
             <CostSummary 
               imponibile={p.imponibile}

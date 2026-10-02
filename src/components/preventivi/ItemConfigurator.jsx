@@ -192,7 +192,7 @@ export default function ItemConfigurator({
           <option value="pz">al pezzo</option>
         </select>
       </Label>
-      <Input type="number" step="0.01" value={newItem.basePrice} onChange={e => updateItemField('basePrice', e.target.value.replace(/^0+(?=\d)/, ''))} className="h-11 rounded-xl font-bold text-gray-700" />
+      <Input type="number" inputMode="decimal" step="0.01" value={newItem.basePrice} onChange={e => updateItemField('basePrice', e.target.value.replace(/^0+(?=\d)/, ''))} className="h-11 rounded-xl font-bold text-gray-700" />
     </div>
   );
   const prezzoBaseInRiga = mostraPrezzoBase && !newItem.sistemaCamId;
@@ -438,20 +438,20 @@ export default function ItemConfigurator({
             <div className="flex flex-wrap gap-3 items-end [&>div]:shrink-0">
               <div id="tour-step-2" className="w-32">
                 <Label className="font-semibold text-gray-700">Larghezza (mm)</Label>
-                <Input data-prima-misura data-misura="larghezza" type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
+                <Input data-prima-misura data-misura="larghezza" type="number" inputMode="numeric" value={newItem.width} onChange={e => updateItemField('width', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
               </div>
               <div className="w-32">
                 <Label className="font-semibold text-gray-700">Altezza (mm)</Label>
-                <Input data-misura="altezza" type="number" value={newItem.height} onChange={e => updateItemField('height', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
+                <Input data-misura="altezza" type="number" inputMode="numeric" value={newItem.height} onChange={e => updateItemField('height', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
               </div>
               <div className="w-24">
                 <Label className="font-semibold text-gray-700">Quantità</Label>
-                <Input data-misura="qta" type="number" value={newItem.quantity} onChange={e => updateItemField('quantity', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl" />
+                <Input data-misura="qta" type="number" inputMode="numeric" value={newItem.quantity} onChange={e => updateItemField('quantity', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl" />
               </div>
               {prezzoBaseInRiga && <div className="w-36">{campoPrezzoBase}</div>}
               <div className="w-32">
                 <Label className="font-semibold text-gray-700">Totale (€)</Label>
-                <Input data-misura="totale" type="number" step="0.01" value={newItem.unitPrice} onChange={e => {
+                <Input data-misura="totale" type="number" inputMode="decimal" step="0.01" value={newItem.unitPrice} onChange={e => {
                   const valore = e.target.value.replace(/^0+(?=\d)/, '');
                   // Dove il totale vale anche come prezzo base, i due campi vanno
                   // scritti insieme: due chiamate in fila facevano ripartire il
@@ -883,7 +883,7 @@ export default function ItemConfigurator({
           </div>
           <div className="col-span-2 md:col-span-1">
             <Label className="font-semibold text-gray-700">Larghezza (mm)</Label>
-            <Input data-prima-misura type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value)} className="mt-1.5 h-11 rounded-xl" />
+            <Input data-prima-misura type="number" inputMode="numeric" value={newItem.width} onChange={e => updateItemField('width', e.target.value)} className="mt-1.5 h-11 rounded-xl" />
           </div>
           <div className="col-span-2 md:col-span-1">
             <Label className="font-semibold text-gray-700">Altezza (mm)</Label>

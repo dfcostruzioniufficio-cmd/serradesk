@@ -57,6 +57,11 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   const innerH = CANVAS_H - FRAME * 2;
   const paneW = (innerW - GAP * (count - 1)) / count;
   const paneH = innerH;
+  // Dentro il modulo le zone da toccare sono piu' larghe: sul telefono il
+  // disegno e' largo tre dita, e una fascia da 26 su 600 diventava un
+  // bersaglio di un paio di millimetri. Mai oltre un terzo dell'anta, se no
+  // al centro non resterebbe spazio per cambiare il tipo.
+  const Z = inline ? Math.min(60, paneW / 3.5) : ZONE;
   const getPX = (i) => FRAME + i * (paneW + GAP);
   const getPY = () => FRAME;
 
@@ -195,7 +200,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
       return (
         <rect
           key={chiave}
-          x={px+ZONE} y={y0} width={Math.max(0, pw-ZONE*2)} height={Math.max(0, y1-y0)}
+          x={px+Z} y={y0} width={Math.max(0, pw-Z*2)} height={Math.max(0, y1-y0)}
           fill={hov ? 'rgba(59,130,246,0.08)' : 'transparent'}
           rx="4"
           style={{ cursor: 'pointer' }}
@@ -205,12 +210,12 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
         />
       );
     };
-    if (!dueParti(i)) return zona('centro', py+ZONE, py+ph-ZONE, 'sotto');
+    if (!dueParti(i)) return zona('centro', py+Z, py+ph-Z, 'sotto');
     const yT = py + ph * quotaTraverso(i);
     return (
       <>
-        {zona('sopra', py+ZONE, yT-4, 'sopra')}
-        {zona('sotto', yT+4, py+ph-ZONE, 'sotto')}
+        {zona('sopra', py+Z, yT-4, 'sopra')}
+        {zona('sotto', yT+4, py+ph-Z, 'sotto')}
       </>
     );
   };
@@ -237,7 +242,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
     if (dueParti(i)) {
       // Col traverso: bordo sinistro e destro di ciascuna parte.
       const yT = py + ph * quotaTraverso(i);
-      const parti = [['sopra', py + ZONE / 2, yT - 4], ['sotto', yT + 4, py + ph - ZONE / 2]];
+      const parti = [['sopra', py + Z / 2, yT - 4], ['sotto', yT + 4, py + ph - Z / 2]];
       return parti.flatMap(([parte, y0, y1]) => ['left', 'right'].map((edge) => {
         const chiave = `${parte}-${edge}`;
         const sel = edgeParte(i, parte) === edge;
@@ -245,7 +250,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
         return (
           <rect
             key={chiave}
-            x={edge === 'left' ? px : px + pw - ZONE} y={y0} width={ZONE} height={Math.max(0, y1 - y0)}
+            x={edge === 'left' ? px : px + pw - Z} y={y0} width={Z} height={Math.max(0, y1 - y0)}
             fill={sel ? 'rgba(59,130,246,0.32)' : hov ? 'rgba(59,130,246,0.14)' : 'transparent'}
             stroke={sel ? 'rgba(59,130,246,0.75)' : hov ? 'rgba(59,130,246,0.4)' : 'transparent'}
             strokeWidth="1.5"
@@ -259,10 +264,10 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
       }));
     }
     const zones = [
-      { edge: 'top',    x: px+ZONE,    y: py,         w: pw-ZONE*2, h: ZONE },
-      { edge: 'bottom', x: px+ZONE,    y: py+ph-ZONE, w: pw-ZONE*2, h: ZONE },
-      { edge: 'left',   x: px,         y: py+ZONE,    w: ZONE,      h: ph-ZONE*2 },
-      { edge: 'right',  x: px+pw-ZONE, y: py+ZONE,    w: ZONE,      h: ph-ZONE*2 },
+      { edge: 'top',    x: px+Z,    y: py,         w: pw-Z*2, h: Z },
+      { edge: 'bottom', x: px+Z,    y: py+ph-Z, w: pw-Z*2, h: Z },
+      { edge: 'left',   x: px,         y: py+Z,    w: Z,      h: ph-Z*2 },
+      { edge: 'right',  x: px+pw-Z, y: py+Z,    w: Z,      h: ph-Z*2 },
     ];
     const current = getEdge(i);
     return zones.map(z => {

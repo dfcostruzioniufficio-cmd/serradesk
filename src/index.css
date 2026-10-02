@@ -101,6 +101,17 @@ html {
   }
 }
 
+/* Sull'iPhone un campo con il testo sotto i 16px fa ingrandire la pagina
+   appena lo tocchi, e poi va rimessa a posto con due dita: su un telefono,
+   a ogni misura. Sotto i 768px tutti i campi stanno a 16px. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @media print {
   @page {
     margin: 0;
