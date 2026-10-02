@@ -563,7 +563,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const isBlindata = newItem.apertura?.toLowerCase() === 'porta blindata';
       // Cassonetto e tapparella non hanno vetro: la riga "Vetro: ..." nel PDF
       // non c'entra, come gia' per persiane e blindate.
-      const isCassonetto = SENZA_VETRO.includes(newItem.apertura);
+      const senzaVetro = SENZA_VETRO.includes(newItem.apertura);
       const specs = { ...(sistemaCam?.specs || {}) };
 
       const newItemObj = {
@@ -601,7 +601,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         sistema_cam: sistemaCam,
         colInt: coloreInfisso(newItem) || specs.colInt || '', colEst: coloreInfisso(newItem) || specs.colEst || '',
         accessori: newItem.accessoriColore || specs.accessori || '', serrature: specs.serrature || '',
-        vetro: (isPersiana || isBlindata || isCassonetto) ? '' : newItem.vetro,
+        vetro: (isPersiana || isBlindata || senzaVetro) ? '' : newItem.vetro,
         colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''), colCanalina: (isPersiana || isBlindata) ? '' : (specs.colCanalina || ''),
         colCoperture: specs.colCoperture || '',
         telaioFisso: specs.telaioFisso || (sistemaCam?.telaio_std?.codice) || '',
@@ -610,7 +610,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // misure, ante, traverso e sopraluce di QUESTO articolo. Prima qui
         // finiva la trasmittanza del solo telaio (Uf) presa dal sistema.
         trasmittanza: formattaUw(calcolaUw(newItem, sistemiCam).uw),
-        description1: (newItem.vetro && !isPersiana && !isBlindata && !isCassonetto) ? `Vetro: ${newItem.vetro}` : '',
+        description1: (newItem.vetro && !isPersiana && !isBlindata && !senzaVetro) ? `Vetro: ${newItem.vetro}` : '',
         description2: desc2,
         description3: isBlindata ? 'Porta Blindata di Sicurezza' : [newItem.marca, sistemaCam?.nome].filter(Boolean).join(' - '),
         // La configurazione delle ante va anche qui: cambio profilo e prezzo
