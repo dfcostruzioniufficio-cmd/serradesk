@@ -82,10 +82,15 @@ export default function PreventiviPage() {
     return () => observer.disconnect();
   }, [p.items, p.clientName]); // Re-observe when items change just in case
 
+  // L'ascolto della guida si registra una volta sola: senza un riferimento
+  // sempre aggiornato chiamerebbe lo scegliTipo del primo render, che crede
+  // di essere gia' su Serramento e salta il ricalcolo del prezzo.
+  const preventivoRef = useRef(p);
+  preventivoRef.current = p;
   useEffect(() => {
     // I passi della guida stanno nella scheda Serramento: partendo da
     // Complemento o Voce libera non troverebbe niente da mostrare.
-    const handleStartTour = () => { p.scegliTipo('window'); setRunTour(true); };
+    const handleStartTour = () => { preventivoRef.current.scegliTipo('window'); setRunTour(true); };
     window.addEventListener('start-tour', handleStartTour);
     return () => window.removeEventListener('start-tour', handleStartTour);
   }, []);
