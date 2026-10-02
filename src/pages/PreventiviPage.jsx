@@ -83,7 +83,9 @@ export default function PreventiviPage() {
   }, [p.items, p.clientName]); // Re-observe when items change just in case
 
   useEffect(() => {
-    const handleStartTour = () => setRunTour(true);
+    // I passi della guida stanno nella scheda Serramento: partendo da
+    // Complemento o Voce libera non troverebbe niente da mostrare.
+    const handleStartTour = () => { p.scegliTipo('window'); setRunTour(true); };
     window.addEventListener('start-tour', handleStartTour);
     return () => window.removeEventListener('start-tour', handleStartTour);
   }, []);

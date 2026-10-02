@@ -24,7 +24,7 @@ export default function ItemsList({
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6">
+    <div id="tour-elenco" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6">
       <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Lista Articoli ({items.length})</h2>
       
       {items.length === 0 ? (

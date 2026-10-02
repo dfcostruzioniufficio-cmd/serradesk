@@ -9,6 +9,17 @@ body {
   overflow-x: hidden;
 }
 
+/* "hidden" su un asse trasforma il body in un contenitore che scorre anche
+   sull'altro, ma a scorrere davvero e' la pagina: la guida interattiva
+   scorreva il body, non succedeva niente, e i passi in basso restavano fuori
+   dallo schermo col fumetto a mezz'aria. "clip" taglia lo stesso quello che
+   sborda di lato senza farne un contenitore. */
+@supports (overflow-x: clip) {
+  body {
+    overflow-x: clip;
+  }
+}
+
 html {
   scroll-behavior: smooth;
 }

@@ -232,7 +232,7 @@ export default function ItemConfigurator({
         <div className="space-y-6">
 
           {/* ── 1. Uguale per tutto il preventivo ── */}
-          <section id="tour-step-3">
+          <section id="tour-comuni">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Uguale per tutto il preventivo</p>
             {!comuniAperti ? (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm">
@@ -376,7 +376,7 @@ export default function ItemConfigurator({
           </section>
 
           {/* ── 2. Che cosa è ── */}
-          <section id="tour-step-1">
+          <section id="tour-tipo">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Che cosa è</p>
             <div className="flex flex-wrap gap-2">
               {MODELLI_RAPIDI.map((m) => (
@@ -430,13 +430,13 @@ export default function ItemConfigurator({
           </section>
 
           {/* ── 3. Misure ── */}
-          <section>
+          <section id="tour-misure">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Misure</p>
             {/* Campi a larghezza fissa che vanno a capo insieme: in una griglia
                 a colonne uguali, col prezzo base in piu', le etichette andavano
                 a capo una si' e una no e i campi si sfalsavano. */}
             <div className="flex flex-wrap gap-3 items-end [&>div]:shrink-0">
-              <div id="tour-step-2" className="w-32">
+              <div className="w-32">
                 <Label className="font-semibold text-gray-700">Larghezza (mm)</Label>
                 <Input data-prima-misura data-misura="larghezza" type="number" inputMode="numeric" value={newItem.width} onChange={e => updateItemField('width', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
               </div>
@@ -461,7 +461,7 @@ export default function ItemConfigurator({
                   else updateItemField('unitPrice', valore);
                 }} className="mt-1.5 h-11 rounded-xl font-bold text-green-700 bg-green-50 border-green-200" />
               </div>
-              <div id="tour-step-4" className="flex gap-2">
+              <div id="tour-aggiungi" className="flex gap-2">
                 {editingIndex !== null && (
                   <Button onClick={handleCancelEdit} variant="outline" className="border-gray-200 text-gray-600 hover:bg-gray-50 h-11 px-4 rounded-xl font-semibold">
                     Annulla
@@ -495,7 +495,7 @@ export default function ItemConfigurator({
           </section>
 
           {/* ── Disegno: ante, maniglie, traverso, sopraluce, vetro di questo pezzo ── */}
-          <section className="rounded-xl border border-gray-100 bg-gray-50/40 p-4 space-y-4">
+          <section id="tour-disegno" className="rounded-xl border border-gray-100 bg-gray-50/40 p-4 space-y-4">
             {!newItem.composto && CON_DISEGNO.includes(newItem.apertura) && aggiornaAnte && (
               <WindowConfigurator
                 inline
@@ -989,7 +989,7 @@ export default function ItemConfigurator({
       {/* Sul serramento il pulsante sta nella riga delle misure, dove arriva
           l'Invio; qui resta per gli altri tipi di articolo. */}
       {itemType !== 'window' && (
-      <div id="tour-step-4" className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
+      <div id="tour-aggiungi" className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
         {editingIndex !== null && (
           <Button onClick={handleCancelEdit} variant="outline" className="border-gray-200 text-gray-600 hover:bg-gray-50 h-11 px-6 rounded-xl font-semibold">
             Annulla

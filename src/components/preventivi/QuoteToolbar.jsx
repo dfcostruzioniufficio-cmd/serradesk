@@ -49,6 +49,14 @@ export default function QuoteToolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 rounded-xl border-slate-100 shadow-xl p-2">
+            {/* Sul telefono il pulsante Guida qui accanto non c'e' (manca lo
+                spazio): senza questa voce la guida non si poteva avviare. */}
+            <DropdownMenuItem
+              onClick={() => window.dispatchEvent(new CustomEvent('start-tour'))}
+              className="md:hidden text-slate-700 focus:bg-slate-50 p-3 rounded-lg cursor-pointer flex items-center gap-2 mb-1"
+            >
+              <HelpCircle size={16} /> Guida
+            </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={() => {
                 if (window.confirm("Vuoi davvero svuotare il preventivo e crearne uno nuovo? I dati non salvati andranno persi.")) {
@@ -80,7 +88,7 @@ export default function QuoteToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div id="tour-step-5" className="flex items-center gap-3">
+        <div id="tour-salva" className="flex items-center gap-3">
           <Button 
             onClick={() => onSave()} 
             variant="outline"

@@ -14,36 +14,53 @@ export default function InteractiveGuide({ run, setRun }) {
         </div>
       ),
       placement: 'center',
-      disableBeacon: true,
     },
+    // I passi seguono la pagina dall'alto in basso, come la si compila.
+    // Prima saltavano dal tipo alle misure e poi di nuovo su al profilo, e
+    // parlavano di una schermata che non c'e' piu'.
     {
-      target: '#tour-step-1',
-      content: '1. Scegli qui il tipo di infisso (es. Finestra a 2 ante, Scorrevole, ecc).',
+      target: '#tour-comuni',
+      content: 'Prima di tutto profilo, colore e vetri. Valgono per tutto il preventivo: li scegli una volta, premi "Fatto" e diventano una riga sola. Il vetro dei balconi va da solo sui serramenti alti da 2 metri in su.',
       placement: 'bottom',
     },
     {
-      target: '#tour-step-2',
-      content: '2. Inserisci le Misure (Larghezza e Altezza) e scegli la colorazione.',
-      placement: 'top',
-    },
-    {
-      target: '#tour-step-3',
-      content: '3. Seleziona il Profilo (Alluminio/PVC) e il Vetro.',
-      placement: 'top',
-    },
-    {
-      target: '#tour-step-4',
-      content: '4. Fatto? Clicca su "Aggiungi al Preventivo" per calcolare il prezzo istantaneamente.',
-      placement: 'top',
-    },
-    {
-      target: '#tour-step-5',
-      content: '5. Da qui puoi salvare l\'ordine in cloud o scaricare il PDF pronto per il tuo cliente con il tuo logo!',
+      target: '#tour-tipo',
+      content: 'Scegli che cosa è: 1 anta, 2 ante, porta finestra, scorrevole… Le misure già scritte non si toccano. Per gli altri modelli c\'è "Altri modelli".',
       placement: 'bottom',
+    },
+    {
+      target: '#tour-misure',
+      content: 'Larghezza, Invio, altezza, Invio, quantità, Invio, e un altro Invio aggiunge la finestra. Il prezzo lo calcola dall\'archivio; se serve lo correggi nel totale.',
+      placement: 'top',
+    },
+    {
+      target: '#tour-disegno',
+      content: 'Tocca il centro di un\'anta per scegliere come si apre (battente, fissa, ribalta, vasistas) e un bordo per spostare la maniglia. Qui ci sono anche traverso, sopraluce e il vetro di questo serramento.',
+      placement: 'top',
+    },
+    {
+      target: '#tour-aggiungi',
+      content: 'Aggiungi: il serramento entra nel preventivo e il modulo riparte da zero per il prossimo. Due finestre uguali? Alza la quantità invece di aggiungerle due volte.',
+      placement: 'top',
+    },
+    {
+      target: '#tour-elenco',
+      content: 'Qui trovi gli articoli aggiunti: con l\'ingranaggio li modifichi, con le due pagine ne duplichi uno per farne uno simile, col cestino lo togli.',
+      placement: 'top',
+    },
+    {
+      target: '#tour-salva',
+      content: 'Fatto! Salva il preventivo in archivio o scarica il PDF da mandare al cliente, col tuo logo.',
+      placement: 'top',
     }
   ]);
 
-  const handleJoyrideCallback = (data) => {
+  // react-joyride 3 ha cambiato i nomi: callback e' diventato onEvent, e
+  // colori, progresso, pulsanti e scorrimento stanno in "options". Con i
+  // nomi della versione 2 quelle impostazioni venivano ignorate in silenzio:
+  // niente "Salta guida", niente contatore dei passi, e la fine della guida
+  // non veniva mai segnata, quindi ripartiva a ogni visita.
+  const handleEvent = (data) => {
     const { status } = data;
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
     
@@ -55,30 +72,32 @@ export default function InteractiveGuide({ run, setRun }) {
 
   return (
     <Joyride
-      callback={handleJoyrideCallback}
+      onEvent={handleEvent}
       continuous={true}
       run={run}
       scrollToFirstStep={true}
-      showProgress={true}
-      showSkipButton={true}
       steps={steps}
+      options={{
+        zIndex: 10000,
+        primaryColor: '#0f172a', // slate-900 (primary)
+        textColor: '#334155', // slate-700
+        backgroundColor: '#ffffff',
+        arrowColor: '#ffffff',
+        overlayColor: 'rgba(0, 0, 0, 0.6)',
+        showProgress: true,
+        buttons: ['back', 'skip', 'primary'],
+        // Respiro sopra il riquadro evidenziato: a filo, la scritta in cima
+        // alla sezione finiva tagliata.
+        scrollOffset: 120,
+        spotlightPadding: 8,
+        skipBeacon: true,
+      }}
       styles={{
-        options: {
-          zIndex: 10000,
-          primaryColor: '#0f172a', // slate-900 (primary)
-          textColor: '#334155', // slate-700
-          backgroundColor: '#ffffff',
-          arrowColor: '#ffffff',
-          overlayColor: 'rgba(0, 0, 0, 0.6)',
-        },
-        buttonClose: {
-          display: 'none',
-        },
         buttonSkip: {
           color: '#64748b',
           fontWeight: 600,
         },
-        buttonNext: {
+        buttonPrimary: {
           backgroundColor: '#0f172a',
           borderRadius: '8px',
           fontWeight: 600,
@@ -98,7 +117,8 @@ export default function InteractiveGuide({ run, setRun }) {
         close: 'Chiudi',
         last: 'Fine',
         next: 'Avanti',
-        skip: 'Salta Guida',
+        nextWithProgress: 'Avanti ({current} di {total})',
+        skip: 'Salta guida',
       }}
     />
   );
