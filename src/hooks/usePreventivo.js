@@ -549,11 +549,20 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
     setItems(newItemsList);
     setEditingIndex(null);
-    // Il modulo resta compilato apposta, per ripartire dalla misura. Le note
-    // no: riguardano un pezzo solo, e lasciate li' si sarebbero ricopiate su
-    // tutti i serramenti aggiunti dopo, fino al cliente. Il duplica le
-    // riporta lo stesso, perche' ricarica l'articolo intero.
-    setNewItem((prev) => (prev.noteArticolo ? { ...prev, noteArticolo: '' } : prev));
+    // Profilo, colore, vetro e tipo restano: il serramento dopo di solito e'
+    // dello stesso lavoro. Si svuota invece tutto cio' che e' di quel pezzo
+    // solo. Le misure, perche' due finestre uguali sono una riga con quantita'
+    // 2, non due righe: lasciate li' bastava un Invio di troppo per
+    // aggiungerle doppie. La quantita', se no la finestra dopo partiva da 4.
+    // La quadratura forzata, se no il prezzo della successiva si calcolava
+    // sui m² di quella prima. Le note, se no si ricopiavano su tutti i
+    // serramenti aggiunti dopo, fino al cliente. Il duplica riporta tutto lo
+    // stesso, perche' ricarica l'articolo intero.
+    if (itemType === 'window' || itemType === 'complemento') {
+      setNewItem((prev) => ({ ...prev, width: '', height: '', quantity: 1, manualMq: '', noteArticolo: '' }));
+    } else {
+      setNewItem((prev) => (prev.noteArticolo ? { ...prev, noteArticolo: '' } : prev));
+    }
     // Dice a chi chiama che l'articolo e' entrato davvero: i controlli qui
     // sopra escono con return secco, e il modulo deve sapere se rimettere il
     // cursore sulla larghezza o lasciare l'utente sull'errore.

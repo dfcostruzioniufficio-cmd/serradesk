@@ -174,7 +174,10 @@ export default function ItemConfigurator({
             )}
           </div>
 
-          {showAdvanced && newItem.sistemaCamId && !['Cassonetto', 'Tapparella', 'Porta Blindata'].includes(newItem.apertura) && (
+          {/* Il vetro sta sempre in vista: cambia spesso fra finestre e
+              balconi. Prima compariva solo con le opzioni avanzate, e
+              comparendo spingeva giu' e rimescolava tutti i campi sotto. */}
+          {newItem.sistemaCamId && !['Cassonetto', 'Tapparella', 'Porta Blindata'].includes(newItem.apertura) && (
             <div className="col-span-4 md:col-span-2">
               <Label className="text-emerald-700 font-bold">Vetro {newItem.hasTraverso ? '(Superiore)' : ''}</Label>
               <select 
@@ -250,32 +253,6 @@ export default function ItemConfigurator({
             </div>
           </div>
 
-          {showAdvanced && (
-            <div className="col-span-2 md:col-span-2">
-              <Label className="font-semibold text-gray-700">Colore Accessori (Maniglie/Cerniere)</Label>
-              <div className="relative mt-1.5 flex items-center">
-                <Input 
-                  type="text" 
-                  value={newItem.accessoriColore || ''} 
-                  onChange={e => {
-                    updateItemField('accessoriColore', e.target.value);
-                    updateItemField('previewAccessoriColor', null);
-                  }} 
-                  placeholder="Es. Argento, Cromo sat., Bronzo..."
-                  className="h-11 rounded-xl pr-10"
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded overflow-hidden border border-gray-300 shadow-sm">
-                  <input 
-                    type="color" 
-                    value={newItem.previewAccessoriColor || getAccessoriHex(newItem.accessoriColore)}
-                    onChange={e => updateItemField('previewAccessoriColor', e.target.value)} 
-                    className="w-10 h-10 -translate-x-2 -translate-y-2 cursor-pointer"
-                    title="Personalizza colore accessori 3D"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="col-span-2 md:col-span-2">
             <Label className="font-semibold text-gray-700">Apertura</Label>
@@ -365,7 +342,7 @@ export default function ItemConfigurator({
               onClick={() => setShowAdvanced(!showAdvanced)}
               className="text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-800 bg-white border border-gray-200 rounded-full px-4 py-1.5 mx-4 shadow-sm transition-all flex items-center gap-2"
             >
-              {showAdvanced ? '− Nascondi Opzioni Avanzate' : '+ Mostra Opzioni Avanzate (Vetri, Accessori, Traversi...)'}
+              {showAdvanced ? '− Nascondi Opzioni Avanzate' : '+ Mostra Opzioni Avanzate (Accessori, Traversi, Sopraluce...)'}
             </button>
             <div className="h-px bg-gray-200 flex-1"></div>
           </div>
@@ -374,6 +351,33 @@ export default function ItemConfigurator({
             <>
               {/* Opzioni Aggiuntive */}
               <div className="col-span-4 bg-gray-50/50 rounded-xl p-4 border border-gray-100 space-y-4">
+                {/* Gli accessori stavano in mezzo ai campi di sopra: aprendo le
+                    opzioni avanzate si spostava tutto. Ora le opzioni si
+                    aggiungono solo qui sotto. */}
+            <div className="max-w-md">
+              <Label className="font-semibold text-gray-700">Colore Accessori (Maniglie/Cerniere)</Label>
+              <div className="relative mt-1.5 flex items-center">
+                <Input 
+                  type="text" 
+                  value={newItem.accessoriColore || ''} 
+                  onChange={e => {
+                    updateItemField('accessoriColore', e.target.value);
+                    updateItemField('previewAccessoriColor', null);
+                  }} 
+                  placeholder="Es. Argento, Cromo sat., Bronzo..."
+                  className="h-11 rounded-xl pr-10"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded overflow-hidden border border-gray-300 shadow-sm">
+                  <input 
+                    type="color" 
+                    value={newItem.previewAccessoriColor || getAccessoriHex(newItem.accessoriColore)}
+                    onChange={e => updateItemField('previewAccessoriColor', e.target.value)} 
+                    className="w-10 h-10 -translate-x-2 -translate-y-2 cursor-pointer"
+                    title="Personalizza colore accessori 3D"
+                  />
+                </div>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-4">
               {/* Il menu "Apertura anta" (battente, anta-ribalta, vasistas per
                   tutta la finestra) non c'e' piu': come si apre ogni anta si
