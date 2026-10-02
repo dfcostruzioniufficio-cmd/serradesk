@@ -627,27 +627,24 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
     setItems(newItemsList);
     setEditingIndex(null);
-    // Profilo, colore, vetro e tipo restano: il serramento dopo di solito e'
-    // dello stesso lavoro. Si svuota invece tutto cio' che e' di quel pezzo
-    // solo. Le misure, perche' due finestre uguali sono una riga con quantita'
-    // 2, non due righe: lasciate li' bastava un Invio di troppo per
-    // aggiungerle doppie. La quantita', se no la finestra dopo partiva da 4.
-    // La quadratura forzata, se no il prezzo della successiva si calcolava
-    // sui m² di quella prima. Le note, se no si ricopiavano su tutti i
-    // serramenti aggiunti dopo, fino al cliente. Il duplica riporta tutto lo
-    // stesso, perche' ricarica l'articolo intero.
-    if (itemType === 'window' || itemType === 'complemento') {
-      // Sul composto si svuotano anche le misure dei moduli: sono del pezzo
-      // come l'ingombro, e lasciate li' passerebbero il controllo dei due
-      // moduli anche su un composto diverso. Apertura e ante restano.
-      // Il vetro scelto a mano era di quel pezzo: il prossimo riparte dai
-      // vetri del preventivo.
-      setNewItem((prev) => vetroAutomatico({
-        ...prev, width: '', height: '', quantity: 1, manualMq: '', noteArticolo: '', vetroScelto: false,
-        ...(Array.isArray(prev.moduli) && prev.moduli.length
-          ? { moduli: prev.moduli.map((m) => ({ ...m, larghezza: '', altezza: '' })) }
-          : {}),
-      }, sistemiCam));
+    // Profilo, colore e vetro restano: il serramento dopo e' dello stesso
+    // lavoro. Tutto cio' che e' di quel pezzo solo si svuota. Le misure,
+    // perche' due finestre uguali sono una riga con quantita' 2, non due
+    // righe: lasciate li' bastava un Invio di troppo per aggiungerle doppie.
+    // La quantita', se no la finestra dopo partiva da 4. La quadratura
+    // forzata, se no il prezzo della successiva si calcolava sui m² di quella
+    // prima. Le note, se no si ricopiavano su tutti i serramenti dopo, fino al
+    // cliente. Chi vuole ripartire da un pezzo uguale usa il duplica, che
+    // ricarica l'articolo intero.
+    if (itemType === 'window') {
+      // Il serramento dopo riparte da zero: 1 anta battente, niente
+      // traverso, ante, maniglione o composto del pezzo appena aggiunto.
+      // Restano solo le scelte del preventivo (moduloPulito).
+      azzeraModulo();
+    } else if (itemType === 'complemento') {
+      // Sui complementi tipo, materiale e manovra restano: di solito sono
+      // cinque zanzariere uguali di misure diverse.
+      setNewItem((prev) => ({ ...prev, width: '', height: '', quantity: 1, manualMq: '', noteArticolo: '' }));
     } else {
       setNewItem((prev) => (prev.noteArticolo ? { ...prev, noteArticolo: '' } : prev));
     }
@@ -655,6 +652,41 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     // sopra escono con return secco, e il modulo deve sapere se rimettere il
     // cursore sulla larghezza o lasciare l'utente sull'errore.
     return true;
+  };
+
+  /**
+   * Il modulo vuoto per il serramento successivo. Tutto cio' che e' del pezzo
+   * torna come all'inizio: 1 anta battente, misure vuote, niente traverso,
+   * sopraluce, ante asimmetriche, maniglione, composto, note. Restano le
+   * scelte del preventivo: profilo, marca, colori, i due vetri e il prezzo
+   * base di chi lavora senza profilo.
+   *
+   * Resta anche il vetro: chi non usa i vetri del preventivo lo sceglie sul
+   * primo serramento e lo ritrova sugli altri. Azzerandolo, il serramento
+   * dopo usciva senza vetro, e piu' economico, senza che nessuno lo notasse.
+   * Con i vetri del preventivo accesi lo rimette la regola (vetroAutomatico).
+   */
+  const moduloPulito = (prev) => vetroAutomatico({
+    ...defaultNewItem,
+    unitPrice: '',
+    sistemaCamId: prev.sistemaCamId || '', calcType: prev.calcType || 'mq',
+    basePrice: prev.basePrice, isManualBasePrice: !!prev.isManualBasePrice,
+    marca: prev.marca || '', frameColor: prev.frameColor, colorName: prev.colorName || '',
+    previewColor: prev.previewColor || null, accessoriColore: prev.accessoriColore || '',
+    previewAccessoriColor: prev.previewAccessoriColor || null,
+    vetroFinestreId: prev.vetroFinestreId || '', vetroBalconiId: prev.vetroBalconiId || '',
+    vetroId: prev.vetroId || '', vetro: prev.vetro || '', vetroUg: prev.vetroUg || '',
+    vetroScelto: false,
+    ...(prev.fermavetro ? { fermavetro: prev.fermavetro } : {}),
+  }, sistemiCam);
+
+  // Anche il disegno: se il pezzo prima era gia' a 1 anta, il numero di ante
+  // non cambia e le ante non si rifarebbero da sole (una fissa restava fissa).
+  const azzeraModulo = () => {
+    const ante = [{ handleEdge: 'right' }];
+    paneConfigsRef.current = ante;
+    setPaneConfigs(ante);
+    setNewItem((prev) => moduloPulito(prev));
   };
 
   /**
@@ -728,15 +760,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // pezzo, e sparendo il serramento dopo usciva senza profilo e senza vetri.
   const handleCancelEdit = () => {
     setEditingIndex(null);
-    setNewItem((prev) => vetroAutomatico({
-      ...defaultNewItem,
-      sistemaCamId: prev.sistemaCamId || '', calcType: prev.calcType || 'mq',
-      basePrice: prev.basePrice, isManualBasePrice: !!prev.isManualBasePrice,
-      marca: prev.marca || '', frameColor: prev.frameColor, colorName: prev.colorName || '',
-      previewColor: prev.previewColor || null, accessoriColore: prev.accessoriColore || '',
-      previewAccessoriColor: prev.previewAccessoriColor || null,
-      vetroFinestreId: prev.vetroFinestreId || '', vetroBalconiId: prev.vetroBalconiId || '',
-    }, sistemiCam));
+    azzeraModulo();
   };
 
   const removeItem = (indexToRemove) => {
