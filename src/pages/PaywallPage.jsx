@@ -164,6 +164,25 @@ export default function PaywallPage() {
           ))}
         </div>
 
+        {/* Chi si iscrive non ha giorni di prova: senza un modo per scriverci,
+            davanti ai prezzi chiudeva la pagina e non si sentiva piu' (due
+            iscritti di settembre, zero preventivi). La mail e non un numero
+            di telefono: si risponde quando si puo', non la domenica mattina.
+            Nella mail c'e' gia' l'indirizzo con cui si e' iscritto, cosi' si
+            sa subito chi e'. */}
+        <div className="mt-16 max-w-2xl mx-auto w-full text-center rounded-2xl border border-white/10 bg-white/5 px-6 py-8">
+          <p className="text-xl font-bold">Vuoi vederlo all&#39;opera prima di abbonarti?</p>
+          <p className="text-gray-400 mt-2">
+            Scrivici: ti rispondiamo e ti mostriamo come funziona con i tuoi profili e i tuoi prezzi.
+          </p>
+          <a
+            href={`mailto:info@serradesk.it?subject=${encodeURIComponent('Informazioni su SerraDesk')}&body=${encodeURIComponent(`Buongiorno,\nmi sono iscritto a SerraDesk${userProfile?.email ? ` con l'indirizzo ${userProfile.email}` : ''} e vorrei qualche informazione.\n\n`)}`}
+            className="inline-block mt-5 font-bold text-blue-300 hover:text-white underline underline-offset-4 decoration-blue-400/50 text-lg"
+          >
+            info@serradesk.it
+          </a>
+        </div>
+
       </div>
     </div>
   );
