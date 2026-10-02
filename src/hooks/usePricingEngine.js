@@ -76,6 +76,15 @@ function mqConMinimiAnte(item, mq) {
 }
 
 /**
+ * Gli articoli che il vetro non ce l'hanno. Il loro vetroId pero' poteva
+ * restare pieno, ereditato dalla finestra configurata prima nello stesso
+ * modulo: il prezzo sommava quel vetro, e il PDF non lo scriveva. La Uw li
+ * esclude gia' (utils/trasmittanza.js); il prezzo li esclude qui, cosi' vale
+ * per ogni strada che ricalcola: modulo, cambio profilo, quadratura forzata.
+ */
+export const SENZA_VETRO = ['Persiana', 'Persiana Balcone', 'Porta Blindata', 'Cassonetto', 'Tapparella'];
+
+/**
  * Calcola il prezzo unitario per un serramento in base al tipo di calcolo.
  */
 export function calculateWindowPrice(item, sistemiCam) {
@@ -91,14 +100,15 @@ export function calculateWindowPrice(item, sistemiCam) {
   if (sysProfilo && !isOverride) {
     const baseProfilo = Number(sysProfilo.base_price) || 0;
     let baseVetro = 0;
+    const conVetro = !SENZA_VETRO.includes(item.apertura);
 
-    if (item.vetroId && item.vetroId !== 'custom') {
+    if (conVetro && item.vetroId && item.vetroId !== 'custom') {
       const v = sistemiCam.find(s => s.id === item.vetroId);
       if (v) baseVetro = Number(v.base_price) || 0;
     }
 
     let baseVetroInferiore = baseVetro;
-    if (item.hasTraverso && item.vetroInferioreId && item.vetroInferioreId !== 'custom') {
+    if (conVetro && item.hasTraverso && item.vetroInferioreId && item.vetroInferioreId !== 'custom') {
       const vInf = sistemiCam.find(s => s.id === item.vetroInferioreId);
       if (vInf) baseVetroInferiore = Number(vInf.base_price) || 0;
     }

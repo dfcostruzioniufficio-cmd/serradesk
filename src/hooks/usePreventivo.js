@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
-import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq, anteApribili } from './usePricingEngine';
+import { calculateWindowPrice, calculateQuoteSummary, syncFrameColor, calculateItemMq, anteApribili, SENZA_VETRO } from './usePricingEngine';
+
+export { SENZA_VETRO };
 import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { descriviComposto, moduliValidi } from '../utils/composto';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
@@ -101,19 +103,14 @@ const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
  * vetro, e prezzo, da soli. Persiane, blindate e cassonetti non hanno vetro.
  */
 export const ALTEZZA_BALCONE_MM = 2000;
-export const SENZA_VETRO = ['Persiana', 'Persiana Balcone', 'Porta Blindata', 'Cassonetto', 'Tapparella'];
 export const vetroAutomatico = (item, sistemiCam) => {
   // Senza profilo i menu dei vetri non si vedono: un vetro messo da qui
   // finirebbe nel PDF senza che lo si possa vedere o togliere.
   if (!item || !item.sistemaCamId) return item;
-  const regolaAttiva = !!(item.vetroFinestreId || item.vetroBalconiId);
-  // Persiane, blindate e cassonetti il vetro non ce l'hanno, ma il prezzo lo
-  // somma comunque se vetroId e' pieno: passando da una finestra a una
-  // persiana si pagava il vetro della finestra, e il PDF non lo diceva.
-  if (SENZA_VETRO.includes(item.apertura)) {
-    return regolaAttiva && (item.vetroId || item.vetro) ? { ...item, vetroId: '', vetro: '' } : item;
-  }
-  if (item.vetroScelto) return item;
+  // Persiane, blindate e cassonetti: il vetro non c'e', e il prezzo lo
+  // ignora (usePricingEngine). Il campo resta com'e', cosi' tornando a una
+  // finestra si ritrova il vetro che aveva, anche quello scelto a mano.
+  if (item.vetroScelto || SENZA_VETRO.includes(item.apertura)) return item;
   const balcone = Number(item.height) >= ALTEZZA_BALCONE_MM;
   const id = (balcone && item.vetroBalconiId) || item.vetroFinestreId;
   if (!id) return item;
@@ -564,8 +561,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const sistemaCam = sistemiCam.find(s => s.id === newItem.sistemaCamId) || null;
       const isPersiana = newItem.apertura.toLowerCase().includes('persiana');
       const isBlindata = newItem.apertura?.toLowerCase() === 'porta blindata';
-      // Il cassonetto non ha vetro: la riga "Vetro: ..." nel PDF non c'entra.
-      const isCassonetto = newItem.apertura === 'Cassonetto';
+      // Cassonetto e tapparella non hanno vetro: la riga "Vetro: ..." nel PDF
+      // non c'entra, come gia' per persiane e blindate.
+      const isCassonetto = SENZA_VETRO.includes(newItem.apertura);
       const specs = { ...(sistemaCam?.specs || {}) };
 
       const newItemObj = {
@@ -732,9 +730,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     setEditingIndex(null);
     setNewItem((prev) => vetroAutomatico({
       ...defaultNewItem,
-      ...(prev.sistemaCamId ? {
-        sistemaCamId: prev.sistemaCamId, calcType: prev.calcType, basePrice: prev.basePrice,
-      } : {}),
+      sistemaCamId: prev.sistemaCamId || '', calcType: prev.calcType || 'mq',
+      basePrice: prev.basePrice, isManualBasePrice: !!prev.isManualBasePrice,
       marca: prev.marca || '', frameColor: prev.frameColor, colorName: prev.colorName || '',
       previewColor: prev.previewColor || null, accessoriColore: prev.accessoriColore || '',
       previewAccessoriColor: prev.previewAccessoriColor || null,
