@@ -304,7 +304,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // 'composto' entra qui perche' cambia la regola: sul composto i minimi
       // e le maggiorazioni per anta non si applicano. Senza, accendendo la
       // spunta restava il prezzo di prima e la differenza finiva al cliente.
-      if (['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId', 'composto'].includes(field)) {
+      // Solo sui serramenti. Su un complemento il prezzo e' quello al m² (o
+      // fisso) scritto dall'utente: il calcolo da finestra lo sostituiva con
+      // il prezzo del profilo, minimi per anta compresi, appena si toccavano
+      // le misure. Una zanzariera da 25 €/m² usciva a 840 €/m².
+      if (itemType === 'window' && ['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId', 'composto'].includes(field)) {
         // Le ante fisse contano nel prezzo. Cambiando il numero di ante pero'
         // la configurazione viene rifatta da capo, quindi quella vecchia non vale.
         const conAnte = field === 'numAnte' ? updatedItem : { ...updatedItem, paneConfigs: paneConfigsRef.current };
@@ -321,6 +325,23 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
       return updatedItem;
     });
+  };
+
+  /**
+   * Il cambio di tipo dai pulsanti del modulo. Il prezzo da serramento si
+   * ricalcola solo mentre si configura un serramento: se le misure sono
+   * state scritte su un complemento e poi si torna a "Serramento", il prezzo
+   * nel campo e' ancora quello al m² del complemento e va rifatto subito,
+   * prima che l'articolo possa entrare nel preventivo con quello.
+   */
+  const scegliTipo = (tipo) => {
+    if (tipo === 'window' && itemType !== 'window') {
+      setNewItem((prev) => {
+        const { unitPrice, basePrice } = calculateWindowPrice({ ...prev, paneConfigs: paneConfigsRef.current }, sistemiCam);
+        return { ...prev, basePrice, ...(unitPrice ? { unitPrice } : {}) };
+      });
+    }
+    setItemType(tipo);
   };
 
   const handleAddItem = () => {
@@ -559,7 +580,15 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     // serramenti aggiunti dopo, fino al cliente. Il duplica riporta tutto lo
     // stesso, perche' ricarica l'articolo intero.
     if (itemType === 'window' || itemType === 'complemento') {
-      setNewItem((prev) => ({ ...prev, width: '', height: '', quantity: 1, manualMq: '', noteArticolo: '' }));
+      // Sul composto si svuotano anche le misure dei moduli: sono del pezzo
+      // come l'ingombro, e lasciate li' passerebbero il controllo dei due
+      // moduli anche su un composto diverso. Apertura e ante restano.
+      setNewItem((prev) => ({
+        ...prev, width: '', height: '', quantity: 1, manualMq: '', noteArticolo: '',
+        ...(Array.isArray(prev.moduli) && prev.moduli.length
+          ? { moduli: prev.moduli.map((m) => ({ ...m, larghezza: '', altezza: '' })) }
+          : {}),
+      }));
     } else {
       setNewItem((prev) => (prev.noteArticolo ? { ...prev, noteArticolo: '' } : prev));
     }
@@ -742,7 +771,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
   return {
     clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, iva, setIva,
-    items, setItems, itemType, setItemType, editingOrderId, setEditingOrderId,
+    items, setItems, itemType, setItemType, scegliTipo, editingOrderId, setEditingOrderId,
     editingOrderStato, setEditingOrderStato,
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
