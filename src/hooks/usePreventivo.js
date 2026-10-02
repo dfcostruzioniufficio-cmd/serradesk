@@ -101,9 +101,19 @@ const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
  * vetro, e prezzo, da soli. Persiane, blindate e cassonetti non hanno vetro.
  */
 export const ALTEZZA_BALCONE_MM = 2000;
-const SENZA_VETRO = ['Persiana', 'Persiana Balcone', 'Porta Blindata', 'Cassonetto', 'Tapparella'];
+export const SENZA_VETRO = ['Persiana', 'Persiana Balcone', 'Porta Blindata', 'Cassonetto', 'Tapparella'];
 export const vetroAutomatico = (item, sistemiCam) => {
-  if (!item || item.vetroScelto || SENZA_VETRO.includes(item.apertura)) return item;
+  // Senza profilo i menu dei vetri non si vedono: un vetro messo da qui
+  // finirebbe nel PDF senza che lo si possa vedere o togliere.
+  if (!item || !item.sistemaCamId) return item;
+  const regolaAttiva = !!(item.vetroFinestreId || item.vetroBalconiId);
+  // Persiane, blindate e cassonetti il vetro non ce l'hanno, ma il prezzo lo
+  // somma comunque se vetroId e' pieno: passando da una finestra a una
+  // persiana si pagava il vetro della finestra, e il PDF non lo diceva.
+  if (SENZA_VETRO.includes(item.apertura)) {
+    return regolaAttiva && (item.vetroId || item.vetro) ? { ...item, vetroId: '', vetro: '' } : item;
+  }
+  if (item.vetroScelto) return item;
   const balcone = Number(item.height) >= ALTEZZA_BALCONE_MM;
   const id = (balcone && item.vetroBalconiId) || item.vetroFinestreId;
   if (!id) return item;
@@ -554,6 +564,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const sistemaCam = sistemiCam.find(s => s.id === newItem.sistemaCamId) || null;
       const isPersiana = newItem.apertura.toLowerCase().includes('persiana');
       const isBlindata = newItem.apertura?.toLowerCase() === 'porta blindata';
+      // Il cassonetto non ha vetro: la riga "Vetro: ..." nel PDF non c'entra.
+      const isCassonetto = newItem.apertura === 'Cassonetto';
       const specs = { ...(sistemaCam?.specs || {}) };
 
       const newItemObj = {
@@ -591,7 +603,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         sistema_cam: sistemaCam,
         colInt: coloreInfisso(newItem) || specs.colInt || '', colEst: coloreInfisso(newItem) || specs.colEst || '',
         accessori: newItem.accessoriColore || specs.accessori || '', serrature: specs.serrature || '',
-        vetro: (isPersiana || isBlindata) ? '' : newItem.vetro,
+        vetro: (isPersiana || isBlindata || isCassonetto) ? '' : newItem.vetro,
         colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''), colCanalina: (isPersiana || isBlindata) ? '' : (specs.colCanalina || ''),
         colCoperture: specs.colCoperture || '',
         telaioFisso: specs.telaioFisso || (sistemaCam?.telaio_std?.codice) || '',
@@ -600,7 +612,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // misure, ante, traverso e sopraluce di QUESTO articolo. Prima qui
         // finiva la trasmittanza del solo telaio (Uf) presa dal sistema.
         trasmittanza: formattaUw(calcolaUw(newItem, sistemiCam).uw),
-        description1: (newItem.vetro && !isPersiana && !isBlindata) ? `Vetro: ${newItem.vetro}` : '',
+        description1: (newItem.vetro && !isPersiana && !isBlindata && !isCassonetto) ? `Vetro: ${newItem.vetro}` : '',
         description2: desc2,
         description3: isBlindata ? 'Porta Blindata di Sicurezza' : [newItem.marca, sistemaCam?.nome].filter(Boolean).join(' - '),
         // La configurazione delle ante va anche qui: cambio profilo e prezzo
@@ -656,8 +668,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
    */
   const ricarica = (raw, prev) => ({
     ...raw,
-    vetroFinestreId: raw.vetroFinestreId || prev.vetroFinestreId || '',
-    vetroBalconiId: raw.vetroBalconiId || prev.vetroBalconiId || '',
+    vetroFinestreId: prev.vetroFinestreId || raw.vetroFinestreId || '',
+    vetroBalconiId: prev.vetroBalconiId || raw.vetroBalconiId || '',
     vetroScelto: raw.vetroScelto ?? true,
   });
 
@@ -669,6 +681,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const applicaModello = (props) => {
     updateItemFields({ antaRibalta: false, soloRibalta: false });
     azzeraTipiAnte();
+    // Scegliere "2 ante" su un composto non faceva niente di visibile: il
+    // disegno del composto resta nascosto e il prezzo restava d'ingombro.
+    if (newItem.composto) updateItemField('composto', false);
     Object.entries(props).forEach(([chiave, valore]) => {
       if ((chiave === 'width' || chiave === 'height') && Number(newItem[chiave]) > 0) return;
       updateItemField(chiave, valore);
@@ -710,9 +725,21 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     return true;
   };
 
+  // Annullando una modifica si torna a un modulo vuoto, ma le scelte del
+  // preventivo (profilo, colori, vetri) restano: erano del lavoro, non del
+  // pezzo, e sparendo il serramento dopo usciva senza profilo e senza vetri.
   const handleCancelEdit = () => {
     setEditingIndex(null);
-    setNewItem(defaultNewItem);
+    setNewItem((prev) => vetroAutomatico({
+      ...defaultNewItem,
+      ...(prev.sistemaCamId ? {
+        sistemaCamId: prev.sistemaCamId, calcType: prev.calcType, basePrice: prev.basePrice,
+      } : {}),
+      marca: prev.marca || '', frameColor: prev.frameColor, colorName: prev.colorName || '',
+      previewColor: prev.previewColor || null, accessoriColore: prev.accessoriColore || '',
+      previewAccessoriColor: prev.previewAccessoriColor || null,
+      vetroFinestreId: prev.vetroFinestreId || '', vetroBalconiId: prev.vetroBalconiId || '',
+    }, sistemiCam));
   };
 
   const removeItem = (indexToRemove) => {

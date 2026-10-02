@@ -10,7 +10,7 @@ import { isClientePuntoAlluminio } from '../../lib/personalizzazioni';
 import TapparellePreventivoPanel from './TapparellePreventivoPanel';
 import WindowConfigurator from '../WindowConfigurator';
 import { moduloVuoto, larghezzaModuli, superficieModuli, moduliValidi } from '../../utils/composto';
-import { ALTEZZA_BALCONE_MM } from '../../hooks/usePreventivo';
+import { ALTEZZA_BALCONE_MM, SENZA_VETRO } from '../../hooks/usePreventivo';
 
 /**
  * I serramenti che si fanno di piu', a un clic. Dicono solo che cosa e' il
@@ -32,7 +32,9 @@ const RIPULITI = { hasSopraluce: false, anteAsimmetriche: false };
 
 // Le aperture che hanno un disegno su cui scegliere ante e maniglie.
 const CON_DISEGNO = ['Battente', 'Scorrevole', 'Vasistas', 'Bilico', 'Persiana'];
-const SENZA_VETRO = ['Cassonetto', 'Tapparella', 'Porta Blindata'];
+// Dove traverso e sopraluce non hanno senso. Le persiane li possono avere;
+// il vetro no (SENZA_VETRO, la stessa regola che toglie il vetro dal prezzo).
+const SENZA_TRAVERSO = ['Cassonetto', 'Tapparella', 'Porta Blindata'];
 
 export default function ItemConfigurator({
   itemType,
@@ -173,6 +175,27 @@ export default function ItemConfigurator({
     && m.props.apertura === newItem.apertura
     && Number(m.props.numAnte) === Number(newItem.numAnte)
     && !!m.props.hasTraverso === !!newItem.hasTraverso;
+
+  // Il prezzo base: col profilo arriva dall'archivio e si tocca di rado, e
+  // sta in "Altro". Senza profilo e' l'unica leva sul prezzo, e sta accanto
+  // alle misure: nascosto, un utente nuovo vedrebbe 500 €/m² senza sapere
+  // da dove vengono.
+  const mostraPrezzoBase = !isCustomerMode && !isPuntoAlluminio;
+  const campoPrezzoBase = (
+    <div>
+      <Label className="flex justify-between items-center text-xs font-semibold text-gray-700 mb-1.5">
+        Prezzo Base
+        <select value={newItem.calcType} onChange={e => updateItemField('calcType', e.target.value)} className="bg-transparent text-blue-600 font-bold ml-1 outline-none cursor-pointer">
+          <option value="mq">al mq</option>
+          <option value="ml">al ml</option>
+          <option value="fisso">fisso</option>
+          <option value="pz">al pezzo</option>
+        </select>
+      </Label>
+      <Input type="number" step="0.01" value={newItem.basePrice} onChange={e => updateItemField('basePrice', e.target.value.replace(/^0+(?=\d)/, ''))} className="h-11 rounded-xl font-bold text-gray-700" />
+    </div>
+  );
+  const prezzoBaseInRiga = mostraPrezzoBase && !newItem.sistemaCamId;
 
   const classeSelect = 'mt-1.5 flex h-11 w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm hover:border-blue-300 transition-colors';
 
@@ -409,7 +432,7 @@ export default function ItemConfigurator({
           {/* ── 3. Misure ── */}
           <section>
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Misure</p>
-            <div className="grid grid-cols-2 md:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-4 items-end">
+            <div className={`grid grid-cols-2 ${prezzoBaseInRiga ? 'md:grid-cols-[repeat(5,minmax(0,1fr))_auto]' : 'md:grid-cols-[repeat(4,minmax(0,1fr))_auto]'} gap-4 items-end`}>
               <div id="tour-step-2">
                 <Label className="font-semibold text-gray-700">Larghezza (mm)</Label>
                 <Input data-prima-misura data-misura="larghezza" type="number" value={newItem.width} onChange={e => updateItemField('width', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl font-medium" />
@@ -422,6 +445,7 @@ export default function ItemConfigurator({
                 <Label className="font-semibold text-gray-700">Quantità</Label>
                 <Input data-misura="qta" type="number" value={newItem.quantity} onChange={e => updateItemField('quantity', e.target.value.replace(/^0+(?=\d)/, ''))} className="mt-1.5 h-11 rounded-xl" />
               </div>
+              {prezzoBaseInRiga && campoPrezzoBase}
               <div>
                 <Label className="font-semibold text-gray-700">Totale (€)</Label>
                 <Input data-misura="totale" type="number" step="0.01" value={newItem.unitPrice} onChange={e => {
@@ -520,7 +544,7 @@ export default function ItemConfigurator({
               )}
             </div>
 
-            {!SENZA_VETRO.includes(newItem.apertura) && (newItem.hasTraverso || newItem.hasSopraluce) && (
+            {!SENZA_TRAVERSO.includes(newItem.apertura) && (newItem.hasTraverso || newItem.hasSopraluce) && (
               <div className="flex flex-wrap gap-4">
                 {newItem.hasTraverso && (
                   <div className="flex flex-wrap items-center gap-3 bg-white p-2 px-3 rounded-lg border border-gray-200 shadow-sm">
@@ -628,27 +652,14 @@ export default function ItemConfigurator({
                   ))}
                 </span>
               ) : (
-                <span className="text-xs text-gray-400">prezzo base, quadratura a mano, ante asimmetriche, serramento composto{isCustomImageEnabled ? ', foto' : ''}</span>
+                <span className="text-xs text-gray-400">{newItem.sistemaCamId && mostraPrezzoBase ? 'prezzo base, ' : ''}quadratura a mano, ante asimmetriche, serramento composto{isCustomImageEnabled ? ', foto' : ''}</span>
               )}
             </button>
 
             {showAltro && (
               <div className="border-t border-gray-100 p-4 space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                  {!isCustomerMode && !isPuntoAlluminio && (
-                    <div>
-                      <Label className="flex justify-between items-center text-xs font-semibold text-gray-700 mb-1.5">
-                        Prezzo Base
-                        <select value={newItem.calcType} onChange={e => updateItemField('calcType', e.target.value)} className="bg-transparent text-blue-600 font-bold ml-1 outline-none cursor-pointer">
-                          <option value="mq">al mq</option>
-                          <option value="ml">al ml</option>
-                          <option value="fisso">fisso</option>
-                          <option value="pz">al pezzo</option>
-                        </select>
-                      </Label>
-                      <Input type="number" step="0.01" value={newItem.basePrice} onChange={e => updateItemField('basePrice', e.target.value.replace(/^0+(?=\d)/, ''))} className="h-11 rounded-xl font-bold text-gray-700" />
-                    </div>
-                  )}
+                  {mostraPrezzoBase && newItem.sistemaCamId && campoPrezzoBase}
                   <div>
                     <Label className="font-semibold text-gray-700">Quadratura (mq)</Label>
                     <Input type="number" step="0.01" value={newItem.manualMq || ''} onChange={e => updateItemField('manualMq', e.target.value)} placeholder="Auto" className="mt-1.5 h-11 rounded-xl font-medium" />
