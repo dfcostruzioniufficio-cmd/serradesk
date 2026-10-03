@@ -462,6 +462,23 @@ export default function PreventiviPage() {
       return;
     }
 
+    // Partita IVA e indirizzo non si chiedono piu' al primo ingresso (vedi
+    // OnboardingPage): si ricordano qui, prima del primo PDF, perche' li
+    // legge il cliente. Una volta per sessione: chi ha deciso di stampare
+    // senza non va fermato a ogni preventivo.
+    const mancano = [!userSettings?.vat_number && 'la partita IVA', !userSettings?.address && "l'indirizzo"].filter(Boolean);
+    let giaChiesto = false;
+    try { giaChiesto = sessionStorage.getItem('sd_dati_pdf_chiesti') === '1'; } catch { /* niente memoria di sessione */ }
+    if (mancano.length && !giaChiesto) {
+      try { sessionStorage.setItem('sd_dati_pdf_chiesti', '1'); } catch { /* idem */ }
+      const vai = window.confirm(`Nel PDF mancano ${mancano.join(' e ')} della tua azienda, e il cliente li vede in cima al preventivo.\n\nVuoi aggiungerli adesso in Impostazioni? Il preventivo resta salvato.\n\nOK = aggiungo i dati · Annulla = stampo lo stesso`);
+      if (vai) {
+        await handleSaveOrder(true);
+        navigate('/settings');
+        return;
+      }
+    }
+
     // Autosalvataggio nell'archivio ordini
     const isSaved = await handleSaveOrder(true);
     if (isSaved) {
