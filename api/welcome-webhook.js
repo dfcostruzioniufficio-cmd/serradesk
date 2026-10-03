@@ -38,9 +38,16 @@ export default async function handler(req, res) {
   // controllo chiunque poteva chiamare questa pagina e far partire mail a
   // nome di SerraDesk verso indirizzi a caso. Si spedisce solo se l'utente
   // esiste davvero, con quella email, e si e' iscritto da pochi minuti.
+  // Senza queste due variabili non si puo' verificare niente: e' un guasto di
+  // configurazione, non una richiesta da rifiutare, e cosi' si distingue.
+  if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('welcome-webhook: mancano VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY');
+    return res.status(500).json({ error: 'Configurazione mancante' });
+  }
+  const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
   let utente;
   try {
-    const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
     const { data, error } = await supabaseAdmin.auth.admin.getUserById(record.id);
     if (error || !data?.user) throw error || new Error('utente non trovato');
     utente = data.user;
@@ -49,8 +56,24 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Iscrizione non verificata' });
   }
   const minuti = (Date.now() - new Date(utente.created_at).getTime()) / 60000;
-  if ((utente.email || '').toLowerCase() !== String(record.email).toLowerCase() || !(minuti >= 0 && minuti <= MAX_MINUTI)) {
+  // -1 e non 0: l'orologio di Vercel puo' essere un attimo indietro rispetto
+  // al database, e l'iscritto appena creato risulterebbe "dal futuro".
+  if ((utente.email || '').toLowerCase() !== String(record.email).toLowerCase() || !(minuti >= -1 && minuti <= MAX_MINUTI)) {
     return res.status(403).json({ error: 'Iscrizione non verificata' });
+  }
+
+  // Una sola volta per iscritto: chi si crea un account e ripete la chiamata
+  // non puo' far partire mail a raffica (ne' fare bloccare la casella per
+  // troppi invii). Il segno si mette prima di spedire.
+  if (utente.app_metadata?.benvenuto_inviato) {
+    return res.status(200).json({ gia_inviato: true });
+  }
+  try {
+    await supabaseAdmin.auth.admin.updateUserById(utente.id, {
+      app_metadata: { ...(utente.app_metadata || {}), benvenuto_inviato: new Date().toISOString() },
+    });
+  } catch (e) {
+    console.error('welcome-webhook: segno "gia\' inviato" non salvato:', e?.message || e);
   }
 
   const email = utente.email;
@@ -62,6 +85,9 @@ export default async function handler(req, res) {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: Number(process.env.SMTP_PORT) || 465,
     secure: (Number(process.env.SMTP_PORT) || 465) === 465,
+    // Sulla 587 la cifratura e' obbligatoria: senza, se il server non la
+    // propone, la password viaggerebbe in chiaro.
+    requireTLS: (Number(process.env.SMTP_PORT) || 465) !== 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
   const mittente = `"SerraDesk" <${process.env.SMTP_USER}>`;
@@ -109,12 +135,16 @@ export default async function handler(req, res) {
   ]);
 
   const esito = (r) => (r.status === 'fulfilled' ? 'inviata' : `errore: ${r.reason?.code || ''} ${r.reason?.message || r.reason}`);
+  const codice = (r) => (r.status === 'fulfilled' ? 'inviata' : `errore ${r.reason?.code || r.reason?.responseCode || 'sconosciuto'}`);
   // Nei log di Vercel resta il motivo vero di un invio fallito (credenziali,
-  // porta, server): prima si leggeva solo "Errore durante invio email".
+  // porta, server): prima si leggeva solo "Errore durante invio email". Nella
+  // risposta solo il codice: chi chiama non deve sapere com'e' fatto il server.
   console.log('Nuova iscrizione', email, '- avviso:', esito(avviso), '- benvenuto:', esito(benvenuto));
 
-  if (avviso.status === 'rejected' && benvenuto.status === 'rejected') {
-    return res.status(500).json({ error: 'Errore durante invio email', avviso: esito(avviso), benvenuto: esito(benvenuto) });
+  // Se non parte l'avviso a info@ e' un errore anche se il benvenuto e'
+  // arrivato: e' l'avviso che fa accorgere di chi si iscrive.
+  if (avviso.status === 'rejected') {
+    return res.status(500).json({ error: 'Errore durante invio email', avviso: codice(avviso), benvenuto: codice(benvenuto) });
   }
-  return res.status(200).json({ avviso: esito(avviso), benvenuto: esito(benvenuto) });
+  return res.status(200).json({ avviso: codice(avviso), benvenuto: codice(benvenuto) });
 }
