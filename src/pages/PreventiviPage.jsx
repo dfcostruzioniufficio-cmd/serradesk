@@ -27,7 +27,7 @@ import { isClientePuntoAlluminio } from '../lib/personalizzazioni';
 
 export default function PreventiviPage() {
   const navigate = useNavigate();
-  const { userProfile, userSettings, session, isTrialExpired, needsPayment } = useUser();
+  const { userProfile, userSettings, settingsLoadFailed, session, isTrialExpired, needsPayment } = useUser();
   const isTrialAccount = userProfile?.plan === 'trial' && !isTrialExpired;
   const canAccessCAM = userProfile?.plan === 'pro' || userProfile?.plan === 'business' || userProfile?.role === 'admin' || isTrialAccount;
 
@@ -388,13 +388,17 @@ export default function PreventiviPage() {
     };
 
     let error;
+    let idSalvato = p.editingOrderId;
     if (p.editingOrderId) {
       const { error: err } = await supabase.from('ordini').update(orderPayload).eq('id', p.editingOrderId);
       error = err;
     } else {
       const { data, error: err } = await supabase.from('ordini').insert([orderPayload]).select();
       error = err;
-      if (!err && data && data.length > 0) p.setEditingOrderId(data[0].id);
+      if (!err && data && data.length > 0) {
+        idSalvato = data[0].id;
+        p.setEditingOrderId(data[0].id);
+      }
     }
 
     setIsSaving(false);
@@ -404,7 +408,9 @@ export default function PreventiviPage() {
       return false;
     } else {
       if (!silent) toast.success('Preventivo salvato.');
-      return true;
+      // L'id e non solo "fatto": chi salva e cambia subito pagina deve poterlo
+      // scrivere nella bozza, che lo ritrova al ritorno (vedi handleExportPDF).
+      return idSalvato || true;
     }
   };
 
@@ -469,11 +475,23 @@ export default function PreventiviPage() {
     const mancano = [!userSettings?.vat_number && 'la partita IVA', !userSettings?.address && "l'indirizzo"].filter(Boolean);
     let giaChiesto = false;
     try { giaChiesto = sessionStorage.getItem('sd_dati_pdf_chiesti') === '1'; } catch { /* niente memoria di sessione */ }
-    if (mancano.length && !giaChiesto) {
+    // Se le impostazioni non si sono caricate non si sa cosa manca: niente avviso.
+    if (mancano.length && !giaChiesto && !settingsLoadFailed) {
       try { sessionStorage.setItem('sd_dati_pdf_chiesti', '1'); } catch { /* idem */ }
-      const vai = window.confirm(`Nel PDF mancano ${mancano.join(' e ')} della tua azienda, e il cliente li vede in cima al preventivo.\n\nVuoi aggiungerli adesso in Impostazioni? Il preventivo resta salvato.\n\nOK = aggiungo i dati · Annulla = stampo lo stesso`);
+      const vai = window.confirm(`Nel PDF mancano ${mancano.join(' e ')} della tua azienda: il preventivo esce senza.\n\nVuoi aggiungerli adesso in Impostazioni? Il preventivo resta salvato.\n\nOK = aggiungo i dati · Annulla = stampo lo stesso`);
       if (vai) {
-        await handleSaveOrder(true);
+        const salvato = await handleSaveOrder(true);
+        // La bozza va scritta adesso con l'id appena nato: lasciando la pagina
+        // subito, l'autosalvataggio non fa in tempo, e al ritorno il PDF
+        // creerebbe un secondo preventivo uguale in archivio.
+        if (typeof salvato === 'string') {
+          try {
+            const bozza = JSON.parse(localStorage.getItem('sd_draft_preventivo') || 'null');
+            if (bozza) localStorage.setItem('sd_draft_preventivo', JSON.stringify({ ...bozza, editingOrderId: salvato }));
+          } catch { /* la bozza resta com'era */ }
+        } else if (!salvato) {
+          toast.warning('Non sono riuscito a salvarlo in archivio: resta la bozza su questo dispositivo.');
+        }
         navigate('/settings');
         return;
       }

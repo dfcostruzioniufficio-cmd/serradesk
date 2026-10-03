@@ -628,10 +628,13 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           )}
         </div>
         <div className="text-[10px] space-y-[2px] text-gray-500">
+          {/* Indirizzo e partita IVA si stampano solo se ci sono: dal primo
+              ingresso si chiede solo il nome dell'azienda, e "non impostato"
+              in testa a un preventivo lo legge il cliente. */}
           <h1 className="text-xs font-bold text-gray-800 uppercase mb-1">{userSettings?.company_name || 'Azienda Non Impostata'}</h1>
           {userSettings?.referente && <p className="text-[11px] font-semibold text-gray-700 -mt-0.5 mb-1">{userSettings.referente}</p>}
-          <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
-          <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
+          {userSettings?.address && <p>{userSettings.address}</p>}
+          {userSettings?.vat_number && <p>P.IVA / C.F. {userSettings.vat_number}</p>}
         </div>
       </div>
 
@@ -812,9 +815,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 {isClientePuntoAlluminio(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
               </h1>
               {userSettings?.referente && <p className="text-[11px] font-semibold text-gray-700 -mt-0.5 mb-1">{userSettings.referente}</p>}
-              <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
+              {userSettings?.address && <p>{userSettings.address}</p>}
               {userSettings?.legal_address && <p>Sede Legale: {userSettings.legal_address}</p>}
-              <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
+              {userSettings?.vat_number && <p>P.IVA / C.F. {userSettings.vat_number}</p>}
               <p className="pt-1">
                 {userSettings?.phone && <span className="mr-3">T: {userSettings.phone}</span>}
                 {userSettings?.email && <span>E: {userSettings.email}</span>}
@@ -1006,9 +1009,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                       {isClientePuntoAlluminio(userEmail) && userSettings?.company_name?.toLowerCase().includes('inverno') ? 'PUNTO ALLUMINIO' : (userSettings?.company_name || 'Azienda Non Impostata')}
                     </h1>
                     {userSettings?.referente && <p className="text-[11px] font-semibold text-gray-700 -mt-0.5 mb-1">{userSettings.referente}</p>}
-                    <p>{userSettings?.address || 'Indirizzo non impostato'}</p>
+                    {userSettings?.address && <p>{userSettings.address}</p>}
                     {userSettings?.legal_address && <p>Sede Legale: {userSettings.legal_address}</p>}
-                    <p>P.IVA / C.F. {userSettings?.vat_number || 'Non impostata'}</p>
+                    {userSettings?.vat_number && <p>P.IVA / C.F. {userSettings.vat_number}</p>}
                     <p className="pt-1">
                       {userSettings?.phone && <span className="mr-3">T: {userSettings.phone}</span>}
                       {userSettings?.email && <span>E: {userSettings.email}</span>}
