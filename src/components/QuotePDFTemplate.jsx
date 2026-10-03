@@ -193,7 +193,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     // cambia con le cifre.
     // `note` fra le dipendenze: cambiandole cambia l'altezza del blocco di
     // chiusura, e senza rimisurare l'ultima pagina andrebbe in overflow.
-  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
+  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.vat_number, userSettings?.legal_address, userSettings?.logo_base64, clientName, cData.address, cData.vat, cData.phone, cData.email]);
 
   const getPages = () => {
     if (!measured) return getPagesEstimate();

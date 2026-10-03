@@ -484,7 +484,7 @@ export default function PreventiviPage() {
         // La bozza va scritta adesso con l'id appena nato: lasciando la pagina
         // subito, l'autosalvataggio non fa in tempo, e al ritorno il PDF
         // creerebbe un secondo preventivo uguale in archivio.
-        if (typeof salvato === 'string') {
+        if (salvato && salvato !== true) {
           try {
             const bozza = JSON.parse(localStorage.getItem('sd_draft_preventivo') || 'null');
             if (bozza) localStorage.setItem('sd_draft_preventivo', JSON.stringify({ ...bozza, editingOrderId: salvato }));
