@@ -599,9 +599,25 @@ export default function PreventiviPage() {
     const isZoomed = Math.abs(zoomFactor - 1) > 0.01;
     if (isZoomed) element.style.zoom = String(1 / zoomFactor);
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    // Stesso difetto gia' corretto nella distinta: html2canvas misura dove
+    // cade la base del testo con un elemento di prova appeso al body, che
+    // eredita l'interlinea 1,5 del sito, e su Safari disegna tutto il testo
+    // qualche pixel piu' in basso (le note finivano sotto la barra gialla).
+    // Il body torna all'interlinea normale solo durante l'esportazione; il
+    // preventivo tiene la sua 1,5 dal wrapper, quindi l'impaginazione
+    // misurata in pagina resta valida.
+    const interlineaPrima = document.body.style.lineHeight;
+    document.body.style.lineHeight = 'normal';
+    const ripristina = () => {
+      document.body.style.lineHeight = interlineaPrima;
       if (isZoomed) element.style.zoom = '';
       setIsExporting(false);
+    };
+
+    html2pdf().set(opt).from(element).save().then(ripristina, (err) => {
+      ripristina();
+      console.error('Errore esportazione preventivo:', err);
+      toast.error('Non sono riuscito a creare il PDF. Riprova.');
     });
   };
 
@@ -887,7 +903,7 @@ export default function PreventiviPage() {
 
       {/* Nascosto per esportazione PDF */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
-        <div id="pdf-template-wrapper" style={{ width: '210mm', background: 'white' }}>
+        <div id="pdf-template-wrapper" style={{ width: '210mm', background: 'white', lineHeight: 1.5 }}>
           <QuotePDFTemplate 
             quoteData={{
               clientName: p.clientName || 'Cliente non specificato',
