@@ -934,50 +934,104 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     toast.success(`Vetro aggiornato su ${cambiati} ${cambiati === 1 ? 'serramento' : 'serramenti'} del preventivo.`);
   };
 
-  const handleCambiaProfiloGlobale = (newSistemaId) => {
-    const sistemaCam = sistemiCam.find(s => s.id === newSistemaId) || null;
+  /**
+   * Variante globale: profilo, vetro delle finestre, vetro dei balconi (da 2 m
+   * in su) e colore, su tutti i serramenti del preventivo in un colpo. Ogni
+   * voce e' facoltativa: cambia solo quello che si sceglie.
+   *
+   * A differenza dei menu in cima al modulo, qui il vetro va su tutti i
+   * serramenti con vetro, anche quelli scelti a mano: e' una variante fatta
+   * apposta. Da li' in poi quei serramenti seguono i vetri del preventivo.
+   * Un totale corretto a mano tiene il suo scarto dal listino.
+   * Restituisce quanti serramenti sono cambiati.
+   */
+  const applicaVarianteGlobale = ({ sistemaId = '', vetroFinestreId = '', vetroBalconiId = '', colore = '' }) => {
+    const sistemaCam = sistemaId ? (sistemiCam.find((s) => s.id === sistemaId) || null) : null;
+    const coloreNuovo = String(colore || '').trim();
+    let cambiati = 0;
 
-    const newItems = items.map(item => {
-      if (item.type !== 'window') return item; // Si applica solo alle finestre/scorrevoli
+    const newItems = items.map((item) => {
+      if (item.type !== 'window') return item;
+      const raw = item.rawInput || {};
+      const ante = item.paneConfigs || raw.paneConfigs;
+      let nuovoRaw = { ...raw };
+      let agg = { ...item };
 
-      // Manteniamo le proprietà esistenti ma cambiamo il sistemaCamId
-      const newRawInput = {
-        ...item.rawInput,
-        sistemaCamId: newSistemaId,
-        marca: sistemaCam?.marca || ''
-      };
+      if (sistemaCam) {
+        nuovoRaw = { ...nuovoRaw, sistemaCamId: sistemaId, marca: sistemaCam.marca || '' };
+        const isPersiana = String(item.apertura || '').toLowerCase().includes('persiana');
+        const isBlindata = String(item.apertura || '').toLowerCase() === 'porta blindata';
+        const specs = { ...(sistemaCam.specs || {}) };
+        agg = {
+          ...agg,
+          sistemaCamId: sistemaId,
+          sistema_cam: sistemaCam,
+          marca: sistemaCam.marca || '',
+          description3: isBlindata ? 'Porta Blindata di Sicurezza' : [sistemaCam.marca, sistemaCam.nome].filter(Boolean).join(' - '),
+          colInt: coloreInfisso(item) || specs.colInt || '',
+          colEst: coloreInfisso(item) || specs.colEst || '',
+          accessori: item.accessoriColore || raw.accessoriColore || specs.accessori || '',
+          serrature: specs.serrature || '',
+          colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''),
+          colCanalina: (isPersiana || isBlindata) ? '' : (specs.colCanalina || ''),
+          colCoperture: specs.colCoperture || '',
+          telaioFisso: specs.telaioFisso || (sistemaCam.telaio_std?.codice) || '',
+          telaioMobile: specs.telaioMobile || (sistemaCam.anta?.codice) || '',
+        };
+      }
 
-      // Ricalcola il prezzo con il nuovo profilo
-      const res = calculateWindowPrice(newRawInput, sistemiCam);
-      
-      const isPersiana = item.apertura.toLowerCase().includes('persiana');
-      const isBlindata = item.apertura?.toLowerCase() === 'porta blindata';
-      const specs = { ...(sistemaCam?.specs || {}) };
+      if ((vetroFinestreId || vetroBalconiId) && !SENZA_VETRO.includes(item.apertura)) {
+        nuovoRaw = vetroAutomatico({
+          ...nuovoRaw,
+          vetroFinestreId: vetroFinestreId || nuovoRaw.vetroFinestreId || '',
+          vetroBalconiId: vetroBalconiId || nuovoRaw.vetroBalconiId || '',
+          vetroScelto: false,
+        }, sistemiCam);
+        agg = {
+          ...agg,
+          vetro: nuovoRaw.vetro,
+          description1: nuovoRaw.vetro ? `Vetro: ${nuovoRaw.vetro}` : '',
+        };
+      }
 
+      if (coloreNuovo) {
+        // Il colore scritto a mano: il disegno ne ricava la tinta dal nome,
+        // e una tinta scelta col selettore sul pezzo vecchio non vale piu'.
+        nuovoRaw = { ...nuovoRaw, frameColor: coloreNuovo, colorName: '', previewColor: null };
+        agg = { ...agg, frameColor: coloreNuovo, colorName: '', previewColor: null, colInt: coloreNuovo, colEst: coloreNuovo };
+      }
+
+      const prima = Number(calculateWindowPrice({ ...raw, paneConfigs: ante }, sistemiCam).unitPrice);
+      const res = calculateWindowPrice({ ...nuovoRaw, paneConfigs: ante }, sistemiCam);
+      const dopo = Number(res.unitPrice);
+      let unitPrice = item.unitPrice;
+      if (dopo) {
+        const aMano = prima && Math.abs(Number(item.unitPrice) - prima) > 0.01;
+        const corretto = Number((Number(item.unitPrice) + (dopo - prima)).toFixed(2));
+        unitPrice = aMano && corretto > 0 ? corretto : dopo;
+      }
+      cambiati += 1;
       return {
-        ...item,
-        sistemaCamId: newSistemaId,
-        sistema_cam: sistemaCam,
-        marca: sistemaCam?.marca || '',
-        description3: isBlindata ? 'Porta Blindata di Sicurezza' : [sistemaCam?.marca, sistemaCam?.nome].filter(Boolean).join(' - '),
-        colInt: coloreInfisso(item) || specs.colInt || '',
-        colEst: coloreInfisso(item) || specs.colEst || '',
-        accessori: item.accessoriColore || specs.accessori || '',
-        serrature: specs.serrature || '',
-        colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''),
-        colCanalina: (isPersiana || isBlindata) ? '' : (specs.colCanalina || ''),
-        colCoperture: specs.colCoperture || '',
-        telaioFisso: specs.telaioFisso || (sistemaCam?.telaio_std?.codice) || '',
-        telaioMobile: specs.telaioMobile || (sistemaCam?.anta?.codice) || '',
-        // Cambiando profilo cambia Uf: la Uw va ricalcolata.
-        trasmittanza: formattaUw(calcolaUw(newRawInput, sistemiCam).uw),
-        unitPrice: Number(res.unitPrice) || item.unitPrice,
-        basePrice: Number(res.basePrice) || item.basePrice,
-        rawInput: newRawInput
+        ...agg,
+        // Cambiando profilo o vetro cambiano Uf e Ug: la Uw va ricalcolata.
+        trasmittanza: formattaUw(calcolaUw(nuovoRaw, sistemiCam).uw),
+        unitPrice,
+        rawInput: { ...nuovoRaw, basePrice: res.basePrice ?? nuovoRaw.basePrice },
       };
     });
 
     setItems(newItems);
+
+    // Anche il modulo: i serramenti aggiunti dopo nascono gia' come la variante.
+    if (sistemaId) updateItemField('sistemaCamId', sistemaId);
+    const modulo = {};
+    if (vetroFinestreId) modulo.vetroFinestreId = vetroFinestreId;
+    if (vetroBalconiId) modulo.vetroBalconiId = vetroBalconiId;
+    if (coloreNuovo) Object.assign(modulo, { frameColor: coloreNuovo, colorName: '', previewColor: null });
+    if (Object.keys(modulo).length) {
+      setNewItem((prev) => vetroAutomatico({ ...prev, ...modulo, vetroScelto: false }, sistemiCam));
+    }
+    return cambiati;
   };
 
   const { imponibile, scontoAmount, imponibileScontato, totaleIva, totalePreventivo } = calculateQuoteSummary(items, sconto, iva);
@@ -990,6 +1044,6 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
     sistemiCam, handleAddItem, handleEditItem, duplicaItem, applicaModello, applicaVetriAlPreventivo, handleCancelEdit, removeItem,
     updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,
-    totaleIva, totalePreventivo, handleSpalmaQuadratura, handleCambiaProfiloGlobale
+    totaleIva, totalePreventivo, handleSpalmaQuadratura, applicaVarianteGlobale
   };
 }

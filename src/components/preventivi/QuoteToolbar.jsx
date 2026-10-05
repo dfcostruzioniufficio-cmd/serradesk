@@ -83,7 +83,7 @@ export default function QuoteToolbar({
               disabled={items.length === 0}
               className="text-purple-600 focus:text-purple-700 focus:bg-purple-50 p-3 rounded-lg cursor-pointer flex items-center gap-2 mt-1 font-bold"
             >
-              <Plus size={16} /> Variante Materiale Globale
+              <Plus size={16} /> Variante globale (profilo, vetri, colore)
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

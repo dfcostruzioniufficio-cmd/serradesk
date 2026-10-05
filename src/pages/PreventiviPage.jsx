@@ -882,9 +882,7 @@ export default function PreventiviPage() {
         isOpen={showChangeProfileModal}
         onClose={() => setShowChangeProfileModal(false)}
         sistemiCam={p.sistemiCam}
-        onApply={(newSistemaId) => {
-          p.handleCambiaProfiloGlobale(newSistemaId);
-        }}
+        onApply={(variante) => p.applicaVarianteGlobale(variante)}
       />
 
       {/* Nascosto per esportazione PDF */}
