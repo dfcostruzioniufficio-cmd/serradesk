@@ -868,7 +868,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
           manualMq: newMq.toFixed(2),
           unitPrice: Number(newUnitPrice),
           basePrice: Number(newBasePrice),
-          rawInput: newRawInput
+          // Il prezzo nuovo anche nel raw, se no riaprendo il pezzo tornava il vecchio.
+          rawInput: { ...newRawInput, unitPrice: Number(newUnitPrice) }
         };
       }
       return item;
@@ -926,7 +927,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         description1: nuovoRaw.vetro ? `Vetro: ${nuovoRaw.vetro}` : '',
         trasmittanza: formattaUw(calcolaUw(nuovoRaw, sistemiCam).uw),
         unitPrice,
-        rawInput: { ...nuovoRaw, basePrice: res.basePrice ?? nuovoRaw.basePrice },
+        // Anche nel raw: riaprendo il pezzo in modifica il modulo legge da qui.
+        rawInput: { ...nuovoRaw, unitPrice, basePrice: res.basePrice ?? nuovoRaw.basePrice },
       };
     });
     if (!cambiati) return;

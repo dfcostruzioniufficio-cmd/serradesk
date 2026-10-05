@@ -39,7 +39,7 @@ export default function ChangeProfileModal({ isOpen, onClose, sistemiCam, onAppl
       toast.error('Scegli almeno una cosa da cambiare.');
       return;
     }
-    if (!window.confirm(`Cambio su tutti i serramenti del preventivo:\n\n- ${scelte.join('\n- ')}\n\nI prezzi si ricalcolano; i totali che avevi corretto a mano tengono il loro sconto. Il vetro sotto il traverso (pannello) non si tocca.\n\nVuoi procedere?`)) return;
+    if (!window.confirm(`Cambio su tutti i serramenti del preventivo:\n\n- ${scelte.join('\n- ')}\n\nI prezzi si ricalcolano; i totali che avevi corretto a mano tengono la loro differenza dal listino. Il vetro sotto il traverso (pannello) non si tocca.\n\nVuoi procedere?`)) return;
     const n = onApply({ sistemaId, vetroFinestreId, vetroBalconiId, colore });
     toast.success(n ? `Variante applicata a ${n} ${n === 1 ? 'serramento' : 'serramenti'}.` : 'Nessun serramento da cambiare nel preventivo.');
     chiudi();
