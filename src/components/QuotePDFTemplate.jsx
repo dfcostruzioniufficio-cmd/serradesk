@@ -32,7 +32,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   // lotti dello stesso cantiere) senza sporcare il nome del cliente.
   const rif = String(riferimento || '').trim();
   const rigaRiferimento = rif ? (
-    <p>Riferimento: <span className="font-bold text-gray-900 break-words">{rif}</span></p>
+    <p>Riferimento: <span className="font-bold text-gray-900 [overflow-wrap:anywhere]">{rif}</span></p>
   ) : null;
   const discountPercent = sconto || 0;
   const cData = {

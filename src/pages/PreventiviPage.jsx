@@ -159,7 +159,6 @@ export default function PreventiviPage() {
           });
         }
 
-        // eslint-disable-next-line no-unused-vars
         const { type, discount, clientData, note, riferimento, ...altriDatiMeta } = meta || {};
         return { items: clean, cData, discount: meta?.discount || 0, note: meta?.note || '', riferimento: meta?.riferimento || '', altriDatiMeta };
       };
@@ -216,6 +215,8 @@ export default function PreventiviPage() {
 
       if (isDemo === '1') {
         p.setClientName('Casa Rossi S.p.A.');
+        p.setRiferimento('');
+        p.setAltriDatiMeta({});
         p.setClientData({ address: '', vat: '', phone: '', email: '' });
         p.setSconto(15);
         p.setItems([
@@ -385,12 +386,22 @@ export default function PreventiviPage() {
       return false;
     }
 
+    // Gli acconti si registrano dall'archivio, magari mentre questo
+    // preventivo e' aperto qui: si rileggono dal database al momento del
+    // salvataggio, invece di fidarsi della copia presa all'apertura.
+    let altriDati = { ...p.altriDatiMeta };
+    if (p.editingOrderId) {
+      const { data: salvato } = await supabase.from('ordini').select('items').eq('id', p.editingOrderId).maybeSingle();
+      const metaSalvato = (salvato?.items || []).find(i => i?.type === 'metadata');
+      if (metaSalvato && 'pagamenti' in metaSalvato) altriDati.pagamenti = metaSalvato.pagamenti;
+    }
+
     const orderPayload = {
       user_id: user.id,
       cliente: p.clientName || 'Cliente non specificato',
       totale: p.totalePreventivo,
       stato: p.editingOrderStato || 'Bozza',
-      items: [...p.items, { ...p.altriDatiMeta, type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note, riferimento: p.riferimento }]
+      items: [...p.items, { ...altriDati, type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note, riferimento: p.riferimento }]
     };
 
     let error;
@@ -866,7 +877,7 @@ export default function PreventiviPage() {
                     clientEmail: p.clientData.email,
                     items: p.items,
                     note: p.note,
-              riferimento: p.riferimento,
+                    riferimento: p.riferimento,
                     sconto: p.sconto,
                     iva: p.iva,
                     imponibile: p.imponibile,
