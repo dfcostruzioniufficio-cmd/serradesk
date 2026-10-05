@@ -724,6 +724,7 @@ export default function PreventiviPage() {
               handleCancelEdit={p.handleCancelEdit} handleAddItem={p.handleAddItem}
               setShowGallery={p.setShowGallery}
               applicaModello={p.applicaModello}
+              applicaVetriAlPreventivo={p.applicaVetriAlPreventivo}
               paneConfigs={p.paneConfigs}
               aggiornaAnte={p.aggiornaAnte}
               isCustomerMode={isCustomerMode}

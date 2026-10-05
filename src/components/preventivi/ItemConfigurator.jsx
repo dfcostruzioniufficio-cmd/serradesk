@@ -49,6 +49,7 @@ export default function ItemConfigurator({
   handleAddItem,
   setShowGallery,
   applicaModello,
+  applicaVetriAlPreventivo,
   paneConfigs = [],
   aggiornaAnte,
   isCustomerMode,
@@ -321,7 +322,7 @@ export default function ItemConfigurator({
                   <>
                     <div className="col-span-2">
                       <Label className="text-emerald-700 font-bold">Vetro delle finestre</Label>
-                      <select value={newItem.vetroFinestreId || ''} onChange={e => updateItemField('vetroFinestreId', e.target.value)}
+                      <select value={newItem.vetroFinestreId || ''} onChange={e => { updateItemField('vetroFinestreId', e.target.value); applicaVetriAlPreventivo?.({ vetroFinestreId: e.target.value }); }}
                         className="mt-1.5 flex h-11 w-full rounded-xl border-2 border-emerald-200 bg-white px-4 py-2 text-sm hover:border-emerald-300 focus:border-emerald-500 transition-colors">
                         <option value="">-- Si sceglie serramento per serramento --</option>
                         {vetriInArchivio(newItem.vetroFinestreId).map(v => (
@@ -331,7 +332,7 @@ export default function ItemConfigurator({
                     </div>
                     <div className="col-span-2">
                       <Label className="text-emerald-700 font-bold">Vetro dei balconi <span className="font-normal text-gray-500">(da {ALTEZZA_BALCONE_MM / 1000} m di altezza in su)</span></Label>
-                      <select value={newItem.vetroBalconiId || ''} onChange={e => updateItemField('vetroBalconiId', e.target.value)}
+                      <select value={newItem.vetroBalconiId || ''} onChange={e => { updateItemField('vetroBalconiId', e.target.value); applicaVetriAlPreventivo?.({ vetroBalconiId: e.target.value }); }}
                         className="mt-1.5 flex h-11 w-full rounded-xl border-2 border-emerald-200 bg-white px-4 py-2 text-sm hover:border-emerald-300 focus:border-emerald-500 transition-colors">
                         <option value="">-- Uguale a quello delle finestre --</option>
                         {vetriInArchivio(newItem.vetroBalconiId).map(v => (
