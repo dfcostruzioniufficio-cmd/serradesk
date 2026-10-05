@@ -176,6 +176,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // Note libere in fondo al preventivo: avvertenze sul colore, sui tempi,
   // su cosa non e' compreso. Vanno nel documento che legge il cliente.
   const [note, setNote] = useState('');
+  // Riferimento del preventivo (es. "Alluminio blindato", "Cantiere via Roma"):
+  // distingue piu' preventivi allo stesso cliente senza toccarne il nome.
+  const [riferimento, setRiferimento] = useState('');
+  // Gli altri dati del preventivo salvato che il modulo non gestisce, come gli
+  // acconti registrati dall'archivio: senza tenerli qui, riaprire e salvare un
+  // preventivo li cancellava, perche' i suoi dati si riscrivevano da zero.
+  const [altriDatiMeta, setAltriDatiMeta] = useState({});
   const [clientData, setClientData] = useState({ address: '', vat: '', phone: '', email: '' });
 
   // Load sistemi
@@ -196,16 +203,16 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   // Autosave Draft
   useEffect(() => {
     if (isRestoring) return;
-    if (clientName.trim() || items.length > 0 || String(note || '').trim()) {
+    if (clientName.trim() || items.length > 0 || String(note || '').trim() || String(riferimento || '').trim()) {
       const draft = {
         clientName, editingOrderId, editingOrderStato,
-        items: [...items, { type: 'metadata', discount: Number(sconto) || 0, clientData, note }]
+        items: [...items, { ...altriDatiMeta, type: 'metadata', discount: Number(sconto) || 0, clientData, note, riferimento }]
       };
       localStorage.setItem('sd_draft_preventivo', JSON.stringify(draft));
     } else {
       localStorage.removeItem('sd_draft_preventivo');
     }
-  }, [clientName, items, sconto, clientData, note, editingOrderId, editingOrderStato, isRestoring]);
+  }, [clientName, items, sconto, clientData, note, riferimento, altriDatiMeta, editingOrderId, editingOrderStato, isRestoring]);
 
   // Removed sd_draft_form saving
 
@@ -1074,7 +1081,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const { imponibile, scontoAmount, imponibileScontato, totaleIva, totalePreventivo } = calculateQuoteSummary(items, sconto, iva);
 
   return {
-    clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, iva, setIva,
+    clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, riferimento, setRiferimento, altriDatiMeta, setAltriDatiMeta, iva, setIva,
     items, setItems, itemType, setItemType, scegliTipo, editingOrderId, setEditingOrderId,
     editingOrderStato, setEditingOrderStato,
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,

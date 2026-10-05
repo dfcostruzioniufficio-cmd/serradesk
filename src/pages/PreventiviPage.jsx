@@ -103,7 +103,7 @@ export default function PreventiviPage() {
 
       // Helper to normalize items from Web Widget
       const normalizeItems = (itemsArray) => {
-        if (!itemsArray || !Array.isArray(itemsArray)) return { items: [], cData: {}, discount: 0, note: '' };
+        if (!itemsArray || !Array.isArray(itemsArray)) return { items: [], cData: {}, discount: 0, note: '', riferimento: '', altriDatiMeta: {} };
         const meta = itemsArray.find(i => i.type === 'metadata');
         const notes = itemsArray.filter(i => i.type === 'note');
         let cData = meta?.clientData || { address: '', vat: '', phone: '', email: '' };
@@ -159,7 +159,9 @@ export default function PreventiviPage() {
           });
         }
 
-        return { items: clean, cData, discount: meta?.discount || 0, note: meta?.note || '' };
+        // eslint-disable-next-line no-unused-vars
+        const { type, discount, clientData, note, riferimento, ...altriDatiMeta } = meta || {};
+        return { items: clean, cData, discount: meta?.discount || 0, note: meta?.note || '', riferimento: meta?.riferimento || '', altriDatiMeta };
       };
 
       // 1. Edit da Archivio
@@ -175,6 +177,8 @@ export default function PreventiviPage() {
           p.setSconto(norm.discount);
           p.setClientData(norm.cData);
           p.setNote(norm.note);
+          p.setRiferimento(norm.riferimento);
+          p.setAltriDatiMeta(norm.altriDatiMeta);
           p.setItems(norm.items);
           
           sessionStorage.removeItem('sd_edit_ordine');
@@ -198,6 +202,8 @@ export default function PreventiviPage() {
           p.setSconto(norm.discount);
           p.setClientData(norm.cData);
           p.setNote(norm.note);
+          p.setRiferimento(norm.riferimento);
+          p.setAltriDatiMeta(norm.altriDatiMeta);
           p.setItems(norm.items);
         } catch (e) {
           console.error('Error parsing sd_draft_preventivo', e);
@@ -384,7 +390,7 @@ export default function PreventiviPage() {
       cliente: p.clientName || 'Cliente non specificato',
       totale: p.totalePreventivo,
       stato: p.editingOrderStato || 'Bozza',
-      items: [...p.items, { type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note }]
+      items: [...p.items, { ...p.altriDatiMeta, type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note, riferimento: p.riferimento }]
     };
 
     let error;
@@ -423,6 +429,8 @@ export default function PreventiviPage() {
     // nel preventivo del successivo; e l'autosave, che ora salva anche se
     // c'e' solo la nota, riscrive subito la bozza appena cancellata.
     p.setNote('');
+    p.setRiferimento('');
+    p.setAltriDatiMeta({});
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
     localStorage.removeItem('sd_draft_preventivo');
@@ -437,6 +445,8 @@ export default function PreventiviPage() {
 
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
+    // La copia e' un preventivo nuovo: non eredita gli acconti dell'originale.
+    p.setAltriDatiMeta({});
     
     if (isClientePuntoAlluminio(userEmail) && p.clientName) {
       let baseName = p.clientName;
@@ -449,7 +459,10 @@ export default function PreventiviPage() {
       }
       p.setClientName(`${baseName} - Variante ${nextLetter}`);
     } else {
-      p.setClientName(p.clientName ? `${p.clientName} (Variante)` : 'Variante');
+      // Il nome del cliente resta pulito: "variante" va nel riferimento, che
+      // si riscrive come si vuole (es. "Alluminio blindato").
+      const rif = String(p.riferimento || '').trim();
+      p.setRiferimento(rif ? `${rif} - variante` : 'Variante');
     }
     
     toast.success("Copia creata: stai modificando un nuovo preventivo.");
@@ -521,7 +534,8 @@ export default function PreventiviPage() {
       setIsExporting(false);
       return;
     }
-    const filename = `Preventivo_${p.clientName.replace(/\s+/g, '_')}.pdf`;
+    const rifFile = String(p.riferimento || '').trim();
+    const filename = `Preventivo_${p.clientName.replace(/\s+/g, '_')}${rifFile ? '_' + rifFile.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') : ''}.pdf`;
     const opt = {
       margin: 0,
       filename,
@@ -633,7 +647,7 @@ export default function PreventiviPage() {
       id: p.editingOrderId,
       cliente: p.clientName,
       totale: p.totalePreventivo,
-      items: [...p.items, { type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note }],
+      items: [...p.items, { ...p.altriDatiMeta, type: 'metadata', discount: p.sconto, clientData: p.clientData, note: p.note, riferimento: p.riferimento }],
       created_at: new Date().toISOString()
     };
     sessionStorage.setItem('sd_distinta_ordine', JSON.stringify(tmpOrder));
@@ -722,6 +736,7 @@ export default function PreventiviPage() {
 
       <ClientInfoCard 
         clientName={p.clientName} setClientName={p.setClientName}
+        riferimento={p.riferimento} setRiferimento={p.setRiferimento}
         sconto={p.sconto} setSconto={p.setSconto}
         iva={p.iva} setIva={p.setIva}
         onOpenCRM={() => setIsCrmOpen(true)}
@@ -851,6 +866,7 @@ export default function PreventiviPage() {
                     clientEmail: p.clientData.email,
                     items: p.items,
                     note: p.note,
+              riferimento: p.riferimento,
                     sconto: p.sconto,
                     iva: p.iva,
                     imponibile: p.imponibile,
@@ -913,6 +929,7 @@ export default function PreventiviPage() {
               clientEmail: p.clientData.email,
               items: p.items,
               note: p.note,
+              riferimento: p.riferimento,
               sconto: p.sconto,
               iva: p.iva,
               imponibile: p.imponibile,

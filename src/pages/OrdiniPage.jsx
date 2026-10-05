@@ -131,7 +131,12 @@ export default function OrdiniPage() {
 
   const filtered = ordini
     .filter(o => matchFiltro(o, filtroStato))
-    .filter(o => searchQuery.trim() === '' || (o.cliente || '').toLowerCase().includes(searchQuery.trim().toLowerCase()));
+    .filter(o => {
+      const cerca = searchQuery.trim().toLowerCase();
+      if (!cerca) return true;
+      const rif = String((o.items || []).find(i => i.type === 'metadata')?.riferimento || '');
+      return (o.cliente || '').toLowerCase().includes(cerca) || rif.toLowerCase().includes(cerca);
+    });
   const totaleValore = ordini.filter(o => o.stato === 'Confermato' || o.stato === 'In Produzione').reduce((s, o) => s + (o.totale || 0), 0);
 
   const giorniDaInvio = (inviatoAt) => {
@@ -255,6 +260,9 @@ export default function OrdiniPage() {
                           </span>
                         )}
                       </div>
+                      {String(meta.riferimento || '').trim() && (
+                        <div className="text-sm font-semibold text-blue-700 mb-0.5 break-words">{String(meta.riferimento).trim()}</div>
+                      )}
                       <div className="text-sm text-gray-500">
                         {new Date(o.created_at).toLocaleDateString('it-IT')} · {displayItems.length} articoli · <b className="text-gray-700">€ {(Number(o.totale) || 0).toFixed(2)}</b>
                       </div>

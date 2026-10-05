@@ -7,6 +7,8 @@ import { Users } from 'lucide-react';
 export default function ClientInfoCard({
   clientName,
   setClientName,
+  riferimento,
+  setRiferimento,
   sconto,
   setSconto,
   iva,
@@ -25,6 +27,19 @@ export default function ClientInfoCard({
             value={clientName} 
             onChange={(e) => setClientName(e.target.value)} 
             className="mt-1 font-semibold"
+          />
+        </div>
+        {/* Per distinguere piu' preventivi allo stesso cliente senza
+            sporcarne il nome: finisce nel PDF e nell'archivio. */}
+        <div className="flex-1 min-w-[200px]">
+          <Label htmlFor="riferimento" className="text-gray-600 font-medium">Riferimento <span className="font-normal text-gray-400">(facoltativo)</span></Label>
+          <Input
+            id="riferimento"
+            value={riferimento || ''}
+            onChange={(e) => setRiferimento(e.target.value)}
+            maxLength={120}
+            placeholder="Es. Alluminio blindato, Cantiere via Roma"
+            className="mt-1"
           />
         </div>
         <div className="w-24">
