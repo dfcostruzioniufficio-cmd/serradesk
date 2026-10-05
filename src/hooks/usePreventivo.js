@@ -914,9 +914,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const dopo = Number(res.unitPrice);
       let unitPrice = item.unitPrice;
       if (dopo) {
-        unitPrice = prima && Math.abs(Number(item.unitPrice) - prima) > 0.01
-          ? Number((Number(item.unitPrice) + (dopo - prima)).toFixed(2))
-          : dopo;
+        const aMano = prima && Math.abs(Number(item.unitPrice) - prima) > 0.01;
+        const corretto = Number((Number(item.unitPrice) + (dopo - prima)).toFixed(2));
+        // Un totale a mano molto basso con un vetro molto piu' economico non
+        // deve finire a zero o sotto: in quel caso vale il listino.
+        unitPrice = aMano && corretto > 0 ? corretto : dopo;
       }
       return {
         ...item,
@@ -929,7 +931,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     });
     if (!cambiati) return;
     setItems(nuovi);
-    toast.success(`Vetro aggiornato su ${cambiati} ${cambiati === 1 ? 'serramento' : 'serramenti'} del preventivo, prezzi ricalcolati.`);
+    toast.success(`Vetro aggiornato su ${cambiati} ${cambiati === 1 ? 'serramento' : 'serramenti'} del preventivo.`);
   };
 
   const handleCambiaProfiloGlobale = (newSistemaId) => {
