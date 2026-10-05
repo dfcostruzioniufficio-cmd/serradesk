@@ -948,11 +948,24 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const applicaVarianteGlobale = ({ sistemaId = '', vetroFinestreId = '', vetroBalconiId = '', colore = '' }) => {
     const sistemaCam = sistemaId ? (sistemiCam.find((s) => s.id === sistemaId) || null) : null;
     const coloreNuovo = String(colore || '').trim();
+    // Il colore da stampare: un esadecimale del selettore non e' un nome.
+    const coloreStampa = coloreScritto(coloreNuovo);
+    // "Uguale a quello delle finestre": scelto solo il vetro delle finestre,
+    // vale anche per i balconi, come dice il menu.
+    const vetroBalconi = vetroBalconiId || vetroFinestreId;
     let cambiati = 0;
 
     const newItems = items.map((item) => {
       if (item.type !== 'window') return item;
-      const raw = item.rawInput || {};
+      const raw = item.rawInput;
+      // Preventivi molto vecchi, senza i dati di configurazione: non si sa
+      // ricalcolare niente, e toccarli faceva sparire il vetro dal PDF. Solo
+      // il colore, che e' scritto e basta.
+      if (!raw || !Number(raw.width) || !Number(raw.height)) {
+        if (!coloreNuovo) return item;
+        cambiati += 1;
+        return { ...item, frameColor: coloreNuovo, colorName: '', previewColor: null, colInt: coloreStampa || item.colInt, colEst: coloreStampa || item.colEst };
+      }
       const ante = item.paneConfigs || raw.paneConfigs;
       let nuovoRaw = { ...raw };
       let agg = { ...item };
@@ -980,25 +993,32 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         };
       }
 
-      if ((vetroFinestreId || vetroBalconiId) && !SENZA_VETRO.includes(item.apertura)) {
-        nuovoRaw = vetroAutomatico({
+      if ((vetroFinestreId || vetroBalconi) && !SENZA_VETRO.includes(item.apertura)) {
+        const conVetro = vetroAutomatico({
           ...nuovoRaw,
           vetroFinestreId: vetroFinestreId || nuovoRaw.vetroFinestreId || '',
-          vetroBalconiId: vetroBalconiId || nuovoRaw.vetroBalconiId || '',
+          vetroBalconiId: vetroBalconi || nuovoRaw.vetroBalconiId || '',
           vetroScelto: false,
         }, sistemiCam);
-        agg = {
-          ...agg,
-          vetro: nuovoRaw.vetro,
-          description1: nuovoRaw.vetro ? `Vetro: ${nuovoRaw.vetro}` : '',
-        };
+        // Il segno "automatico" solo dove il vetro e' cambiato davvero: dove
+        // non c'era niente da cambiare (senza profilo) il pezzo resta com'era.
+        if (conVetro.vetroId !== nuovoRaw.vetroId || conVetro.vetro !== nuovoRaw.vetro) {
+          nuovoRaw = conVetro;
+          agg = {
+            ...agg,
+            vetro: nuovoRaw.vetro,
+            description1: nuovoRaw.vetro ? `Vetro: ${nuovoRaw.vetro}` : '',
+          };
+        } else {
+          nuovoRaw = { ...nuovoRaw, vetroFinestreId: conVetro.vetroFinestreId, vetroBalconiId: conVetro.vetroBalconiId };
+        }
       }
 
       if (coloreNuovo) {
         // Il colore scritto a mano: il disegno ne ricava la tinta dal nome,
         // e una tinta scelta col selettore sul pezzo vecchio non vale piu'.
         nuovoRaw = { ...nuovoRaw, frameColor: coloreNuovo, colorName: '', previewColor: null };
-        agg = { ...agg, frameColor: coloreNuovo, colorName: '', previewColor: null, colInt: coloreNuovo, colEst: coloreNuovo };
+        agg = { ...agg, frameColor: coloreNuovo, colorName: '', previewColor: null, colInt: coloreStampa || agg.colInt, colEst: coloreStampa || agg.colEst };
       }
 
       const prima = Number(calculateWindowPrice({ ...raw, paneConfigs: ante }, sistemiCam).unitPrice);
@@ -1010,26 +1030,41 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         const corretto = Number((Number(item.unitPrice) + (dopo - prima)).toFixed(2));
         unitPrice = aMano && corretto > 0 ? corretto : dopo;
       }
-      cambiati += 1;
-      return {
+      const nuovo = {
         ...agg,
         // Cambiando profilo o vetro cambiano Uf e Ug: la Uw va ricalcolata.
         trasmittanza: formattaUw(calcolaUw(nuovoRaw, sistemiCam).uw),
         unitPrice,
-        rawInput: { ...nuovoRaw, basePrice: res.basePrice ?? nuovoRaw.basePrice },
+        rawInput: { ...nuovoRaw, unitPrice, basePrice: res.basePrice ?? nuovoRaw.basePrice },
       };
+      if (nuovo.vetro !== item.vetro || nuovo.colInt !== item.colInt || nuovo.frameColor !== item.frameColor
+        || nuovo.sistemaCamId !== item.sistemaCamId || Number(nuovo.unitPrice) !== Number(item.unitPrice)) {
+        cambiati += 1;
+      }
+      return nuovo;
     });
 
     setItems(newItems);
 
-    // Anche il modulo: i serramenti aggiunti dopo nascono gia' come la variante.
-    if (sistemaId) updateItemField('sistemaCamId', sistemaId);
-    const modulo = {};
-    if (vetroFinestreId) modulo.vetroFinestreId = vetroFinestreId;
-    if (vetroBalconiId) modulo.vetroBalconiId = vetroBalconiId;
-    if (coloreNuovo) Object.assign(modulo, { frameColor: coloreNuovo, colorName: '', previewColor: null });
-    if (Object.keys(modulo).length) {
-      setNewItem((prev) => vetroAutomatico({ ...prev, ...modulo, vetroScelto: false }, sistemiCam));
+    // Anche il modulo, cosi' i serramenti aggiunti dopo nascono come la
+    // variante. Un serramento aperto in modifica si ricarica dall'elenco gia'
+    // aggiornato: se no salvandolo rimetteva vetro o prezzo vecchi.
+    if (editingIndex !== null && newItems[editingIndex]?.rawInput) {
+      const aggiornato = newItems[editingIndex];
+      setNewItem((prev) => ({
+        ...ricarica(aggiornato.rawInput, prev),
+        ...(vetroFinestreId ? { vetroFinestreId } : {}),
+        ...(vetroBalconi ? { vetroBalconiId: vetroBalconi } : {}),
+        unitPrice: aggiornato.unitPrice,
+      }));
+    } else if (itemType === 'window') {
+      // Passando da updateItemField il prezzo del modulo si ricalcola a ogni
+      // passo, come quando si scelgono gli stessi menu a mano.
+      if (sistemaId) updateItemField('sistemaCamId', sistemaId);
+      if (vetroFinestreId) updateItemField('vetroFinestreId', vetroFinestreId);
+      if (vetroBalconi) updateItemField('vetroBalconiId', vetroBalconi);
+      if (coloreNuovo) updateItemFields({ frameColor: coloreNuovo, colorName: '', previewColor: null });
+      if (vetroFinestreId || vetroBalconi) updateItemField('vetroScelto', false);
     }
     return cambiati;
   };
