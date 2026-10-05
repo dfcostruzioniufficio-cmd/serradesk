@@ -896,24 +896,40 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     const nuovi = items.map((item) => {
       const raw = item.rawInput;
       if (item.type !== 'window' || !raw || (raw.itemType && raw.itemType !== 'window')) return item;
-      if (raw.vetroScelto === true || !raw.sistemaCamId || SENZA_VETRO.includes(item.apertura)) return item;
+      // Solo i serramenti col vetro automatico (vetroScelto === false). Quelli
+      // dei preventivi fatti prima che esistessero i vetri del preventivo non
+      // hanno il campo: il loro vetro era per forza scelto a mano, e non si
+      // tocca (stessa regola di ricarica).
+      if (raw.vetroScelto !== false || !raw.sistemaCamId || SENZA_VETRO.includes(item.apertura)) return item;
       const nuovoRaw = vetroAutomatico({ ...raw, vetroFinestreId: finestre, vetroBalconiId: balconi, vetroScelto: false }, sistemiCam);
       if (nuovoRaw.vetroId === raw.vetroId && nuovoRaw.vetro === raw.vetro) {
         return { ...item, rawInput: nuovoRaw };
       }
       cambiati += 1;
-      const res = calculateWindowPrice({ ...nuovoRaw, paneConfigs: item.paneConfigs || raw.paneConfigs }, sistemiCam);
+      const ante = item.paneConfigs || raw.paneConfigs;
+      const res = calculateWindowPrice({ ...nuovoRaw, paneConfigs: ante }, sistemiCam);
+      // Un totale corretto a mano (arrotondato, scontato) non torna al
+      // listino: gli si aggiunge solo la differenza dovuta al vetro.
+      const prima = Number(calculateWindowPrice({ ...raw, paneConfigs: ante }, sistemiCam).unitPrice);
+      const dopo = Number(res.unitPrice);
+      let unitPrice = item.unitPrice;
+      if (dopo) {
+        unitPrice = prima && Math.abs(Number(item.unitPrice) - prima) > 0.01
+          ? Number((Number(item.unitPrice) + (dopo - prima)).toFixed(2))
+          : dopo;
+      }
       return {
         ...item,
         vetro: nuovoRaw.vetro,
         description1: nuovoRaw.vetro ? `Vetro: ${nuovoRaw.vetro}` : '',
         trasmittanza: formattaUw(calcolaUw(nuovoRaw, sistemiCam).uw),
-        unitPrice: Number(res.unitPrice) || item.unitPrice,
+        unitPrice,
         rawInput: { ...nuovoRaw, basePrice: res.basePrice ?? nuovoRaw.basePrice },
       };
     });
+    if (!cambiati) return;
     setItems(nuovi);
-    if (cambiati) toast.success(`Vetro aggiornato su ${cambiati} ${cambiati === 1 ? 'serramento' : 'serramenti'} del preventivo, prezzi ricalcolati.`);
+    toast.success(`Vetro aggiornato su ${cambiati} ${cambiati === 1 ? 'serramento' : 'serramenti'} del preventivo, prezzi ricalcolati.`);
   };
 
   const handleCambiaProfiloGlobale = (newSistemaId) => {
