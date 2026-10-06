@@ -267,3 +267,21 @@ export function calculateQuoteSummary(items, sconto, iva) {
 
   return { imponibile, scontoAmount, imponibileScontato, totaleIva, totalePreventivo };
 }
+
+/**
+ * L'IVA di un preventivo salvato. Fino a ottobre 2026 non si salvava: si
+ * ricava dal totale (salvato insieme agli articoli), purche' esca un numero
+ * intero sensato. Altrimenti `predefinita`.
+ */
+export function ivaDelPreventivo(meta, items, totale, predefinita = 22) {
+  const salvata = Number(meta?.iva);
+  if (meta?.iva !== undefined && meta?.iva !== null && meta?.iva !== '' && Number.isFinite(salvata)) return salvata;
+  const articoli = (items || []).filter(i => i && i.type !== 'metadata' && i.type !== 'note');
+  const imponibile = articoli.reduce((acc, i) => acc + (Number(i.unitPrice) || 0) * (Number(i.quantity) || 0), 0);
+  const scontato = imponibile * (1 - (Number(meta?.discount) || 0) / 100);
+  const tot = Number(totale);
+  if (!(scontato > 0) || !(tot > 0)) return predefinita;
+  const iva = (tot / scontato - 1) * 100;
+  const intera = Math.round(iva);
+  return (Math.abs(iva - intera) < 0.05 && intera >= 0 && intera <= 30) ? intera : predefinita;
+}

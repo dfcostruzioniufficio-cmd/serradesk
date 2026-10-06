@@ -206,13 +206,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     if (clientName.trim() || items.length > 0 || String(note || '').trim() || String(riferimento || '').trim()) {
       const draft = {
         clientName, editingOrderId, editingOrderStato,
-        items: [...items, { ...altriDatiMeta, type: 'metadata', discount: Number(sconto) || 0, clientData, note, riferimento }]
+        items: [...items, { ...altriDatiMeta, type: 'metadata', discount: Number(sconto) || 0, iva: Number(iva), clientData, note, riferimento }]
       };
       localStorage.setItem('sd_draft_preventivo', JSON.stringify(draft));
     } else {
       localStorage.removeItem('sd_draft_preventivo');
     }
-  }, [clientName, items, sconto, clientData, note, riferimento, altriDatiMeta, editingOrderId, editingOrderStato, isRestoring]);
+  }, [clientName, items, sconto, iva, clientData, note, riferimento, altriDatiMeta, editingOrderId, editingOrderStato, isRestoring]);
 
   // Removed sd_draft_form saving
 

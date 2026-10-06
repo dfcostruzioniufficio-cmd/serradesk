@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, ExternalLink, CheckCircle, Clock, Truck, FileText, Euro, MessageCircle, Search, MoreVertical, Send, PhoneCall } from 'lucide-react';
+import { Trash2, ExternalLink, CheckCircle, Clock, Truck, FileText, Euro, MessageCircle, Search, MoreVertical, Send, PhoneCall, Download, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { supabase } from '../lib/supabaseClient';
+import { useUser } from '../contexts/UserContext';
+import QuotePDFTemplate from '../components/QuotePDFTemplate';
+import { esportaPdfPreventivo, nomeFilePdf } from '../lib/esportaPdfPreventivo';
+import { calculateQuoteSummary, ivaDelPreventivo } from '../hooks/usePricingEngine';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '../components/ui/dropdown-menu';
 
@@ -29,6 +33,79 @@ export default function OrdiniPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { userSettings, session, needsPayment } = useUser();
+  // Il preventivo che si sta trasformando in PDF senza riaprirlo: si disegna
+  // nascosto in fondo alla pagina con lo stesso template del preventivatore.
+  const [ordineInStampa, setOrdineInStampa] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleScaricaPdf = (o) => {
+    if (ordineInStampa) return;
+    if (needsPayment) {
+      toast.info('Serve un abbonamento attivo per scaricare il PDF.');
+      return;
+    }
+    const tutti = o.items || [];
+    // Le richieste arrivate dal sito hanno articoli in un altro formato, che
+    // il preventivatore converte quando le apre.
+    if (tutti.some(i => i?.type === 'item' || i?.type === 'note')) {
+      toast.info('Questa richiesta arriva dal sito: aprila una volta con "Riapri e modifica" e salvala, poi la scarichi anche da qui.');
+      return;
+    }
+    const meta = tutti.find(i => i?.type === 'metadata') || {};
+    const articoli = tutti.filter(i => i && i.type !== 'metadata');
+    if (!articoli.length) {
+      toast.info('Questo preventivo non ha articoli.');
+      return;
+    }
+    const sconto = Number(meta.discount) || 0;
+    const iva = ivaDelPreventivo(meta, articoli, o.totale, 22);
+    const cd = meta.clientData || {};
+    setOrdineInStampa({
+      filename: nomeFilePdf(o.cliente, meta.riferimento),
+      quoteData: {
+        clientName: o.cliente || 'Cliente non specificato',
+        clientAddress: cd.address,
+        clientVat: cd.vat,
+        clientPhone: cd.phone,
+        clientEmail: cd.email,
+        items: articoli,
+        note: meta.note || '',
+        riferimento: meta.riferimento || '',
+        sconto,
+        iva,
+        ...calculateQuoteSummary(articoli, sconto, iva),
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (!ordineInStampa) return;
+    (async () => {
+      setIsExporting(true);
+      // Il template deve disegnarsi e misurare le pagine prima della foto.
+      await new Promise(resolve => setTimeout(resolve, 400));
+      let html2pdf;
+      try {
+        html2pdf = (await import('html2pdf.js')).default;
+      } catch {
+        toast.info('Aggiornamento di sistema in corso, ricarico la pagina.');
+        window.location.reload();
+        return;
+      }
+      const element = document.getElementById('pdf-archivio-wrapper');
+      try {
+        if (!element) throw new Error('template del PDF non trovato');
+        await esportaPdfPreventivo({ html2pdf, element, filename: ordineInStampa.filename, idWrapper: 'pdf-archivio-wrapper' });
+      } catch (err) {
+        console.error('Errore PDF dall\'archivio:', err);
+        toast.error('Non sono riuscito a creare il PDF. Riprova.');
+      } finally {
+        setIsExporting(false);
+        setOrdineInStampa(null);
+      }
+    })();
+  }, [ordineInStampa]);
 
   useEffect(() => {
     fetchOrdini();
@@ -309,6 +386,9 @@ export default function OrdiniPage() {
                           <DropdownMenuItem onClick={() => handleRiapri(o)} className="text-blue-600 cursor-pointer">
                             <ExternalLink size={14} className="mr-2" /> Riapri e modifica
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleScaricaPdf(o)} disabled={!!ordineInStampa} className="text-gray-700 cursor-pointer">
+                            <Download size={14} className="mr-2" /> Scarica PDF
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <div className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cambia stato</div>
                           {STATI.map(s => (
@@ -389,6 +469,26 @@ export default function OrdiniPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {ordineInStampa && (
+        <>
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
+            <Loader2 size={16} className="animate-spin" /> Preparo il PDF...
+          </div>
+          {/* Nascosto: lo stesso template del preventivatore, per il PDF */}
+          <div style={{ position: 'absolute', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
+            <div id="pdf-archivio-wrapper" style={{ width: '210mm', background: 'white', lineHeight: 1.5 }}>
+              <QuotePDFTemplate
+                quoteData={ordineInStampa.quoteData}
+                userSettings={userSettings}
+                userEmail={session?.user?.email}
+                isExporting={isExporting}
+                includeRecap={false}
+              />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
