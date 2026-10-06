@@ -144,6 +144,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const [itemType, setItemType] = useState('window'); // 'window' or 'custom' or 'complemento'
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [editingOrderStato, setEditingOrderStato] = useState('Bozza');
+  // Numero progressivo del preventivo salvato ({ numero, anno }), dato dal
+  // database al primo salvataggio. null finche' il preventivo non e' in archivio.
+  const [numeroPreventivo, setNumeroPreventivo] = useState(null);
   const [showConfigurator, setShowConfigurator] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [paneConfigs, setPaneConfigs] = useState([{ handleEdge: 'right' }]);
@@ -205,14 +208,14 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     if (isRestoring) return;
     if (clientName.trim() || items.length > 0 || String(note || '').trim() || String(riferimento || '').trim()) {
       const draft = {
-        clientName, editingOrderId, editingOrderStato,
+        clientName, editingOrderId, editingOrderStato, numeroPreventivo,
         items: [...items, { ...altriDatiMeta, type: 'metadata', discount: Number(sconto) || 0, iva: Number(iva), clientData, note, riferimento }]
       };
       localStorage.setItem('sd_draft_preventivo', JSON.stringify(draft));
     } else {
       localStorage.removeItem('sd_draft_preventivo');
     }
-  }, [clientName, items, sconto, iva, clientData, note, riferimento, altriDatiMeta, editingOrderId, editingOrderStato, isRestoring]);
+  }, [clientName, items, sconto, iva, clientData, note, riferimento, altriDatiMeta, editingOrderId, editingOrderStato, numeroPreventivo, isRestoring]);
 
   // Removed sd_draft_form saving
 
@@ -1083,7 +1086,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   return {
     clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, riferimento, setRiferimento, altriDatiMeta, setAltriDatiMeta, iva, setIva,
     items, setItems, itemType, setItemType, scegliTipo, editingOrderId, setEditingOrderId,
-    editingOrderStato, setEditingOrderStato,
+    editingOrderStato, setEditingOrderStato, numeroPreventivo, setNumeroPreventivo,
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
     sistemiCam, handleAddItem, handleEditItem, duplicaItem, applicaModello, applicaVetriAlPreventivo, handleCancelEdit, removeItem,

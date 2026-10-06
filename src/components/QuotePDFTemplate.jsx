@@ -16,6 +16,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     clientPhone,
     clientEmail,
     riferimento,
+    numeroPreventivo,
     items,
     note,
     sconto,
@@ -31,6 +32,12 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   // Il riferimento distingue piu' preventivi allo stesso cliente (es. due
   // lotti dello stesso cantiere) senza sporcare il nome del cliente.
   const rif = String(riferimento || '').trim();
+  // Numero progressivo dato dal database ("42/2026"); finche' il preventivo
+  // non e' salvato in archivio la riga non si stampa.
+  const numeroDoc = numeroPreventivo?.numero ? `${numeroPreventivo.numero}/${numeroPreventivo.anno}` : '';
+  const rigaNumero = numeroDoc ? (
+    <p>N. Preventivo: <span className="font-bold text-gray-900">{numeroDoc}</span></p>
+  ) : null;
   const rigaRiferimento = rif ? (
     <p>Riferimento: <span className="font-bold text-gray-900 [overflow-wrap:anywhere]">{rif}</span></p>
   ) : null;
@@ -200,7 +207,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     // cambia con le cifre.
     // `note` fra le dipendenze: cambiandole cambia l'altezza del blocco di
     // chiusura, e senza rimisurare l'ultima pagina andrebbe in overflow.
-  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.vat_number, userSettings?.legal_address, userSettings?.logo_base64, clientName, rif, cData.address, cData.vat, cData.phone, cData.email]);
+  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.vat_number, userSettings?.legal_address, userSettings?.logo_base64, clientName, rif, numeroDoc, cData.address, cData.vat, cData.phone, cData.email]);
 
   const getPages = () => {
     if (!measured) return getPagesEstimate();
@@ -652,6 +659,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
         </div>
         <div className="mt-4 text-[10px] text-gray-500">
           <p>Documento: <span className="font-bold text-gray-900">Riepilogo Preventivo</span></p>
+          {rigaNumero}
           {rigaRiferimento}
           <p>Data: <span className="font-bold text-gray-900">{new Date().toLocaleDateString('it-IT')}</span></p>
         </div>
@@ -846,7 +854,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             </div>
             <div className="mt-4 text-[10px] text-gray-500">
               <p>Documento: <span className="font-bold text-gray-900">Preventivo Commerciale</span></p>
-              <p>N. Preventivo: <span className="font-bold text-gray-900">PRV-XXXX-XXX</span></p>
+              {rigaNumero}
               {rigaRiferimento}
               <p>Data: <span className="font-bold text-gray-900">{new Date().toLocaleDateString('it-IT')}</span></p>
             </div>
@@ -1042,9 +1050,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                   </div>
                   <div className="mt-4 text-[10px] text-gray-500">
                     <p>Documento: <span className="font-bold text-gray-900">Preventivo Commerciale</span></p>
-                    <p>N. Preventivo: <span className="font-bold text-gray-900">
-                      {`PRV-${new Date().getFullYear()}-${(clientName || 'CLI').substring(0,3).toUpperCase()}${clientName?.includes('Variante') ? '-' + clientName.split('Variante ')[1]?.substring(0,1) || '' : ''}`}
-                    </span></p>
+                    {rigaNumero}
                     {rigaRiferimento}
                     <p>Data: <span className="font-bold text-gray-900">{new Date().toLocaleDateString('it-IT')}</span></p>
                   </div>

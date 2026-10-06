@@ -84,6 +84,7 @@ export default function OrdiniPage() {
         items: articoli,
         note: meta.note || '',
         riferimento: meta.riferimento || '',
+        numeroPreventivo: o.numero ? { numero: o.numero, anno: o.anno } : null,
         sconto,
         iva,
         ...totali,
@@ -224,7 +225,8 @@ export default function OrdiniPage() {
       const cerca = searchQuery.trim().toLowerCase();
       if (!cerca) return true;
       const rif = String((o.items || []).find(i => i.type === 'metadata')?.riferimento || '');
-      return (o.cliente || '').toLowerCase().includes(cerca) || rif.toLowerCase().includes(cerca);
+      const numero = o.numero ? `${o.numero}/${o.anno}` : '';
+      return (o.cliente || '').toLowerCase().includes(cerca) || rif.toLowerCase().includes(cerca) || (numero && numero.startsWith(cerca));
     });
   const totaleValore = ordini.filter(o => o.stato === 'Confermato' || o.stato === 'In Produzione').reduce((s, o) => s + (o.totale || 0), 0);
 
@@ -284,7 +286,7 @@ export default function OrdiniPage() {
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Cerca per nome cliente..."
+            placeholder="Cerca per cliente, riferimento o numero..."
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
           />
         </div>
@@ -353,7 +355,7 @@ export default function OrdiniPage() {
                         <div className="text-sm font-semibold text-blue-700 mb-0.5 break-words">{String(meta.riferimento).trim()}</div>
                       )}
                       <div className="text-sm text-gray-500">
-                        {new Date(o.created_at).toLocaleDateString('it-IT')} · {displayItems.length} articoli · <b className="text-gray-700">€ {(Number(o.totale) || 0).toFixed(2)}</b>
+                        {o.numero ? <span className="font-semibold text-gray-600">n. {o.numero}/{o.anno} · </span> : null}{new Date(o.created_at).toLocaleDateString('it-IT')} · {displayItems.length} articoli · <b className="text-gray-700">€ {(Number(o.totale) || 0).toFixed(2)}</b>
                       </div>
 
                       {showPagamenti && (

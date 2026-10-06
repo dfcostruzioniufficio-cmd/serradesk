@@ -171,6 +171,7 @@ export default function PreventiviPage() {
           const editData = JSON.parse(editDataStr);
           p.setEditingOrderId(editData.id);
           p.setEditingOrderStato(editData.stato || 'Bozza');
+          p.setNumeroPreventivo(editData.numero ? { numero: editData.numero, anno: editData.anno } : null);
           p.setClientName(editData.cliente || '');
           
           const norm = normalizeItems(editData.items);
@@ -200,6 +201,7 @@ export default function PreventiviPage() {
           p.setClientName(draft.clientName || '');
           p.setEditingOrderId(draft.editingOrderId || null);
           p.setEditingOrderStato(draft.editingOrderStato || 'Bozza');
+          p.setNumeroPreventivo(draft.editingOrderId && draft.numeroPreventivo?.numero ? draft.numeroPreventivo : null);
           
           const norm = normalizeItems(draft.items);
           p.setSconto(norm.discount);
@@ -222,6 +224,7 @@ export default function PreventiviPage() {
         p.setClientName('Casa Rossi S.p.A.');
         p.setRiferimento('');
         p.setAltriDatiMeta({});
+        p.setNumeroPreventivo(null);
         p.setClientData({ address: '', vat: '', phone: '', email: '' });
         p.setSconto(15);
         p.setItems([
@@ -412,14 +415,17 @@ export default function PreventiviPage() {
     let error;
     let idSalvato = p.editingOrderId;
     if (p.editingOrderId) {
-      const { error: err } = await supabase.from('ordini').update(orderPayload).eq('id', p.editingOrderId);
+      const { data, error: err } = await supabase.from('ordini').update(orderPayload).eq('id', p.editingOrderId).select('numero, anno');
       error = err;
+      // Le bozze di prima della numerazione non hanno il numero in memoria.
+      if (!err && data?.[0]?.numero) p.setNumeroPreventivo({ numero: data[0].numero, anno: data[0].anno });
     } else {
       const { data, error: err } = await supabase.from('ordini').insert([orderPayload]).select();
       error = err;
       if (!err && data && data.length > 0) {
         idSalvato = data[0].id;
         p.setEditingOrderId(data[0].id);
+        p.setNumeroPreventivo(data[0].numero ? { numero: data[0].numero, anno: data[0].anno } : null);
       }
     }
 
@@ -448,6 +454,7 @@ export default function PreventiviPage() {
     p.setRiferimento('');
     p.setAltriDatiMeta({});
     p.setIva(22);
+    p.setNumeroPreventivo(null);
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
     localStorage.removeItem('sd_draft_preventivo');
@@ -462,8 +469,10 @@ export default function PreventiviPage() {
 
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
-    // La copia e' un preventivo nuovo: non eredita gli acconti dell'originale.
+    // La copia e' un preventivo nuovo: non eredita gli acconti dell'originale,
+    // e il suo numero lo dara' il database al primo salvataggio.
     p.setAltriDatiMeta({});
+    p.setNumeroPreventivo(null);
     
     if (isClientePuntoAlluminio(userEmail) && p.clientName) {
       let baseName = p.clientName;
@@ -794,6 +803,7 @@ export default function PreventiviPage() {
                     items: p.items,
                     note: p.note,
                     riferimento: p.riferimento,
+                    numeroPreventivo: p.numeroPreventivo,
                     sconto: p.sconto,
                     iva: p.iva,
                     imponibile: p.imponibile,
@@ -857,6 +867,7 @@ export default function PreventiviPage() {
               items: p.items,
               note: p.note,
               riferimento: p.riferimento,
+              numeroPreventivo: p.numeroPreventivo,
               sconto: p.sconto,
               iva: p.iva,
               imponibile: p.imponibile,
