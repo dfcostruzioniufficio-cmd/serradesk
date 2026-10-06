@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         "grazie per l'iscrizione a SerraDesk, il programma per fare preventivi di serramenti con il disegno di ogni finestra e la distinta di taglio.",
         '',
         "Per usarlo scelga il piano dalla pagina che vede entrando: si attiva subito e si disdice quando vuole.",
-        "Se prima vuole vederlo all'opera con i suoi profili e i suoi prezzi, risponda a questa mail: le scriviamo noi.",
+        "Se prima di abbonarsi vuole provarlo, risponda a questa mail dicendoci di cosa si occupa: valutiamo se attivarle qualche giorno di prova gratuita.",
         '',
         'Buon lavoro,',
         'SerraDesk',
@@ -128,7 +128,7 @@ export default async function handler(req, res) {
           <p>Buongiorno,</p>
           <p>grazie per l'iscrizione a <b>SerraDesk</b>, il programma per fare preventivi di serramenti con il disegno di ogni finestra e la distinta di taglio.</p>
           <p>Per usarlo scelga il piano dalla pagina che vede entrando: si attiva subito e si disdice quando vuole.</p>
-          <p>Se prima vuole vederlo all'opera con i suoi profili e i suoi prezzi, <b>risponda a questa mail</b>: le scriviamo noi.</p>
+          <p>Se prima di abbonarsi vuole provarlo, <b>risponda a questa mail</b> dicendoci di cosa si occupa: valutiamo se attivarle qualche giorno di prova gratuita.</p>
           <p>Buon lavoro,<br>SerraDesk<br><a href="mailto:${escape(AVVISI_A)}" style="color:#2563eb">${escape(AVVISI_A)}</a></p>
         </div>`,
     }),
