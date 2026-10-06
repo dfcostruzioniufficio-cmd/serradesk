@@ -33,7 +33,7 @@ export default function OrdiniPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  const { userSettings, session, needsPayment } = useUser();
+  const { userSettings, session, needsPayment, settingsLoadFailed } = useUser();
   // Il preventivo che si sta trasformando in PDF senza riaprirlo: si disegna
   // nascosto in fondo alla pagina con lo stesso template del preventivatore.
   const [ordineInStampa, setOrdineInStampa] = useState(null);
@@ -43,6 +43,11 @@ export default function OrdiniPage() {
     if (ordineInStampa) return;
     if (needsPayment) {
       toast.info('Serve un abbonamento attivo per scaricare il PDF.');
+      return;
+    }
+    // Senza le impostazioni il PDF uscirebbe senza logo e senza nome azienda.
+    if (settingsLoadFailed || !userSettings) {
+      toast.info('Non ho ancora i dati della tua azienda: ricarica la pagina e riprova.');
       return;
     }
     const tutti = o.items || [];
@@ -60,6 +65,13 @@ export default function OrdiniPage() {
     }
     const sconto = Number(meta.discount) || 0;
     const iva = ivaDelPreventivo(meta, articoli, o.totale, 22);
+    const totali = calculateQuoteSummary(articoli, sconto, iva);
+    // Nessuno vede questo PDF prima che parta: se i conti rifatti non danno il
+    // totale che c'e' in archivio, meglio non stamparlo.
+    if (Math.abs(totali.totalePreventivo - (Number(o.totale) || 0)) > 0.01) {
+      toast.info('Questo preventivo va aperto e salvato di nuovo prima di scaricarlo da qui ("Riapri e modifica").');
+      return;
+    }
     const cd = meta.clientData || {};
     setOrdineInStampa({
       filename: nomeFilePdf(o.cliente, meta.riferimento),
@@ -74,7 +86,7 @@ export default function OrdiniPage() {
         riferimento: meta.riferimento || '',
         sconto,
         iva,
-        ...calculateQuoteSummary(articoli, sconto, iva),
+        ...totali,
       },
     });
   };

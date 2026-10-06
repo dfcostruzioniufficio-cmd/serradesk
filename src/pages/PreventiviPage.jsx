@@ -447,6 +447,7 @@ export default function PreventiviPage() {
     p.setNote('');
     p.setRiferimento('');
     p.setAltriDatiMeta({});
+    p.setIva(22);
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
     localStorage.removeItem('sd_draft_preventivo');
