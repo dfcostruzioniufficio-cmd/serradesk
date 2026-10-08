@@ -29,6 +29,8 @@ const TerminiPage = lazy(caricaPagina(() => import('./pages/TerminiPage')));
 const PrivacyPage = lazy(caricaPagina(() => import('./pages/PrivacyPage')));
 const OnboardingPage = lazy(caricaPagina(() => import('./pages/OnboardingPage')));
 const WidgetWebPage = lazy(caricaPagina(() => import('./pages/WidgetWebPage')));
+// Nuova pagina iniziale, per ora solo in anteprima (non indicizzata).
+const LandingNuova = lazy(caricaPagina(() => import('./pages/LandingNuova')));
 
 import AppShell from './components/AppShell';
 import { supabase } from './lib/supabaseClient';
@@ -113,6 +115,7 @@ function App() {
         <Routes>
           {/* Landing Page pubblica */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/anteprima-home" element={<LandingNuova anteprima />} />
           <Route path="/termini" element={<TerminiPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/preventivatore/:userId" element={<WidgetWebPage />} />

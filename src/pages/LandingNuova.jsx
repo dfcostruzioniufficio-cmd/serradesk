@@ -1,0 +1,704 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
+import { ArrowRight, Check, X, PencilRuler, Euro, FileText, Archive, Smartphone, Thermometer } from 'lucide-react';
+import WindowPreview from '../components/WindowPreview';
+import SEOManager from '../components/SEOManager';
+
+/**
+ * Pagina iniziale "ad effetto", sul modello del sito di DF Costruzioni: il
+ * preventivo si costruisce mentre si scorre (sei capitoli), poi il visitatore
+ * prova da solo il disegno e il prezzo. Il disegno e' quello vero del
+ * configuratore (WindowPreview), non un'immagine.
+ *
+ * Non tocca accessi, iscrizione, prezzi o configuratore: porta solo alle
+ * pagine che esistono gia' (/preventivi, /login, /guida, /termini, /privacy).
+ */
+
+// Gli stessi piani e le stesse voci della pagina iniziale attuale.
+const PLANS = [
+  {
+    name: 'Starter',
+    monthlyPrice: 35,
+    annualPrice: 350,
+    description: 'Per chi inizia e vuole preventivi professionali.',
+    badge: null,
+    features: [
+      { text: 'Preventivi commerciali PDF', included: true },
+      { text: 'Logo aziendale sui documenti', included: true },
+      { text: 'Archivio materiali', included: true },
+      { text: 'Preventivi illimitati', included: true },
+      { text: 'Distinta di Taglio CAM', included: false },
+    ],
+  },
+  {
+    name: 'Pro',
+    monthlyPrice: 59,
+    annualPrice: 590,
+    description: "Per chi lavora anche l'officina. Include il motore CAM.",
+    badge: 'Più scelto',
+    features: [
+      { text: 'Preventivi commerciali PDF', included: true },
+      { text: 'Logo aziendale sui documenti', included: true },
+      { text: 'Archivio materiali', included: true },
+      { text: 'Preventivi illimitati', included: true },
+      { text: 'Distinta di Taglio CAM', included: true },
+    ],
+  },
+];
+
+const CAPITOLI = [
+  { n: '01', titolo: 'Il modello', testo: 'Un tocco su "2 ante" e il serramento è già disegnato, con le aperture giuste.' },
+  { n: '02', titolo: 'Le misure', testo: 'Scrivi larghezza e altezza: il disegno si adatta e le quote sono quelle vere.' },
+  { n: '03', titolo: 'Profilo e colore', testo: 'Il sistema del tuo archivio, il colore, il vetro. E la trasmittanza Uw, calcolata.' },
+  { n: '04', titolo: 'Il prezzo', testo: 'Esce dal tuo listino: al metro quadro, al metro o a pezzo. Niente calcolatrice.' },
+  { n: '05', titolo: 'Il PDF', testo: 'Logo, numero progressivo, disegni e totale: il preventivo è pronto da mandare.' },
+  { n: '06', titolo: 'Inviato', testo: 'Dal telefono, anche in cantiere. Il cliente vede il serramento prima ancora di ordinarlo.' },
+];
+
+const C = {
+  notte: '#0B1020',
+  notte2: '#121933',
+  bordo: '#232C4A',
+  testo: '#E8ECF6',
+  tenue: '#9AA3B8',
+  blu: '#3B82F6',
+  viola: '#8B5CF6',
+};
+const GRAD = `linear-gradient(90deg, ${C.blu}, ${C.viola})`;
+
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const euro = (n) => '€ ' + n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const mm = (n) => Math.round(n).toLocaleString('it-IT');
+
+// Quanto si e' scesi dentro una sezione alta: 0 quando entra in cima, 1 quando
+// la sua fine arriva in fondo allo schermo.
+function useProgresso(ref) {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const calcola = () => {
+      raf = 0;
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const corsa = r.height - window.innerHeight;
+      setP(corsa > 0 ? clamp01(-r.top / corsa) : 0);
+    };
+    const pianifica = () => { if (!raf) raf = requestAnimationFrame(calcola); };
+    calcola();
+    window.addEventListener('scroll', pianifica, { passive: true });
+    window.addEventListener('resize', pianifica);
+    return () => {
+      window.removeEventListener('scroll', pianifica);
+      window.removeEventListener('resize', pianifica);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ref]);
+  return p;
+}
+
+// Comparsa morbida quando un blocco entra nello schermo.
+function Compare({ children, ritardo = 0, className = '' }) {
+  const ref = useRef(null);
+  const [visto, setVisto] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { setVisto(true); return; }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisto(true); io.disconnect(); } }, { threshold: 0.15 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className={`sd-compare ${visto ? 'sd-visto' : ''} ${className}`}
+      style={{ transitionDelay: `${ritardo}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// La finestra vera del configuratore, ingrandita: e' un SVG, resta nitida.
+function Finestra({ scala, ...props }) {
+  return (
+    <div style={{ transform: `scale(${scala})`, transformOrigin: 'center center' }}>
+      <WindowPreview isExporting {...props} />
+    </div>
+  );
+}
+
+function Chip({ attivo, children }) {
+  return (
+    <span
+      className="px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold transition-colors duration-300"
+      style={attivo
+        ? { background: GRAD, color: '#fff' }
+        : { border: `1px solid ${C.bordo}`, color: C.tenue }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Pannello({ children, style }) {
+  return (
+    <div
+      className="rounded-2xl px-4 py-3 md:px-5 md:py-4 backdrop-blur-md"
+      style={{ background: 'rgba(18,25,51,0.82)', border: `1px solid ${C.bordo}`, boxShadow: '0 20px 50px rgba(0,0,0,0.35)', ...style }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ---------- Il racconto a capitoli ----------
+function Racconto() {
+  const ref = useRef(null);
+  const p = useProgresso(ref);
+  const pos = p * CAPITOLI.length;
+  const cap = Math.min(CAPITOLI.length - 1, Math.floor(pos));
+  const t = clamp01(pos - cap);
+
+  // Stato del serramento in ogni momento del racconto.
+  const ante = cap === 0 && t < 0.45 ? 1 : 2;
+  const misure = cap === 0 ? [1200, 1400] : cap === 1 ? [lerp(1000, 1480, t), lerp(1000, 1540, t)] : [1480, 1540];
+  const colori = ['Bianco', 'Antracite', 'Noce'];
+  const colore = cap < 2 ? 'Bianco' : cap === 2 ? colori[Math.min(2, Math.floor(t * 3))] : 'Antracite';
+  const prezzo = cap < 3 ? 0 : cap === 3 ? lerp(0, 1025.64, Math.min(1, t * 1.4)) : 1025.64;
+
+  // Dal capitolo 5 la finestra entra nel foglio, nel 6 il foglio parte.
+  const nelFoglio = cap < 4 ? 0 : cap === 4 ? clamp01(t * 1.6) : 1;
+  const parte = cap === 5 ? clamp01((t - 0.15) * 1.5) : 0;
+  const rigaFoglio = (i) => (cap > 4 ? 1 : cap === 4 ? clamp01(t * 2.2 - i * 0.25) : 0);
+
+  return (
+    <section ref={ref} id="come-funziona" className="relative" style={{ height: `${CAPITOLI.length * 100 + 100}vh` }}>
+      <div className="sticky top-0 h-screen overflow-hidden">
+        {/* griglia da tavolo da disegno */}
+        <div
+          className="absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage: `linear-gradient(${C.bordo} 1px, transparent 1px), linear-gradient(90deg, ${C.bordo} 1px, transparent 1px)`,
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse at 60% 50%, black 20%, transparent 75%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at 60% 50%, black 20%, transparent 75%)',
+          }}
+        />
+        <div
+          className="absolute rounded-full blur-3xl"
+          style={{ width: 620, height: 620, right: '8%', top: '18%', background: `radial-gradient(circle, rgba(139,92,246,0.22), transparent 65%)` }}
+        />
+
+        <div className="relative h-full max-w-6xl mx-auto px-5 md:px-8 grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 md:gap-10 items-center pt-16 md:pt-0">
+          {/* indice dei capitoli (computer) / capitolo corrente (telefono) */}
+          <div className="self-start md:self-center">
+            <div className="md:hidden">
+              <div className="flex items-baseline gap-3">
+                <span className="sd-serif italic text-6xl leading-none" style={{ color: 'transparent', WebkitTextStroke: `1px ${C.tenue}` }}>{CAPITOLI[cap].n}</span>
+                <span className="font-display font-bold text-3xl" style={{ color: C.testo }}>{CAPITOLI[cap].titolo}</span>
+              </div>
+              <p className="mt-2 text-[15px] leading-snug" style={{ color: C.tenue }}>{CAPITOLI[cap].testo}</p>
+            </div>
+            <ol className="hidden md:block space-y-5">
+              {CAPITOLI.map((c, i) => {
+                const attivo = i === cap;
+                return (
+                  <li key={c.n} className="transition-all duration-500" style={{ opacity: attivo ? 1 : i < cap ? 0.45 : 0.28 }}>
+                    <div className="flex items-baseline gap-4">
+                      <span className="sd-serif italic text-3xl w-10" style={{ color: attivo ? C.viola : C.tenue }}>{c.n}</span>
+                      <span className="font-display font-bold" style={{ color: C.testo, fontSize: attivo ? 34 : 22, transition: 'font-size .4s' }}>{c.titolo}</span>
+                    </div>
+                    <p
+                      className="ml-14 text-base leading-relaxed overflow-hidden transition-all duration-500"
+                      style={{ color: C.tenue, maxHeight: attivo ? 80 : 0, opacity: attivo ? 1 : 0 }}
+                    >
+                      {c.testo}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          {/* il banco: finestra, pannelli, foglio */}
+          <div className="relative h-[62vh] md:h-[78vh]">
+            {/* finestra grande */}
+            <div
+              className="absolute inset-0 pt-20 md:pt-16 flex items-center justify-center transition-[filter] duration-500"
+              style={{
+                opacity: 1 - nelFoglio,
+                transform: `translateY(${nelFoglio * 60}px) scale(${1 - nelFoglio * 0.35})`,
+                filter: cap === 0 && t < 0.2 ? 'blur(2px)' : 'none',
+              }}
+            >
+              <div className="sd-finestra-grande">
+                <Finestra scala={1} numAnte={ante} apertura="Battente" frameColor={colore} width={misure[0]} height={misure[1]} handlePosition="right" />
+              </div>
+            </div>
+
+            {/* capitolo 1: i modelli */}
+            <div className="absolute left-0 right-0 top-0 flex flex-wrap gap-2 transition-opacity duration-500" style={{ opacity: cap === 0 ? 1 : 0 }}>
+              {['1 anta', '2 ante', '3 ante', 'PF 2 ante', 'Scorrevole'].map((m) => (
+                <Chip key={m} attivo={(m === '2 ante' && ante === 2) || (m === '1 anta' && ante === 1)}>{m}</Chip>
+              ))}
+            </div>
+
+            {/* capitolo 2: le misure */}
+            <div className="absolute left-0 top-0 transition-opacity duration-500" style={{ opacity: cap === 1 ? 1 : 0 }}>
+              <Pannello>
+                <div className="flex gap-4 md:gap-6 font-display tabular-nums">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider" style={{ color: C.tenue }}>Larghezza</div>
+                    <div className="text-2xl md:text-3xl font-bold" style={{ color: C.testo }}>{mm(misure[0])} <span className="text-sm" style={{ color: C.tenue }}>mm</span></div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider" style={{ color: C.tenue }}>Altezza</div>
+                    <div className="text-2xl md:text-3xl font-bold" style={{ color: C.testo }}>{mm(misure[1])} <span className="text-sm" style={{ color: C.tenue }}>mm</span></div>
+                  </div>
+                </div>
+              </Pannello>
+            </div>
+
+            {/* capitolo 3: profilo, colore, vetro */}
+            <div className="absolute left-0 top-0 space-y-2 transition-opacity duration-500" style={{ opacity: cap === 2 ? 1 : 0 }}>
+              <div className="flex flex-wrap gap-2">
+                <Chip attivo>ER750TT · alluminio TT</Chip>
+                {colori.map((c) => <Chip key={c} attivo={c === colore}>{c}</Chip>)}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Chip>Vetro 33.1/16/33.1 basso emissivo</Chip>
+                <Chip attivo={t > 0.5}>Uw 1,60 W/m²K</Chip>
+              </div>
+            </div>
+
+            {/* capitolo 4: il prezzo */}
+            <div className="absolute left-0 right-0 bottom-2 md:bottom-6 flex justify-center transition-all duration-500" style={{ opacity: cap === 3 ? 1 : 0, transform: `translateY(${cap === 3 ? 0 : 20}px)` }}>
+              <Pannello style={{ minWidth: 280 }}>
+                <div className="flex items-end justify-between gap-6">
+                  <div>
+                    <div className="text-xs font-semibold" style={{ color: C.tenue }}>Dal TUO listino</div>
+                    <div className="text-xs" style={{ color: C.tenue }}>2,28 m² × 450 €/m²</div>
+                  </div>
+                  <div className="font-display font-bold text-3xl md:text-4xl tabular-nums" style={{ color: C.testo }}>{euro(prezzo)}</div>
+                </div>
+              </Pannello>
+            </div>
+
+            {/* capitoli 5-6: il foglio */}
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              style={{
+                opacity: nelFoglio * (1 - parte * 0.9),
+                transform: `translate(${parte * 38}%, ${-parte * 30}%) rotate(${parte * 8}deg) scale(${lerp(0.92, 1, nelFoglio) - parte * 0.35})`,
+              }}
+            >
+              <div className="w-[min(86%,380px)] aspect-[1/1.414] bg-white rounded-md shadow-2xl p-[6%] flex flex-col text-[#0B1020]">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="h-6 w-24 rounded bg-[#1F2937] text-white text-[9px] font-bold flex items-center justify-center">IL TUO LOGO</div>
+                    <div className="text-[11px] font-bold mt-1.5">Rossi Serramenti</div>
+                  </div>
+                  <div className="text-right text-[9px] text-gray-500">
+                    Preventivo<div className="text-[13px] font-bold text-[#0B1020]">n. 19/2026</div>
+                  </div>
+                </div>
+                <div className="h-px bg-gray-200 my-3" />
+                {[
+                  ['Battente 2 ante', '1480 × 1540', '4.102,56', { numAnte: 2, width: 1480, height: 1540 }],
+                  ['Portafinestra', '1170 × 2500', '1.316,26', { numAnte: 2, width: 1170, height: 2500 }],
+                  ['Vasistas', '1700 × 700', '3.375,00', { numAnte: 1, width: 1700, height: 700, paneConfigs: [{ tipo: 'vasistas' }] }],
+                ].map(([m, d, pz, dis], i) => (
+                  <div key={m} className="flex items-center gap-2.5 mb-3 transition-all duration-300" style={{ opacity: rigaFoglio(i), transform: `translateX(${(1 - rigaFoglio(i)) * 12}px)` }}>
+                    <div className="w-12 h-12 rounded-sm border border-gray-200 shrink-0 flex items-center justify-center overflow-hidden">
+                      <div style={{ transform: 'scale(0.27)' }}>
+                        <WindowPreview isExporting apertura="Battente" frameColor="Antracite" handlePosition="right" {...dis} />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-bold truncate">{m}</div>
+                      <div className="text-[9px] text-gray-500">{d} mm</div>
+                    </div>
+                    <div className="text-[10px] font-bold tabular-nums">€ {pz}</div>
+                  </div>
+                ))}
+                <div className="mt-auto">
+                  <div className="h-px bg-gray-200 mb-2" />
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[10px] font-bold">TOTALE</span>
+                    <span className="text-[17px] font-extrabold tabular-nums" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>€ 8.793,82</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* capitolo 6: inviato */}
+            <div className="absolute left-0 right-0 bottom-4 md:bottom-10 flex justify-center transition-all duration-500" style={{ opacity: parte > 0.35 ? 1 : 0, transform: `translateY(${parte > 0.35 ? 0 : 20}px)` }}>
+              <div className="flex items-center gap-2 rounded-full px-5 py-3 font-semibold text-white" style={{ background: '#16A34A', boxShadow: '0 12px 30px rgba(22,163,74,0.35)' }}>
+                <Check size={18} /> Inviato al cliente
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* barra di avanzamento */}
+        <div className="absolute left-0 right-0 bottom-0 h-[3px]" style={{ background: C.bordo }}>
+          <div className="h-full" style={{ width: `${p * 100}%`, background: GRAD }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Prova tu ----------
+const MODELLI = [
+  { id: '1', nome: '1 anta', numAnte: 1, apertura: 'Battente', w: 800, h: 1200 },
+  { id: '2', nome: '2 ante', numAnte: 2, apertura: 'Battente', w: 1200, h: 1400 },
+  { id: '3', nome: '3 ante', numAnte: 3, apertura: 'Battente', w: 1800, h: 1400 },
+  { id: 'pf', nome: 'Portafinestra', numAnte: 2, apertura: 'Battente', w: 1200, h: 2200 },
+  { id: 'sc', nome: 'Scorrevole', numAnte: 2, apertura: 'Scorrevole', w: 1800, h: 2200 },
+  { id: 'fx', nome: 'Fisso', numAnte: 1, apertura: 'Fisso', w: 1000, h: 1000 },
+];
+const COLORI_PROVA = [['Bianco', '#f8fafc'], ['Antracite', '#555555'], ['Noce', '#8B5A2B'], ['Nero', '#222222']];
+
+function ProvaTu() {
+  const [modello, setModello] = useState(MODELLI[1]);
+  const [w, setW] = useState(1200);
+  const [h, setH] = useState(1400);
+  const [colore, setColore] = useState('Antracite');
+  const [listino, setListino] = useState(350);
+
+  const scegli = (m) => { setModello(m); setW(m.w); setH(m.h); };
+  const wOk = Math.min(4000, Math.max(300, Number(w) || 0));
+  const hOk = Math.min(3200, Math.max(300, Number(h) || 0));
+  const mq = (wOk * hOk) / 1e6;
+  const prezzo = mq * (Number(listino) || 0);
+
+  const campo = 'w-full rounded-xl px-4 py-3 text-lg font-bold tabular-nums outline-none focus:ring-2';
+  const stileCampo = { background: C.notte, border: `1px solid ${C.bordo}`, color: C.testo };
+
+  return (
+    <section id="prova" className="relative py-20 md:py-28">
+      <div className="max-w-6xl mx-auto px-5 md:px-8">
+        <Compare>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: C.viola }}>Adesso tocca a te</p>
+          <h2 className="font-display font-bold text-4xl md:text-6xl mt-3 leading-[1.05]" style={{ color: C.testo }}>
+            Provalo qui, <span className="sd-serif italic font-normal" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>senza iscriverti.</span>
+          </h2>
+        </Compare>
+
+        <div className="grid md:grid-cols-2 gap-8 md:gap-12 mt-10 md:mt-14 items-center">
+          <Compare className="space-y-6">
+            <div>
+              <div className="text-sm font-semibold mb-2" style={{ color: C.tenue }}>Modello</div>
+              <div className="flex flex-wrap gap-2">
+                {MODELLI.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => scegli(m)}
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                    style={m.id === modello.id ? { background: GRAD, color: '#fff' } : { border: `1px solid ${C.bordo}`, color: C.testo }}
+                  >
+                    {m.nome}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-sm font-semibold" style={{ color: C.tenue }}>Larghezza (mm)</span>
+                <input inputMode="numeric" value={w} onChange={(e) => setW(e.target.value.replace(/\D/g, ''))} className={`${campo} mt-1.5 focus:ring-violet-500`} style={stileCampo} />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold" style={{ color: C.tenue }}>Altezza (mm)</span>
+                <input inputMode="numeric" value={h} onChange={(e) => setH(e.target.value.replace(/\D/g, ''))} className={`${campo} mt-1.5 focus:ring-violet-500`} style={stileCampo} />
+              </label>
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2" style={{ color: C.tenue }}>Colore</div>
+              <div className="flex gap-3">
+                {COLORI_PROVA.map(([nome, hex]) => (
+                  <button
+                    key={nome}
+                    type="button"
+                    onClick={() => setColore(nome)}
+                    aria-label={nome}
+                    title={nome}
+                    className="w-11 h-11 rounded-xl transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                    style={{ background: hex, border: colore === nome ? `3px solid ${C.viola}` : `1px solid ${C.bordo}`, transform: colore === nome ? 'scale(1.08)' : 'none' }}
+                  />
+                ))}
+              </div>
+            </div>
+            <label className="block max-w-[220px]">
+              <span className="text-sm font-semibold" style={{ color: C.tenue }}>Il tuo prezzo al m²</span>
+              <input inputMode="decimal" value={listino} onChange={(e) => setListino(e.target.value.replace(/[^\d]/g, ''))} className={`${campo} mt-1.5 focus:ring-violet-500`} style={stileCampo} />
+            </label>
+          </Compare>
+
+          <Compare ritardo={120}>
+            <div className="rounded-3xl p-6 md:p-8" style={{ background: C.notte2, border: `1px solid ${C.bordo}` }}>
+              <div className="h-[300px] md:h-[360px] flex items-center justify-center">
+                <div className="sd-finestra-prova">
+                  <Finestra scala={1} numAnte={modello.numAnte} apertura={modello.apertura} frameColor={colore} width={wOk} height={hOk} handlePosition="right" />
+                </div>
+              </div>
+              <div className="flex items-end justify-between mt-4 pt-5" style={{ borderTop: `1px solid ${C.bordo}` }}>
+                <div className="text-sm" style={{ color: C.tenue }}>
+                  {mq.toLocaleString('it-IT', { maximumFractionDigits: 2 })} m² × {Number(listino) || 0} €/m²
+                </div>
+                <div className="font-display font-bold text-3xl md:text-4xl tabular-nums" style={{ color: C.testo }}>{euro(prezzo)}</div>
+              </div>
+            </div>
+            <p className="text-xs mt-3" style={{ color: C.tenue }}>
+              Esempio veloce. Nel programma usi il tuo listino, i vetri, i minimi di fatturazione, tapparelle e accessori. Il PDF con il tuo logo è per gli iscritti.
+            </p>
+          </Compare>
+        </div>
+
+        <Compare className="mt-10 flex flex-col sm:flex-row gap-3">
+          <Link to="/preventivi" className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 font-semibold text-white" style={{ background: GRAD }}>
+            Continua nel configuratore completo <ArrowRight size={18} />
+          </Link>
+          <Link to="/login?mode=signup" className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 font-semibold" style={{ border: `1px solid ${C.bordo}`, color: C.testo }}>
+            Crea il tuo account
+          </Link>
+        </Compare>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Frase che si accende parola per parola ----------
+function FraseAccesa({ testo }) {
+  const ref = useRef(null);
+  const p = useProgresso(ref);
+  const parole = useMemo(() => testo.split(' '), [testo]);
+  return (
+    <section ref={ref} className="relative" style={{ height: '180vh' }}>
+      <div className="sticky top-0 h-screen flex items-center">
+        <p className="max-w-5xl mx-auto px-5 md:px-8 font-display font-bold text-3xl md:text-6xl leading-[1.12]">
+          {parole.map((pa, i) => {
+            const soglia = i / parole.length;
+            const acceso = clamp01((p * 1.25 - soglia) * parole.length / 3);
+            return (
+              <span key={i} style={{ color: C.testo, opacity: 0.16 + acceso * 0.84, transition: 'opacity .15s' }}>
+                {pa}{' '}
+              </span>
+            );
+          })}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+const PUNTI = [
+  { icon: PencilRuler, titolo: 'Il disegno di ogni serramento', testo: 'Ante, aperture, traversi, sopraluce, persiane, blindate, scorrevoli. Il cliente vede quello che compra.' },
+  { icon: Euro, titolo: 'Il prezzo dal tuo listino', testo: 'Al m², al metro o a pezzo, con i tuoi profili e i tuoi vetri. Sconto e IVA fatti da soli.' },
+  { icon: FileText, titolo: 'PDF con il tuo logo', testo: 'Numero progressivo, riferimento del cantiere, note per articolo. Pronto da mandare.' },
+  { icon: Archive, titolo: 'Archivio dei preventivi', testo: 'Cerca per cliente, riferimento o numero. Riscarichi il PDF senza riaprire niente.' },
+  { icon: Smartphone, titolo: 'Dal telefono, in cantiere', testo: 'Funziona nel browser, su computer e cellulare. Niente da installare.' },
+  { icon: Thermometer, titolo: 'Trasmittanza Uw', testo: 'Calcolata per ogni serramento con la formula della UNI EN ISO 10077-1. È un valore indicativo.' },
+];
+
+export default function LandingNuova({ anteprima = false }) {
+  const [isAnnual, setIsAnnual] = useState(false);
+
+  return (
+    <main className="min-h-screen font-sans antialiased" style={{ background: C.notte, color: C.testo }}>
+      <SEOManager title="Software Preventivi e Distinte per Serramentisti" path="/" />
+      <Helmet>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" />
+        {anteprima && <meta name="robots" content="noindex, nofollow" />}
+      </Helmet>
+      <style>{`
+        .sd-serif { font-family: 'Instrument Serif', Georgia, serif; }
+        .sd-compare { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1); }
+        .sd-visto { opacity: 1; transform: none; }
+        .sd-finestra-grande { transform: scale(1.85); }
+        .sd-finestra-prova { transform: scale(1.2); }
+        @media (min-width: 768px) {
+          .sd-finestra-grande { transform: scale(2.6); }
+          .sd-finestra-prova { transform: scale(1.45); }
+        }
+        @keyframes sd-respiro { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px,-20px); } }
+        @media (prefers-reduced-motion: reduce) {
+          .sd-compare { opacity: 1; transform: none; transition: none; }
+          .sd-anim { animation: none !important; }
+        }
+      `}</style>
+
+      {/* NAV */}
+      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md" style={{ background: 'rgba(11,16,32,0.72)', borderBottom: `1px solid ${C.bordo}` }}>
+        <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" />
+            <span className="font-display font-bold text-lg">SerraDesk</span>
+          </Link>
+          <div className="flex items-center gap-2 md:gap-6">
+            <a href="#prezzi" className="hidden md:inline text-sm" style={{ color: C.tenue }}>Prezzi</a>
+            <Link to="/guida" className="hidden md:inline text-sm" style={{ color: C.tenue }}>Guide</Link>
+            <Link to="/login" className="text-sm px-2" style={{ color: C.tenue }}>Accedi</Link>
+            <Link to="/preventivi" className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: GRAD }}>Prova gratis</Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <header className="relative min-h-screen flex items-center overflow-hidden">
+        <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 720, height: 720, left: '-12%', top: '-10%', background: 'radial-gradient(circle, rgba(59,130,246,0.25), transparent 65%)', animation: 'sd-respiro 14s ease-in-out infinite' }} />
+        <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 760, height: 760, right: '-15%', bottom: '-20%', background: 'radial-gradient(circle, rgba(139,92,246,0.22), transparent 65%)', animation: 'sd-respiro 18s ease-in-out infinite reverse' }} />
+        <div className="relative max-w-6xl mx-auto px-5 md:px-8 pt-24 pb-16 w-full">
+          <Compare>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em]" style={{ color: C.tenue }}>Per serramentisti · fatto da un serramentista</p>
+          </Compare>
+          <Compare ritardo={100}>
+            <h1 className="font-display font-bold text-[3.2rem] leading-[0.98] md:text-[7rem] mt-5 tracking-tight">
+              Il preventivo,<br />
+              <span className="sd-serif italic font-normal" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>in due minuti.</span>
+            </h1>
+          </Compare>
+          <Compare ritardo={220}>
+            <p className="text-lg md:text-xl mt-7 max-w-xl leading-relaxed" style={{ color: C.tenue }}>
+              Scegli il modello, scrivi le misure: il disegno è fatto, il prezzo esce dal tuo listino e il PDF con il tuo logo è pronto da mandare.
+            </p>
+          </Compare>
+          <Compare ritardo={320} className="mt-9 flex flex-col sm:flex-row gap-3">
+            <Link to="/preventivi" className="inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 font-semibold text-white" style={{ background: GRAD, boxShadow: '0 16px 40px rgba(99,102,241,0.35)' }}>
+              Prova il configuratore <ArrowRight size={18} />
+            </Link>
+            <a href="#come-funziona" className="inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 font-semibold" style={{ border: `1px solid ${C.bordo}`, color: C.testo }}>
+              Guarda come funziona
+            </a>
+          </Compare>
+          <p className="text-sm mt-6" style={{ color: C.tenue }}>Nessuna carta per provare · funziona nel browser, anche dal telefono</p>
+        </div>
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[11px] uppercase tracking-[0.3em]" style={{ color: C.tenue }}>Scorri</div>
+      </header>
+
+      <Racconto />
+
+      <FraseAccesa testo="L'ho costruito perché i preventivi li facevo la sera, dopo il cantiere. Adesso li faccio in due minuti, anche dal telefono." />
+
+      <ProvaTu />
+
+      {/* COSA FA */}
+      <section className="py-20 md:py-28" style={{ borderTop: `1px solid ${C.bordo}` }}>
+        <div className="max-w-6xl mx-auto px-5 md:px-8">
+          <Compare>
+            <h2 className="font-display font-bold text-4xl md:text-5xl leading-tight max-w-3xl">
+              Tutto quello che serve <span className="sd-serif italic font-normal" style={{ color: C.viola }}>al preventivo.</span>
+            </h2>
+          </Compare>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
+            {PUNTI.map(({ icon: Icona, titolo, testo }, i) => (
+              <Compare key={titolo} ritardo={(i % 3) * 90}>
+                <div className="h-full rounded-2xl p-6" style={{ background: C.notte2, border: `1px solid ${C.bordo}` }}>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white" style={{ background: GRAD }}>
+                    <Icona size={20} />
+                  </div>
+                  <h3 className="font-display font-bold text-xl mt-5">{titolo}</h3>
+                  <p className="mt-2 leading-relaxed" style={{ color: C.tenue }}>{testo}</p>
+                </div>
+              </Compare>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PREZZI: gli stessi della pagina attuale */}
+      <section id="prezzi" className="py-20 md:py-28 scroll-mt-16" style={{ borderTop: `1px solid ${C.bordo}` }}>
+        <div className="max-w-6xl mx-auto px-5 md:px-8">
+          <Compare className="text-center">
+            <h2 className="font-display font-bold text-4xl md:text-5xl">Sblocca tutte le funzioni.</h2>
+            <p className="text-lg mt-4 max-w-xl mx-auto" style={{ color: C.tenue }}>
+              Il configuratore è gratis. Abbonati per il tuo logo sui documenti, l'archivio clienti e la distinta di taglio.
+            </p>
+          </Compare>
+          <div className="flex justify-center mt-10">
+            <div className="inline-flex rounded-xl p-1" style={{ border: `1px solid ${C.bordo}` }}>
+              {[['Mensile', false], ['Annuale −15%', true]].map(([l, v]) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setIsAnnual(v)}
+                  className="px-5 py-2 text-sm font-semibold rounded-lg transition-colors"
+                  style={isAnnual === v ? { background: GRAD, color: '#fff' } : { color: C.tenue }}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-5 max-w-3xl mx-auto mt-10">
+            {PLANS.map((plan, i) => (
+              <Compare key={plan.name} ritardo={i * 100}>
+                <div className="relative h-full rounded-2xl p-8 flex flex-col" style={{ background: C.notte2, border: `1px solid ${i === 1 ? C.viola : C.bordo}` }}>
+                  {plan.badge && (
+                    <div className="absolute -top-3 left-8 text-white text-xs font-semibold px-3 py-1 rounded-full" style={{ background: GRAD }}>{plan.badge}</div>
+                  )}
+                  <h3 className="font-display font-bold text-2xl">{plan.name}</h3>
+                  <p className="text-sm mt-1 mb-6" style={{ color: C.tenue }}>{plan.description}</p>
+                  <div className="pb-6 mb-6" style={{ borderBottom: `1px solid ${C.bordo}` }}>
+                    <span className="font-display font-bold text-5xl tabular-nums">€{isAnnual ? plan.annualPrice : plan.monthlyPrice}</span>
+                    <span style={{ color: C.tenue }}> / {isAnnual ? 'anno' : 'mese'}</span>
+                  </div>
+                  <ul className="space-y-3 mb-8 flex-1">
+                    {plan.features.map((f) => (
+                      <li key={f.text} className="flex items-start gap-3 text-sm">
+                        {f.included ? <Check size={18} className="shrink-0" style={{ color: C.viola }} /> : <X size={18} className="shrink-0" style={{ color: C.bordo }} />}
+                        <span style={{ color: f.included ? C.testo : C.tenue }}>{f.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to="/login?mode=signup" className="w-full text-center font-semibold py-3.5 rounded-xl text-white" style={i === 1 ? { background: GRAD } : { border: `1px solid ${C.bordo}` }}>
+                    Inizia subito
+                  </Link>
+                </div>
+              </Compare>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CHIUSURA */}
+      <section className="relative overflow-hidden py-24 md:py-32" style={{ borderTop: `1px solid ${C.bordo}` }}>
+        <div className="absolute rounded-full blur-3xl left-1/2 -translate-x-1/2 top-0" style={{ width: 900, height: 600, background: 'radial-gradient(circle, rgba(139,92,246,0.25), transparent 65%)' }} />
+        <Compare className="relative text-center max-w-3xl mx-auto px-5">
+          <h2 className="font-display font-bold text-4xl md:text-6xl leading-[1.05]">
+            Il prossimo preventivo, <span className="sd-serif italic font-normal" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>fallo qui.</span>
+          </h2>
+          <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/preventivi" className="inline-flex items-center justify-center gap-2 rounded-xl px-8 py-4 font-semibold text-white" style={{ background: GRAD }}>
+              Prova il configuratore <ArrowRight size={18} />
+            </Link>
+            <a href="mailto:info@serradesk.it" className="inline-flex items-center justify-center rounded-xl px-8 py-4 font-semibold" style={{ border: `1px solid ${C.bordo}`, color: C.testo }}>
+              Scrivici: info@serradesk.it
+            </a>
+          </div>
+        </Compare>
+      </section>
+
+      <footer className="py-10" style={{ borderTop: `1px solid ${C.bordo}` }}>
+        <div className="max-w-6xl mx-auto px-5 md:px-8 flex flex-col md:flex-row gap-4 items-center justify-between text-sm" style={{ color: C.tenue }}>
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="" className="w-6 h-6 rounded-md" />
+            <span>© {new Date().getFullYear()} SerraDesk</span>
+          </div>
+          <div className="flex flex-wrap gap-5 justify-center">
+            <Link to="/guida">Guide</Link>
+            <Link to="/termini">Termini di Servizio</Link>
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/login">Accedi</Link>
+            <a href="mailto:info@serradesk.it">Supporto</a>
+          </div>
+        </div>
+      </footer>
+    </main>
+  );
+}
