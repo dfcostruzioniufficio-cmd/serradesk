@@ -425,11 +425,10 @@ function Racconto() {
           <div className="relative h-[62vh] md:h-[78vh]">
             {/* finestra grande */}
             <div
-              className="absolute inset-0 pt-20 md:pt-16 flex items-center justify-center transition-[filter] duration-500"
+              className="absolute inset-0 pt-20 md:pt-16 flex items-center justify-center"
               style={{
                 opacity: 1 - nelFoglio,
                 transform: `translateY(${nelFoglio * 60}px) scale(${1 - nelFoglio * 0.35})`,
-                filter: cap === 0 && t < 0.2 ? 'blur(2px)' : 'none',
               }}
             >
               <div className="sd-finestra-grande">
@@ -718,11 +717,13 @@ export default function LandingNuova({ anteprima = false }) {
         .sd-serif { font-family: 'Instrument Serif', Georgia, serif; }
         .sd-compare { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1); }
         .sd-visto { opacity: 1; transform: none; }
-        .sd-finestra-grande { transform: scale(1.85); }
-        .sd-finestra-prova { transform: scale(1.2); }
+        /* zoom e non transform: scale, perche' Safari ingrandisce l'immagine
+           gia' disegnata e la sfoca; con zoom ridisegna il vettoriale. */
+        .sd-finestra-grande { zoom: 1.85; }
+        .sd-finestra-prova { zoom: 1.2; }
         @media (min-width: 768px) {
-          .sd-finestra-grande { transform: scale(2.6); }
-          .sd-finestra-prova { transform: scale(1.45); }
+          .sd-finestra-grande { zoom: 2.6; }
+          .sd-finestra-prova { zoom: 1.45; }
         }
         @keyframes sd-respiro { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px,-20px); } }
         @keyframes sd-onda-k { from { box-shadow: 0 0 0 0 rgba(139,92,246,0.55); } to { box-shadow: 0 0 0 14px rgba(139,92,246,0); } }
