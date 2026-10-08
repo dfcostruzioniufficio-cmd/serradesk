@@ -803,7 +803,7 @@ export default function LandingNuova({ anteprima = false }) {
 
       <Racconto />
 
-      <FraseAccesa testo="L'ho costruito perché i preventivi li facevo la sera, dopo il cantiere. Adesso li faccio in due minuti, anche dal telefono." />
+      <FraseAccesa testo="Il cliente vuole il preventivo oggi. Tu lo prepari in due minuti, anche dal cantiere." />
 
       <ProvaTu />
 
