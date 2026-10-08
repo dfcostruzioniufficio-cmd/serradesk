@@ -56,16 +56,27 @@ const CAPITOLI = [
   { n: '06', titolo: 'Inviato', testo: 'Dal telefono, anche in cantiere. Il cliente vede il serramento prima ancora di ordinarlo.' },
 ];
 
+// Scuro per i momenti "cinema" (apertura, racconto, finale): un blu vivo che
+// sfuma verso il viola del logo, non nero. Chiaro per provare e scegliere.
 const C = {
-  notte: '#0B1020',
-  notte2: '#121933',
-  bordo: '#232C4A',
+  notte: '#0F1838',
+  notte2: '#18224A',
+  bordo: '#2B3766',
   testo: '#E8ECF6',
   tenue: '#9AA3B8',
   blu: '#3B82F6',
   viola: '#8B5CF6',
 };
 const GRAD = `linear-gradient(90deg, ${C.blu}, ${C.viola})`;
+const SCURO = 'linear-gradient(180deg, #111B42 0%, #0F1838 55%, #1A1A4A 100%)';
+const L = {
+  sfondo: '#F4F7FC',
+  carta: '#FFFFFF',
+  campo: '#F8FAFD',
+  testo: '#0F1838',
+  tenue: '#5B6478',
+  bordo: '#E1E7F2',
+};
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -362,7 +373,7 @@ function Racconto() {
   const rigaFoglio = (i) => (cap > 4 ? 1 : cap === 4 ? clamp01(t * 2.2 - i * 0.25) : 0);
 
   return (
-    <section ref={ref} id="come-funziona" className="relative" style={{ height: `${CAPITOLI.length * 100 + 100}vh` }}>
+    <section ref={ref} id="come-funziona" className="relative" style={{ height: `${CAPITOLI.length * 100 + 100}vh`, background: '#0F1838' }}>
       <div className="sticky top-0 h-screen overflow-hidden">
         {/* griglia da tavolo da disegno */}
         <div
@@ -564,14 +575,14 @@ function ProvaTu() {
   const prezzo = mq * (Number(listino) || 0);
 
   const campo = 'w-full rounded-xl px-4 py-3 text-lg font-bold tabular-nums outline-none focus:ring-2';
-  const stileCampo = { background: C.notte, border: `1px solid ${C.bordo}`, color: C.testo };
+  const stileCampo = { background: L.campo, border: `1px solid ${L.bordo}`, color: L.testo };
 
   return (
-    <section id="prova" className="relative py-20 md:py-28">
+    <section id="prova" className="relative py-20 md:py-28" style={{ background: L.sfondo }}>
       <div className="max-w-6xl mx-auto px-5 md:px-8">
         <Compare>
           <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: C.viola }}>Adesso tocca a te</p>
-          <h2 className="font-display font-bold text-4xl md:text-6xl mt-3 leading-[1.05]" style={{ color: C.testo }}>
+          <h2 className="font-display font-bold text-4xl md:text-6xl mt-3 leading-[1.05]" style={{ color: L.testo }}>
             Provalo qui, <span className="sd-serif italic font-normal" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>senza iscriverti.</span>
           </h2>
         </Compare>
@@ -579,7 +590,7 @@ function ProvaTu() {
         <div className="grid md:grid-cols-2 gap-8 md:gap-12 mt-10 md:mt-14 items-center">
           <Compare className="space-y-6">
             <div>
-              <div className="text-sm font-semibold mb-2" style={{ color: C.tenue }}>Modello</div>
+              <div className="text-sm font-semibold mb-2" style={{ color: L.tenue }}>Modello</div>
               <div className="flex flex-wrap gap-2">
                 {MODELLI.map((m) => (
                   <button
@@ -587,7 +598,7 @@ function ProvaTu() {
                     type="button"
                     onClick={() => scegli(m)}
                     className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-                    style={m.id === modello.id ? { background: GRAD, color: '#fff' } : { border: `1px solid ${C.bordo}`, color: C.testo }}
+                    style={m.id === modello.id ? { background: GRAD, color: '#fff' } : { border: `1px solid ${L.bordo}`, color: L.testo }}
                   >
                     {m.nome}
                   </button>
@@ -596,16 +607,16 @@ function ProvaTu() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-sm font-semibold" style={{ color: C.tenue }}>Larghezza (mm)</span>
+                <span className="text-sm font-semibold" style={{ color: L.tenue }}>Larghezza (mm)</span>
                 <input inputMode="numeric" value={w} onChange={(e) => setW(e.target.value.replace(/\D/g, ''))} className={`${campo} mt-1.5 focus:ring-violet-500`} style={stileCampo} />
               </label>
               <label className="block">
-                <span className="text-sm font-semibold" style={{ color: C.tenue }}>Altezza (mm)</span>
+                <span className="text-sm font-semibold" style={{ color: L.tenue }}>Altezza (mm)</span>
                 <input inputMode="numeric" value={h} onChange={(e) => setH(e.target.value.replace(/\D/g, ''))} className={`${campo} mt-1.5 focus:ring-violet-500`} style={stileCampo} />
               </label>
             </div>
             <div>
-              <div className="text-sm font-semibold mb-2" style={{ color: C.tenue }}>Colore</div>
+              <div className="text-sm font-semibold mb-2" style={{ color: L.tenue }}>Colore</div>
               <div className="flex gap-3">
                 {COLORI_PROVA.map(([nome, hex]) => (
                   <button
@@ -615,32 +626,32 @@ function ProvaTu() {
                     aria-label={nome}
                     title={nome}
                     className="w-11 h-11 rounded-xl transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-                    style={{ background: hex, border: colore === nome ? `3px solid ${C.viola}` : `1px solid ${C.bordo}`, transform: colore === nome ? 'scale(1.08)' : 'none' }}
+                    style={{ background: hex, border: colore === nome ? `3px solid ${C.viola}` : `1px solid ${L.bordo}`, transform: colore === nome ? 'scale(1.08)' : 'none' }}
                   />
                 ))}
               </div>
             </div>
             <label className="block max-w-[220px]">
-              <span className="text-sm font-semibold" style={{ color: C.tenue }}>Il tuo prezzo al m²</span>
+              <span className="text-sm font-semibold" style={{ color: L.tenue }}>Il tuo prezzo al m²</span>
               <input inputMode="decimal" value={listino} onChange={(e) => setListino(e.target.value.replace(/[^\d]/g, ''))} className={`${campo} mt-1.5 focus:ring-violet-500`} style={stileCampo} />
             </label>
           </Compare>
 
           <Compare ritardo={120}>
-            <div className="rounded-3xl p-6 md:p-8" style={{ background: C.notte2, border: `1px solid ${C.bordo}` }}>
+            <div className="rounded-3xl p-6 md:p-8" style={{ background: L.carta, border: `1px solid ${L.bordo}`, boxShadow: '0 30px 70px rgba(15,24,56,0.10)' }}>
               <div className="h-[300px] md:h-[360px] flex items-center justify-center">
                 <div className="sd-finestra-prova">
                   <Finestra scala={1} numAnte={modello.numAnte} apertura={modello.apertura} frameColor={colore} width={wOk} height={hOk} handlePosition="right" />
                 </div>
               </div>
-              <div className="flex items-end justify-between mt-4 pt-5" style={{ borderTop: `1px solid ${C.bordo}` }}>
-                <div className="text-sm" style={{ color: C.tenue }}>
+              <div className="flex items-end justify-between mt-4 pt-5" style={{ borderTop: `1px solid ${L.bordo}` }}>
+                <div className="text-sm" style={{ color: L.tenue }}>
                   {mq.toLocaleString('it-IT', { maximumFractionDigits: 2 })} m² × {Number(listino) || 0} €/m²
                 </div>
-                <div className="font-display font-bold text-3xl md:text-4xl tabular-nums" style={{ color: C.testo }}>{euro(prezzo)}</div>
+                <div className="font-display font-bold text-3xl md:text-4xl tabular-nums" style={{ color: L.testo }}>{euro(prezzo)}</div>
               </div>
             </div>
-            <p className="text-xs mt-3" style={{ color: C.tenue }}>
+            <p className="text-xs mt-3" style={{ color: L.tenue }}>
               Esempio veloce. Nel programma usi il tuo listino, i vetri, i minimi di fatturazione, tapparelle e accessori. Il PDF con il tuo logo è per gli iscritti.
             </p>
           </Compare>
@@ -650,7 +661,7 @@ function ProvaTu() {
           <Link to="/preventivi" className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 font-semibold text-white" style={{ background: GRAD }}>
             Continua nel configuratore completo <ArrowRight size={18} />
           </Link>
-          <Link to="/login?mode=signup" className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 font-semibold" style={{ border: `1px solid ${C.bordo}`, color: C.testo }}>
+          <Link to="/login?mode=signup" className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 font-semibold" style={{ border: `1px solid ${L.bordo}`, color: L.testo }}>
             Crea il tuo account
           </Link>
         </Compare>
@@ -737,7 +748,7 @@ export default function LandingNuova({ anteprima = false }) {
       `}</style>
 
       {/* NAV */}
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md" style={{ background: 'rgba(11,16,32,0.72)', borderBottom: `1px solid ${C.bordo}` }}>
+      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md" style={{ background: 'rgba(15,24,56,0.95)', borderBottom: `1px solid ${C.bordo}` }}>
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
             <img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" />
@@ -753,7 +764,7 @@ export default function LandingNuova({ anteprima = false }) {
       </nav>
 
       {/* HERO */}
-      <header className="relative min-h-screen flex items-center overflow-hidden">
+      <header className="relative min-h-screen flex items-center overflow-hidden" style={{ background: SCURO }}>
         <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 720, height: 720, left: '-12%', top: '-10%', background: 'radial-gradient(circle, rgba(59,130,246,0.25), transparent 65%)', animation: 'sd-respiro 14s ease-in-out infinite' }} />
         <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 760, height: 760, right: '-15%', bottom: '-20%', background: 'radial-gradient(circle, rgba(139,92,246,0.22), transparent 65%)', animation: 'sd-respiro 18s ease-in-out infinite reverse' }} />
         <DisegnoTecnico />
@@ -797,7 +808,7 @@ export default function LandingNuova({ anteprima = false }) {
       <ProvaTu />
 
       {/* COSA FA */}
-      <section className="py-20 md:py-28" style={{ borderTop: `1px solid ${C.bordo}` }}>
+      <section className="py-20 md:py-28" style={{ background: L.sfondo, color: L.testo }}>
         <div className="max-w-6xl mx-auto px-5 md:px-8">
           <Compare>
             <h2 className="font-display font-bold text-4xl md:text-5xl leading-tight max-w-3xl">
@@ -807,12 +818,12 @@ export default function LandingNuova({ anteprima = false }) {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
             {PUNTI.map(({ icon: Icona, titolo, testo }, i) => (
               <Compare key={titolo} ritardo={(i % 3) * 90}>
-                <div className="h-full rounded-2xl p-6" style={{ background: C.notte2, border: `1px solid ${C.bordo}` }}>
+                <div className="h-full rounded-2xl p-6" style={{ background: L.carta, border: `1px solid ${L.bordo}`, boxShadow: '0 10px 30px rgba(15,24,56,0.05)' }}>
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white" style={{ background: GRAD }}>
                     <Icona size={20} />
                   </div>
                   <h3 className="font-display font-bold text-xl mt-5">{titolo}</h3>
-                  <p className="mt-2 leading-relaxed" style={{ color: C.tenue }}>{testo}</p>
+                  <p className="mt-2 leading-relaxed" style={{ color: L.tenue }}>{testo}</p>
                 </div>
               </Compare>
             ))}
@@ -821,23 +832,23 @@ export default function LandingNuova({ anteprima = false }) {
       </section>
 
       {/* PREZZI: gli stessi della pagina attuale */}
-      <section id="prezzi" className="py-20 md:py-28 scroll-mt-16" style={{ borderTop: `1px solid ${C.bordo}` }}>
+      <section id="prezzi" className="py-20 md:py-28 scroll-mt-16" style={{ background: L.carta, color: L.testo, borderTop: `1px solid ${L.bordo}` }}>
         <div className="max-w-6xl mx-auto px-5 md:px-8">
           <Compare className="text-center">
             <h2 className="font-display font-bold text-4xl md:text-5xl">Sblocca tutte le funzioni.</h2>
-            <p className="text-lg mt-4 max-w-xl mx-auto" style={{ color: C.tenue }}>
+            <p className="text-lg mt-4 max-w-xl mx-auto" style={{ color: L.tenue }}>
               Il configuratore è gratis. Abbonati per il tuo logo sui documenti, l'archivio clienti e la distinta di taglio.
             </p>
           </Compare>
           <div className="flex justify-center mt-10">
-            <div className="inline-flex rounded-xl p-1" style={{ border: `1px solid ${C.bordo}` }}>
+            <div className="inline-flex rounded-xl p-1" style={{ border: `1px solid ${L.bordo}` }}>
               {[['Mensile', false], ['Annuale −15%', true]].map(([l, v]) => (
                 <button
                   key={l}
                   type="button"
                   onClick={() => setIsAnnual(v)}
                   className="px-5 py-2 text-sm font-semibold rounded-lg transition-colors"
-                  style={isAnnual === v ? { background: GRAD, color: '#fff' } : { color: C.tenue }}
+                  style={isAnnual === v ? { background: GRAD, color: '#fff' } : { color: L.tenue }}
                 >
                   {l}
                 </button>
@@ -847,25 +858,25 @@ export default function LandingNuova({ anteprima = false }) {
           <div className="grid md:grid-cols-2 gap-5 max-w-3xl mx-auto mt-10">
             {PLANS.map((plan, i) => (
               <Compare key={plan.name} ritardo={i * 100}>
-                <div className="relative h-full rounded-2xl p-8 flex flex-col" style={{ background: C.notte2, border: `1px solid ${i === 1 ? C.viola : C.bordo}` }}>
+                <div className="relative h-full rounded-2xl p-8 flex flex-col" style={{ background: i === 1 ? '#FBFAFF' : L.sfondo, border: `1px solid ${i === 1 ? C.viola : L.bordo}` }}>
                   {plan.badge && (
                     <div className="absolute -top-3 left-8 text-white text-xs font-semibold px-3 py-1 rounded-full" style={{ background: GRAD }}>{plan.badge}</div>
                   )}
                   <h3 className="font-display font-bold text-2xl">{plan.name}</h3>
-                  <p className="text-sm mt-1 mb-6" style={{ color: C.tenue }}>{plan.description}</p>
-                  <div className="pb-6 mb-6" style={{ borderBottom: `1px solid ${C.bordo}` }}>
+                  <p className="text-sm mt-1 mb-6" style={{ color: L.tenue }}>{plan.description}</p>
+                  <div className="pb-6 mb-6" style={{ borderBottom: `1px solid ${L.bordo}` }}>
                     <span className="font-display font-bold text-5xl tabular-nums">€{isAnnual ? plan.annualPrice : plan.monthlyPrice}</span>
-                    <span style={{ color: C.tenue }}> / {isAnnual ? 'anno' : 'mese'}</span>
+                    <span style={{ color: L.tenue }}> / {isAnnual ? 'anno' : 'mese'}</span>
                   </div>
                   <ul className="space-y-3 mb-8 flex-1">
                     {plan.features.map((f) => (
                       <li key={f.text} className="flex items-start gap-3 text-sm">
-                        {f.included ? <Check size={18} className="shrink-0" style={{ color: C.viola }} /> : <X size={18} className="shrink-0" style={{ color: C.bordo }} />}
-                        <span style={{ color: f.included ? C.testo : C.tenue }}>{f.text}</span>
+                        {f.included ? <Check size={18} className="shrink-0" style={{ color: C.viola }} /> : <X size={18} className="shrink-0" style={{ color: L.bordo }} />}
+                        <span style={{ color: f.included ? L.testo : L.tenue }}>{f.text}</span>
                       </li>
                     ))}
                   </ul>
-                  <Link to="/login?mode=signup" className="w-full text-center font-semibold py-3.5 rounded-xl text-white" style={i === 1 ? { background: GRAD } : { border: `1px solid ${C.bordo}` }}>
+                  <Link to="/login?mode=signup" className="w-full text-center font-semibold py-3.5 rounded-xl text-white" style={i === 1 ? { background: GRAD } : { background: L.testo }}>
                     Inizia subito
                   </Link>
                 </div>
@@ -876,7 +887,7 @@ export default function LandingNuova({ anteprima = false }) {
       </section>
 
       {/* CHIUSURA */}
-      <section className="relative overflow-hidden py-24 md:py-32" style={{ borderTop: `1px solid ${C.bordo}` }}>
+      <section className="relative overflow-hidden py-24 md:py-32" style={{ background: SCURO }}>
         <div className="absolute rounded-full blur-3xl left-1/2 -translate-x-1/2 top-0" style={{ width: 900, height: 600, background: 'radial-gradient(circle, rgba(139,92,246,0.25), transparent 65%)' }} />
         <Compare className="relative text-center max-w-3xl mx-auto px-5">
           <h2 className="font-display font-bold text-4xl md:text-6xl leading-[1.05]">
@@ -893,7 +904,7 @@ export default function LandingNuova({ anteprima = false }) {
         </Compare>
       </section>
 
-      <footer className="py-10" style={{ borderTop: `1px solid ${C.bordo}` }}>
+      <footer className="py-10" style={{ background: '#0C1430', borderTop: `1px solid ${C.bordo}` }}>
         <div className="max-w-6xl mx-auto px-5 md:px-8 flex flex-col md:flex-row gap-4 items-center justify-between text-sm" style={{ color: C.tenue }}>
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="" className="w-6 h-6 rounded-md" />
