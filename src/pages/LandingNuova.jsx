@@ -136,7 +136,7 @@ function Chip({ attivo, children }) {
       className="px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold transition-colors duration-300"
       style={attivo
         ? { background: GRAD, color: '#fff' }
-        : { border: `1px solid ${C.bordo}`, color: C.tenue }}
+        : { border: `1px solid ${C.bordo}`, background: 'rgba(255,255,255,0.04)', color: C.tenue }}
     >
       {children}
     </span>
