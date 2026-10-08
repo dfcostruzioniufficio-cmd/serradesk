@@ -6,7 +6,9 @@ import ScrollToTop from './components/ScrollToTop';
 
 // Le due porte d'ingresso restano caricate subito: sono le prime cose
 // che vede chi arriva, un caricamento intermedio qui si noterebbe.
-import LandingPage from './pages/LandingPage';
+// Pagina iniziale (ottobre 2026). La precedente resta in pages/LandingPage.jsx
+// per poterla rimettere al volo.
+import LandingNuova from './pages/LandingNuova';
 import LoginPage from './pages/LoginPage';
 
 // Tutto il resto viene scaricato solo quando si apre davvero quella
@@ -29,8 +31,6 @@ const TerminiPage = lazy(caricaPagina(() => import('./pages/TerminiPage')));
 const PrivacyPage = lazy(caricaPagina(() => import('./pages/PrivacyPage')));
 const OnboardingPage = lazy(caricaPagina(() => import('./pages/OnboardingPage')));
 const WidgetWebPage = lazy(caricaPagina(() => import('./pages/WidgetWebPage')));
-// Nuova pagina iniziale, per ora solo in anteprima (non indicizzata).
-const LandingNuova = lazy(caricaPagina(() => import('./pages/LandingNuova')));
 
 import AppShell from './components/AppShell';
 import { supabase } from './lib/supabaseClient';
@@ -114,8 +114,8 @@ function App() {
         <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Landing Page pubblica */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/anteprima-home" element={<LandingNuova anteprima />} />
+          <Route path="/" element={<LandingNuova />} />
+          <Route path="/anteprima-home" element={<Navigate to="/" replace />} />
           <Route path="/termini" element={<TerminiPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/preventivatore/:userId" element={<WidgetWebPage />} />
