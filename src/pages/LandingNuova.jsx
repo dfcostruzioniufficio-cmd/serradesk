@@ -154,6 +154,193 @@ function Pannello({ children, style }) {
   );
 }
 
+// ---------- Prima schermata: il telefono che fa un preventivo da solo ----------
+
+// Secondi dall'apertura, aggiornati a ogni fotogramma. Con "riduci movimento"
+// resta fermo su un momento in cui si vede tutto.
+function useOrologio(fermo = 4.6) {
+  const [t, setT] = useState(fermo);
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    const t0 = performance.now();
+    // Il primo fotogramma puo' avere un orario di poco precedente a t0.
+    const giro = (ora) => { setT(Math.max(0, (ora - t0) / 1000)); raf = requestAnimationFrame(giro); };
+    raf = requestAnimationFrame(giro);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return t;
+}
+
+const GIRO = 11; // secondi di un preventivo
+const ESEMPI = [
+  { modello: '2 ante', numAnte: 2, w: 1480, h: 1540, colore: 'Antracite', prezzo: 1025.64, mq: '2,28', listino: 450, tot: '4.102,56', qta: 4 },
+  { modello: 'PF 2 ante', numAnte: 2, w: 1170, h: 2200, colore: 'Bianco', prezzo: 1158.30, mq: '2,57', listino: 450, tot: '1.158,30', qta: 1 },
+  { modello: '1 anta', numAnte: 1, w: 900, h: 1300, colore: 'Noce', prezzo: 526.50, mq: '1,17', listino: 450, tot: '1.053,00', qta: 2 },
+];
+const fase = (t, a, b) => clamp01((t - a) / (b - a));
+
+function Onda({ attiva }) {
+  if (!attiva) return null;
+  return <span className="absolute inset-0 rounded-[inherit] sd-onda" />;
+}
+
+function Telefono() {
+  const ora = useOrologio();
+  const n = Math.floor(ora / GIRO);
+  const t = ora - n * GIRO;
+  const es = ESEMPI[((n % ESEMPI.length) + ESEMPI.length) % ESEMPI.length];
+
+  const scelto = t > 0.9;
+  const scriviL = Math.floor(fase(t, 1.3, 2.0) * 4);
+  const scriviH = Math.floor(fase(t, 2.1, 2.8) * 4);
+  const disegno = fase(t, 2.6, 3.4);
+  const prezzo = lerp(0, es.prezzo, fase(t, 3.6, 4.6));
+  const aggiunto = t > 5.3;
+  const pdf = fase(t, 6.0, 6.7) * (1 - fase(t, 10.2, 10.8));
+  const inviato = t > 8.6 && t < 10.4;
+  const svanisce = 1 - fase(t, 10.6, 11);
+
+  const L = String(es.w).slice(0, scriviL);
+  const H = String(es.h).slice(0, scriviH);
+
+  return (
+    <div className="relative" style={{ opacity: Math.max(0.15, svanisce), transition: 'opacity .2s' }}>
+      {/* schede che galleggiano intorno */}
+      <div className="hidden lg:block absolute z-20 left-0 xl:-left-4 top-24 sd-galleggia" style={{ opacity: fase(t, 4.0, 4.6) * svanisce }}>
+        <Pannello><div className="text-[11px]" style={{ color: C.tenue }}>Dal tuo listino</div><div className="font-display font-bold text-xl tabular-nums" style={{ color: C.testo }}>{euro(es.prezzo)}</div></Pannello>
+      </div>
+      <div className="hidden lg:block absolute z-20 right-0 xl:-right-6 top-56 sd-galleggia-2" style={{ opacity: fase(t, 3.2, 3.8) * svanisce }}>
+        <Pannello><div className="text-[11px]" style={{ color: C.tenue }}>Trasmittanza</div><div className="font-display font-bold text-lg" style={{ color: C.testo }}>Uw 1,60 W/m²K</div></Pannello>
+      </div>
+      <div className="hidden lg:block absolute z-20 left-0 xl:-left-6 bottom-28 sd-galleggia-2" style={{ opacity: fase(t, 6.4, 7.0) * svanisce }}>
+        <Pannello><div className="text-[11px]" style={{ color: C.tenue }}>PDF pronto</div><div className="font-display font-bold text-lg" style={{ color: C.testo }}>n. 19/2026</div></Pannello>
+      </div>
+
+      {/* il telefono */}
+      <div className="relative w-[260px] h-[540px] md:w-[290px] md:h-[600px] rounded-[44px] p-[10px] mx-auto"
+        style={{ background: 'linear-gradient(145deg,#2A3354,#121933)', boxShadow: '0 40px 90px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.08)' }}>
+        <div className="relative w-full h-full rounded-[34px] overflow-hidden bg-[#F4F6FA] text-[#0B1020]">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-6 rounded-full bg-[#0B1020] z-20" />
+          <div className="pt-11 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5"><img src="/logo.png" alt="" className="w-5 h-5 rounded" /><span className="text-[12px] font-bold">SerraDesk</span></div>
+              <span className="text-[10px] text-gray-500">Preventivo · Rossi</span>
+            </div>
+
+            <div className="mt-4 text-[9px] font-bold uppercase tracking-wider text-gray-400">Che cos'è</div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {['1 anta', '2 ante', '3 ante', 'PF 2 ante'].map((m) => {
+                const on = scelto && m === es.modello;
+                return (
+                  <span key={m} className="relative px-2.5 py-1 rounded-lg text-[10px] font-semibold"
+                    style={on ? { background: GRAD, color: '#fff' } : { background: '#fff', border: '1px solid #E3E7F0' }}>
+                    {m}<Onda attiva={m === es.modello && t > 0.75 && t < 1.25} />
+                  </span>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {[['Larghezza', L, t > 1.2 && t < 2.05], ['Altezza', H, t > 2.05 && t < 2.9]].map(([lab, v, attivo]) => (
+                <div key={lab}>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{lab}</div>
+                  <div className="mt-1 h-8 rounded-lg bg-white px-2 flex items-center text-[13px] font-bold tabular-nums"
+                    style={{ border: `1.5px solid ${attivo ? C.blu : '#E3E7F0'}` }}>
+                    {v}{attivo && <span className="sd-cursore ml-px" style={{ color: C.blu }}>|</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 h-[190px] md:h-[220px] rounded-xl bg-white flex items-center justify-center overflow-hidden" style={{ border: '1px solid #E3E7F0' }}>
+              <div style={{ opacity: disegno, transform: `scale(${0.75 + disegno * 0.2})` }}>
+                <WindowPreview isExporting numAnte={es.numAnte} apertura="Battente" frameColor={es.colore} width={es.w} height={es.h} handlePosition="right" />
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between">
+              <div>
+                <div className="text-[9px] text-gray-500">{es.mq} m² × {es.listino} €/m²</div>
+                <div className="text-[18px] font-extrabold tabular-nums">{euro(prezzo)}</div>
+              </div>
+              <span className="relative px-3 py-2 rounded-lg text-[11px] font-bold text-white" style={{ background: aggiunto ? '#16A34A' : GRAD }}>
+                {aggiunto ? 'Aggiunto ✓' : 'Aggiungi'}<Onda attiva={t > 5.1 && t < 5.6} />
+              </span>
+            </div>
+          </div>
+
+          {/* il PDF che sale */}
+          <div className="absolute inset-x-0 bottom-0 top-9 px-3 pb-3 z-10" style={{ transform: `translateY(${(1 - pdf) * 105}%)` }}>
+            <div className="h-full rounded-2xl bg-white shadow-2xl p-4 flex flex-col" style={{ border: '1px solid #E3E7F0' }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="h-5 w-20 rounded bg-[#1F2937] text-white text-[7px] font-bold flex items-center justify-center">IL TUO LOGO</div>
+                  <div className="text-[9px] font-bold mt-1">Rossi Serramenti</div>
+                </div>
+                <div className="text-right text-[8px] text-gray-500">Preventivo<div className="text-[11px] font-bold text-[#0B1020]">n. 19/2026</div></div>
+              </div>
+              <div className="h-px bg-gray-200 my-2.5" />
+              <div className="flex items-center gap-2">
+                <div className="w-14 h-14 rounded border border-gray-200 flex items-center justify-center overflow-hidden">
+                  <div style={{ transform: 'scale(0.32)' }}>
+                    <WindowPreview isExporting numAnte={es.numAnte} apertura="Battente" frameColor={es.colore} width={es.w} height={es.h} handlePosition="right" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-[9px] font-bold">Battente {es.modello}</div>
+                  <div className="text-[8px] text-gray-500">{es.w} × {es.h} mm · {es.colore}</div>
+                </div>
+                <div className="text-[9px] font-bold tabular-nums">×{es.qta}</div>
+              </div>
+              <div className="mt-auto">
+                <div className="h-px bg-gray-200 mb-2" />
+                <div className="flex justify-between items-baseline">
+                  <span className="text-[9px] font-bold">TOTALE</span>
+                  <span className="text-[15px] font-extrabold tabular-nums" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>€ {es.tot}</span>
+                </div>
+                <div className="mt-3 h-9 rounded-lg flex items-center justify-center text-[11px] font-bold text-white transition-colors"
+                  style={{ background: inviato ? '#16A34A' : GRAD }}>
+                  {inviato ? 'Inviato al cliente ✓' : 'Invia al cliente'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Lo sfondo della prima schermata: un disegno tecnico che si traccia da solo.
+function DisegnoTecnico() {
+  const linea = { fill: 'none', stroke: '#7C8DB5', strokeWidth: 1.2 };
+  return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style={{ opacity: 0.16 }}>
+      <g className="sd-traccia">
+        {/* telaio e ante */}
+        <rect x="860" y="150" width="440" height="580" {...linea} pathLength="1" />
+        <rect x="884" y="174" width="196" height="532" {...linea} pathLength="1" />
+        <rect x="1080" y="174" width="196" height="532" {...linea} pathLength="1" />
+        {/* aperture: vertice dal lato della maniglia */}
+        <path d="M884 174 L1080 440 L884 706" {...linea} strokeDasharray="6 6" pathLength="1" />
+        <path d="M1276 174 L1080 440 L1276 706" {...linea} strokeDasharray="6 6" pathLength="1" />
+        {/* quote */}
+        <path d="M860 780 L1300 780 M860 770 L860 790 M1300 770 L1300 790" {...linea} pathLength="1" />
+        <path d="M1350 150 L1350 730 M1340 150 L1360 150 M1340 730 L1360 730" {...linea} pathLength="1" />
+        {/* sezione del profilo */}
+        <path d="M120 640 h90 v28 h-30 v52 h-60 z M150 668 h30 v36 h-30 z" {...linea} pathLength="1" />
+        <path d="M120 760 L330 760 M120 750 L120 770 M330 750 L330 770" {...linea} pathLength="1" />
+      </g>
+      <g fill="#7C8DB5" fontFamily="IBM Plex Mono, monospace" fontSize="18" className="sd-quote-testo">
+        <text x="1080" y="815" textAnchor="middle">1480</text>
+        <text x="1385" y="445" textAnchor="middle" transform="rotate(90 1385 445)">1540</text>
+        <text x="225" y="795" textAnchor="middle">ER750TT · 75</text>
+      </g>
+    </svg>
+  );
+}
+
 // ---------- Il racconto a capitoli ----------
 function Racconto() {
   const ref = useRef(null);
@@ -527,9 +714,25 @@ export default function LandingNuova({ anteprima = false }) {
           .sd-finestra-prova { transform: scale(1.45); }
         }
         @keyframes sd-respiro { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px,-20px); } }
+        @keyframes sd-onda-k { from { box-shadow: 0 0 0 0 rgba(139,92,246,0.55); } to { box-shadow: 0 0 0 14px rgba(139,92,246,0); } }
+        .sd-onda { animation: sd-onda-k .5s ease-out forwards; }
+        @keyframes sd-blink { 50% { opacity: 0; } }
+        .sd-cursore { animation: sd-blink .7s steps(1) infinite; }
+        @keyframes sd-gall { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .sd-galleggia { animation: sd-gall 5s ease-in-out infinite; }
+        .sd-galleggia-2 { animation: sd-gall 6.5s ease-in-out infinite reverse; }
+        @keyframes sd-traccia-k { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+        .sd-traccia > * { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sd-traccia-k 2.6s cubic-bezier(.6,.1,.2,1) forwards; }
+        .sd-traccia > *:nth-child(2) { animation-delay: .5s; } .sd-traccia > *:nth-child(3) { animation-delay: .7s; }
+        .sd-traccia > *:nth-child(4) { animation-delay: 1.2s; } .sd-traccia > *:nth-child(5) { animation-delay: 1.3s; }
+        .sd-traccia > *:nth-child(6) { animation-delay: 1.8s; } .sd-traccia > *:nth-child(7) { animation-delay: 1.9s; }
+        .sd-traccia > *:nth-child(8) { animation-delay: .9s; } .sd-traccia > *:nth-child(9) { animation-delay: 1.4s; }
+        @keyframes sd-appare { to { opacity: 1; } }
+        .sd-quote-testo { opacity: 0; animation: sd-appare 1s ease 2.4s forwards; }
         @media (prefers-reduced-motion: reduce) {
           .sd-compare { opacity: 1; transform: none; transition: none; }
           .sd-anim { animation: none !important; }
+          .sd-traccia > *, .sd-quote-testo, .sd-galleggia, .sd-galleggia-2, .sd-cursore, .sd-onda { animation: none !important; stroke-dashoffset: 0; opacity: 1; }
         }
       `}</style>
 
@@ -553,12 +756,14 @@ export default function LandingNuova({ anteprima = false }) {
       <header className="relative min-h-screen flex items-center overflow-hidden">
         <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 720, height: 720, left: '-12%', top: '-10%', background: 'radial-gradient(circle, rgba(59,130,246,0.25), transparent 65%)', animation: 'sd-respiro 14s ease-in-out infinite' }} />
         <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 760, height: 760, right: '-15%', bottom: '-20%', background: 'radial-gradient(circle, rgba(139,92,246,0.22), transparent 65%)', animation: 'sd-respiro 18s ease-in-out infinite reverse' }} />
-        <div className="relative max-w-6xl mx-auto px-5 md:px-8 pt-24 pb-16 w-full">
+        <DisegnoTecnico />
+        <div className="relative max-w-6xl mx-auto px-5 md:px-8 pt-24 pb-16 w-full grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-12 lg:gap-6 items-center">
+          <div>
           <Compare>
             <p className="text-xs font-semibold uppercase tracking-[0.22em]" style={{ color: C.tenue }}>Per serramentisti · fatto da un serramentista</p>
           </Compare>
           <Compare ritardo={100}>
-            <h1 className="font-display font-bold text-[3.2rem] leading-[0.98] md:text-[7rem] mt-5 tracking-tight">
+            <h1 className="font-display font-bold text-[3.2rem] leading-[0.98] md:text-[5.6rem] lg:text-[6rem] mt-5 tracking-tight">
               Il preventivo,<br />
               <span className="sd-serif italic font-normal" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>in due minuti.</span>
             </h1>
@@ -577,6 +782,10 @@ export default function LandingNuova({ anteprima = false }) {
             </a>
           </Compare>
           <p className="text-sm mt-6" style={{ color: C.tenue }}>Nessuna carta per provare · funziona nel browser, anche dal telefono</p>
+          </div>
+          <Compare ritardo={250}>
+            <Telefono />
+          </Compare>
         </div>
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[11px] uppercase tracking-[0.3em]" style={{ color: C.tenue }}>Scorri</div>
       </header>
