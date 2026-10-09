@@ -64,17 +64,26 @@ export default async function handler(req, res) {
 
   // Una sola volta per iscritto: chi si crea un account e ripete la chiamata
   // non puo' far partire mail a raffica (ne' fare bloccare la casella per
-  // troppi invii). Il segno si mette prima di spedire.
-  if (utente.app_metadata?.benvenuto_inviato) {
+  // troppi invii). Prima di spedire si mette il segno "in corso", che blocca
+  // le chiamate ripetute; "benvenuto_inviato" si scrive solo dopo, se la mail
+  // e' partita davvero. Prima si scriveva "inviato" in partenza, e ad A L
+  // Installazioni (5 ottobre, quando il sito non aveva ancora la password di
+  // info@) risultava mandato un benvenuto mai arrivato.
+  const meta = { ...(utente.app_metadata || {}) };
+  if (meta.benvenuto_inviato || meta.benvenuto_in_corso) {
     return res.status(200).json({ gia_inviato: true });
   }
-  try {
-    await supabaseAdmin.auth.admin.updateUserById(utente.id, {
-      app_metadata: { ...(utente.app_metadata || {}), benvenuto_inviato: new Date().toISOString() },
-    });
-  } catch (e) {
-    console.error('welcome-webhook: segno "gia\' inviato" non salvato:', e?.message || e);
-  }
+  // Ogni segno si aggiunge ai precedenti: quello finale non deve cancellare
+  // "in corso".
+  const segna = async (campi) => {
+    Object.assign(meta, campi);
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(utente.id, { app_metadata: { ...meta } });
+    } catch (e) {
+      console.error('welcome-webhook: segno sul benvenuto non salvato:', e?.message || e);
+    }
+  };
+  await segna({ benvenuto_in_corso: new Date().toISOString() });
 
   const email = utente.email;
   const quando = new Date(utente.created_at).toLocaleString('it-IT', {
@@ -109,6 +118,10 @@ export default async function handler(req, res) {
     transporter.sendMail({
       from: mittente,
       to: email,
+      // Copia nascosta a info@: le mail spedite dal sito non finiscono fra le
+      // "Inviate" della webmail, e senza copia non c'era modo di vedere se il
+      // benvenuto a un iscritto era partito.
+      bcc: AVVISI_A,
       replyTo: AVVISI_A,
       subject: 'Benvenuto su SerraDesk',
       text: [
@@ -140,6 +153,13 @@ export default async function handler(req, res) {
   // porta, server): prima si leggeva solo "Errore durante invio email". Nella
   // risposta solo il codice: chi chiama non deve sapere com'e' fatto il server.
   console.log('Nuova iscrizione', email, '- avviso:', esito(avviso), '- benvenuto:', esito(benvenuto));
+
+  // Il segno "in corso" resta in ogni caso, cosi' una chiamata ripetuta non
+  // rispedisce l'avviso; accanto si scrive com'e' andata, da leggere in
+  // Supabase (app_metadata dell'utente).
+  await segna(benvenuto.status === 'fulfilled'
+    ? { benvenuto_inviato: new Date().toISOString() }
+    : { benvenuto_errore: `${new Date().toISOString()} ${codice(benvenuto)}` });
 
   // Se non parte l'avviso a info@ e' un errore anche se il benvenuto e'
   // arrivato: e' l'avviso che fa accorgere di chi si iscrive.
