@@ -72,63 +72,45 @@ export const VETRI_DI_RIFERIMENTO = [
 
 DEFAULT_PROFILES_DATA.push(...VETRI_DI_RIFERIMENTO);
 
-export async function autoSeedProfilesIfNeeded(userId) {
-  if (!userId) return false;
-  
-  // Check if they already have profiles
-  const { data, error } = await supabase
-    .from('sistemi_cam')
-    .select('id')
-    .eq('user_id', userId)
-    .limit(1);
-    
-  if (error) {
-    console.error('Error checking existing profiles:', error);
-    return false;
+/**
+ * Gruppo in cui mostrare un profilo preimpostato nella scelta "cosa
+ * importare": per tipo di prodotto e, per le finestre, per materiale.
+ */
+export const gruppoPreimpostato = (p) => {
+  if (p.tipologia === 'VETRO') return Number(p.base_price) > 0 ? 'Vetri' : 'Vetri di riferimento (senza prezzo)';
+  if (['BATTENTE', 'FISSO', 'SCORREVOLE'].includes(p.tipologia)) {
+    return String(p.specs?.materiale || '').toLowerCase().includes('allumin') ? 'Finestre in alluminio' : 'Finestre in PVC';
   }
-  
-  // If no profiles found, seed them!
-  if (!data || data.length === 0) {
-    console.log('No profiles found for user. Auto-seeding default market profiles...');
-    
-    const profilesToInsert = DEFAULT_PROFILES_DATA.map(p => ({
-      ...p,
-      user_id: userId
-    }));
-    
-    const { error: insertError } = await supabase
-      .from('sistemi_cam')
-      .insert(profilesToInsert);
-      
-    if (insertError) {
-      console.error('Error auto-seeding profiles:', insertError);
-      return false;
-    }
-    
-    console.log('Successfully seeded default profiles!');
-    return true; // Returns true if seeded
-  } else {
-    // Check if they are missing specific new categories we just launched
-    const { data: existingTypes } = await supabase.from('sistemi_cam').select('tipologia').eq('user_id', userId);
-    if (existingTypes) {
-      const types = existingTypes.map(t => t.tipologia);
-      const missingTypes = [];
-      if (!types.includes('CASSONETTO')) missingTypes.push('CASSONETTO');
-      if (!types.includes('TAPPARELLA')) missingTypes.push('TAPPARELLA');
-      if (!types.includes('PORTA_BLINDATA')) missingTypes.push('PORTA_BLINDATA');
-      if (!types.includes('PERSIANA')) missingTypes.push('PERSIANA');
+  if (p.tipologia === 'PERSIANA') return 'Persiane e scuri';
+  if (p.tipologia === 'TAPPARELLA') return 'Tapparelle';
+  if (p.tipologia === 'CASSONETTO') return 'Cassonetti';
+  if (p.tipologia === 'PORTA_BLINDATA') return 'Porte blindate';
+  return 'Altro';
+};
 
-      if (missingTypes.length > 0) {
-        console.log('Seeding missing new categories:', missingTypes);
-        const missingProfiles = DEFAULT_PROFILES_DATA.filter(p => missingTypes.includes(p.tipologia)).map(p => ({
-          ...p,
-          user_id: userId
-        }));
-        await supabase.from('sistemi_cam').insert(missingProfiles);
-        return true; // We seeded something new
-      }
-    }
-  }
-  
-  return false; // Did not need to seed
+/**
+ * Copia nell'archivio dell'utente i profili preimpostati che ha scelto.
+ *
+ * Prima l'archivio si riempiva da solo al primo accesso con tutti i 41
+ * profili, e a ogni apertura rimetteva le categorie mancanti: chi cancellava
+ * le persiane se le ritrovava. Ora parte vuoto e si importa solo quello che
+ * l'utente spunta. Quelli con lo stesso nome gia' in archivio si saltano,
+ * cosi' importare due volte non crea doppioni.
+ * Restituisce quanti ne ha aggiunti, o lancia l'errore di Supabase.
+ */
+export async function importaProfiliPreimpostati(userId, scelti) {
+  if (!userId || !scelti?.length) return 0;
+  const { data: esistenti, error: errLettura } = await supabase
+    .from('sistemi_cam')
+    .select('nome')
+    .eq('user_id', userId);
+  if (errLettura) throw errLettura;
+  const giaPresenti = new Set((esistenti || []).map((e) => String(e.nome || '').trim().toLowerCase()));
+  const daInserire = scelti
+    .filter((p) => !giaPresenti.has(String(p.nome).trim().toLowerCase()))
+    .map((p) => ({ ...p, specs: { ...(p.specs || {}) }, user_id: userId }));
+  if (!daInserire.length) return 0;
+  const { error } = await supabase.from('sistemi_cam').insert(daInserire);
+  if (error) throw error;
+  return daInserire.length;
 }

@@ -670,6 +670,21 @@ export default function PreventiviPage() {
         onChangeProfileGlobale={() => setShowChangeProfileModal(true)}
       />
 
+      {/* Nuovo iscritto: l'archivio parte vuoto e i profili si scelgono
+          nell'archivio. Senza questo avviso il menu dei profili sarebbe vuoto
+          senza spiegazione. */}
+      {p.archivioVuoto && !isCustomerMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div>
+            <p className="font-bold text-blue-900">Il tuo archivio è ancora vuoto</p>
+            <p className="text-sm text-blue-800">Scegli i profili e i vetri che usi, con i tuoi prezzi: poi li ritrovi qui nel preventivo.</p>
+          </div>
+          <button type="button" onClick={() => navigate('/archivio')} className="shrink-0 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-sm font-bold">
+            Vai all'archivio
+          </button>
+        </div>
+      )}
+
       <ClientInfoCard 
         clientName={p.clientName} setClientName={p.setClientName}
         riferimento={p.riferimento} setRiferimento={p.setRiferimento}

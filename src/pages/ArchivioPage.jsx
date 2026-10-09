@@ -8,7 +8,7 @@ import { Label } from '../components/ui/label';
 import AIPdfImporter from '../components/AIPdfImporter';
 import PersianaTaglioForm from '../components/archivio/PersianaTaglioForm';
 import ProfiliPreventivoPanel from '../components/archivio/ProfiliPreventivoPanel';
-import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
+import ProfiliPreimpostatiPanel from '../components/archivio/ProfiliPreimpostatiPanel';
 
 export const DEFAULT_SISTEMI = [
   {
@@ -93,6 +93,10 @@ export default function ArchivioPage() {
   const [mainTab, setMainTab] = useState('profili'); // 'profili' | 'vetri'
   const [categoryFilter, setCategoryFilter] = useState('Tutti');
   const [sceltaProfili, setSceltaProfili] = useState(false);
+  // Profili preimpostati da importare: il pannello si apre da solo quando
+  // l'archivio e' vuoto (nuovo iscritto), finche' l'utente non sceglie "Salta".
+  const [preimpostati, setPreimpostati] = useState(false);
+  const [vuotoSaltato, setVuotoSaltato] = useState(false);
   const [formTab, setFormTab] = useState('commerciale');
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -110,16 +114,6 @@ export default function ArchivioPage() {
     setIsLoading(true);
     
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const seeded = await autoSeedProfilesIfNeeded(session.user.id);
-      if (seeded) {
-        // If we seeded, we fetch immediately after to get the fresh data
-        const { data } = await supabase.from('sistemi_cam').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-        setSistemi(data || []);
-        setIsLoading(false);
-        return;
-      }
-    }
 
     const { data, error } = await supabase
       .from('sistemi_cam')
@@ -325,7 +319,7 @@ export default function ArchivioPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // The manual default insertion was moved to automatic autoSeedProfilesIfNeeded
+  // I profili preimpostati si importano dal pannello ProfiliPreimpostatiPanel.
 
   const cancelEdit = () => {
     setEditingId(null);
@@ -687,6 +681,20 @@ export default function ArchivioPage() {
                   </span>
                 </div>
               )}
+              {mainTab !== 'intermediari' && sistemi.length > 0 && (
+                <div className="mb-1">
+                  <button type="button" onClick={() => setPreimpostati(v => !v)} className="text-xs font-semibold text-blue-700 hover:underline">
+                    + Aggiungi profili e vetri preimpostati
+                  </button>
+                </div>
+              )}
+              {mainTab !== 'intermediari' && preimpostati && (
+                <ProfiliPreimpostatiPanel
+                  sistemi={sistemi}
+                  onImportati={fetchSistemi}
+                  onChiudi={() => setPreimpostati(false)}
+                />
+              )}
               {mainTab === 'vetri' && sceltaProfili && (
                 <ProfiliPreventivoPanel
                   vetri
@@ -717,11 +725,13 @@ export default function ArchivioPage() {
               )}
             </div>
             
-            {mainTab !== 'intermediari' && sistemi.length === 0 && (
-              <div className="bg-white rounded-2xl border-dashed border-2 border-gray-200 p-10 text-center">
-                <h3 className="text-xl font-bold text-gray-700 mb-2">Stiamo caricando l'archivio...</h3>
-                <p className="text-gray-500 mb-6">Il sistema sta popolando automaticamente il tuo account con i migliori profili di mercato.</p>
-              </div>
+            {mainTab !== 'intermediari' && !isLoading && sistemi.length === 0 && !vuotoSaltato && (
+              <ProfiliPreimpostatiPanel
+                archivioVuoto
+                sistemi={sistemi}
+                onImportati={fetchSistemi}
+                onChiudi={() => setVuotoSaltato(true)}
+              />
             )}
 
             {mainTab !== 'intermediari' && (

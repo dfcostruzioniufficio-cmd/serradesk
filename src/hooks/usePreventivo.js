@@ -7,7 +7,6 @@ export { SENZA_VETRO };
 import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { descriviComposto, moduliValidi } from '../utils/composto';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
-import { autoSeedProfilesIfNeeded } from '../lib/defaultProfiles';
 
 /**
  * Il colore scritto a mano nel campo "Colore Infisso".
@@ -175,6 +174,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const [iva, setIva] = useState(22);
   const [barLength, setBarLength] = useState(6500);
   const [sistemiCam, setSistemiCam] = useState([]);
+  // true solo quando l'archivio e' stato letto ed e' vuoto (nuovo iscritto
+  // che non ha ancora scelto i profili): il preventivo lo avvisa.
+  const [archivioVuoto, setArchivioVuoto] = useState(false);
   const [sconto, setSconto] = useState(0);
   // Note libere in fondo al preventivo: avvertenze sul colore, sui tempi,
   // su cosa non e' compreso. Vanno nel documento che legge il cliente.
@@ -194,11 +196,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      const seeded = await autoSeedProfilesIfNeeded(session.user.id);
-      // If we seeded new profiles, the subsequent fetch will catch them
-
       const { data, error } = await supabase.from('sistemi_cam').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-      if (!error && data) setSistemiCam(data);
+      if (!error && data) {
+        setSistemiCam(data);
+        setArchivioVuoto(data.length === 0);
+      }
     };
     fetchSistemiCam();
   }, []);
@@ -1089,7 +1091,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     editingOrderStato, setEditingOrderStato, numeroPreventivo, setNumeroPreventivo,
     showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
-    sistemiCam, handleAddItem, handleEditItem, duplicaItem, applicaModello, applicaVetriAlPreventivo, handleCancelEdit, removeItem,
+    sistemiCam, archivioVuoto, handleAddItem, handleEditItem, duplicaItem, applicaModello, applicaVetriAlPreventivo, handleCancelEdit, removeItem,
     updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,
     totaleIva, totalePreventivo, handleSpalmaQuadratura, applicaVarianteGlobale
   };
