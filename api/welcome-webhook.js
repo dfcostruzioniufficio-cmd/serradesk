@@ -78,7 +78,9 @@ export default async function handler(req, res) {
   const segna = async (campi) => {
     Object.assign(meta, campi);
     try {
-      await supabaseAdmin.auth.admin.updateUserById(utente.id, { app_metadata: { ...meta } });
+      // supabase-js non lancia: un rifiuto torna in "error" e va letto qui.
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(utente.id, { app_metadata: { ...meta } });
+      if (error) console.error('welcome-webhook: segno sul benvenuto non salvato:', error.message || error);
     } catch (e) {
       console.error('welcome-webhook: segno sul benvenuto non salvato:', e?.message || e);
     }
