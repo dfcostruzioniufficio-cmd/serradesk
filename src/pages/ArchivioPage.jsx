@@ -97,6 +97,9 @@ export default function ArchivioPage() {
   // l'archivio e' vuoto (nuovo iscritto), finche' l'utente non sceglie "Salta".
   const [preimpostati, setPreimpostati] = useState(false);
   const [vuotoSaltato, setVuotoSaltato] = useState(false);
+  // Se la lettura fallisce l'archivio sembra vuoto: in quel caso non si
+  // propone di "partire da zero" a chi i profili li ha.
+  const [letturaFallita, setLetturaFallita] = useState(false);
   const [formTab, setFormTab] = useState('commerciale');
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -123,7 +126,9 @@ export default function ArchivioPage() {
     
     if (error) {
       console.error('Error fetching sistemi:', error);
+      setLetturaFallita(true);
     } else {
+      setLetturaFallita(false);
       setSistemi(data || []);
     }
     setIsLoading(false);
@@ -681,7 +686,7 @@ export default function ArchivioPage() {
                   </span>
                 </div>
               )}
-              {mainTab !== 'intermediari' && sistemi.length > 0 && (
+              {mainTab !== 'intermediari' && (sistemi.length > 0 || vuotoSaltato) && (
                 <div className="mb-1">
                   <button type="button" onClick={() => setPreimpostati(v => !v)} className="text-xs font-semibold text-blue-700 hover:underline">
                     + Aggiungi profili e vetri preimpostati
@@ -725,7 +730,7 @@ export default function ArchivioPage() {
               )}
             </div>
             
-            {mainTab !== 'intermediari' && !isLoading && sistemi.length === 0 && !vuotoSaltato && (
+            {mainTab !== 'intermediari' && !isLoading && !letturaFallita && sistemi.length === 0 && !vuotoSaltato && (
               <ProfiliPreimpostatiPanel
                 archivioVuoto
                 sistemi={sistemi}

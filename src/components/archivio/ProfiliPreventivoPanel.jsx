@@ -5,8 +5,8 @@ import { Button } from '../ui/button';
 
 /**
  * Sceglie quali profili compaiono nel menu "Sistema / Profilo" del
- * preventivo. L'archivio parte con una trentina di profili di mercato: chi
- * lavora quasi solo una marca non deve scorrerli tutti ogni volta.
+ * preventivo. Chi ha importato molti profili preimpostati e lavora quasi
+ * solo una marca non deve scorrerli tutti ogni volta.
  *
  * Il profilo nascosto resta in archivio con i suoi dati e i preventivi gia'
  * fatti non cambiano: e' solo tolto dal menu. Il valore sta in
