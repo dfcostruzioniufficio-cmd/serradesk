@@ -92,21 +92,53 @@ const mm = (n) => Math.round(n).toLocaleString('it-IT');
 // la sua fine arriva in fondo allo schermo.
 //
 // Il valore restituito NON e' quello della rotella: la insegue con una
-// velocita' massima. Prima era legato direttamente allo scroll, e chi scorreva
-// veloce vedeva l'animazione saltare a scatti ("veniva davvero brutto"). Ora,
-// che si scorra piano o di corsa, il racconto completo non dura mai meno di
-// `durataMinima` secondi e si muove sempre fluido.
+// velocita' massima. Legato direttamente allo scroll, chi scorreva veloce
+// vedeva l'animazione saltare a scatti ("veniva davvero brutto").
+//
+// E la pagina aspetta l'animazione: scendendo, se si arriva in fondo alla
+// sezione prima che il racconto sia finito, lo scorrimento verso il basso si
+// ferma li' finche' l'animazione non arriva alla fine, poi riparte da solo.
+// Prima la sezione se ne andava a meta' racconto. Verso l'alto non si blocca
+// mai: chi torna indietro torna indietro subito.
 function useProgresso(ref, durataMinima = 4) {
   const [p, setP] = useState(0);
   useEffect(() => {
     const riduci = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     let raf = 0, obiettivo = 0, attuale = 0, prima = 0;
+    let fermo = false, yFine = 0, toccoY = 0;
+    const FINITO = 0.995;
+
+    const blocca = (e) => {
+      if (!fermo) return;
+      if (e.type === 'wheel' && e.deltaY <= 0) { sblocca(); return; }
+      if (e.type === 'keydown' && !['ArrowDown', 'PageDown', 'End', ' ', 'Spacebar'].includes(e.key)) return;
+      if (e.type === 'touchmove') {
+        const y = e.touches?.[0]?.clientY ?? toccoY;
+        if (y > toccoY) { sblocca(); return; } // dito verso il basso = si torna su
+      }
+      e.preventDefault();
+    };
+    const tocco = (e) => { toccoY = e.touches?.[0]?.clientY ?? 0; };
+    const ferma = (y) => {
+      fermo = true;
+      yFine = y;
+      if (window.scrollY > yFine) window.scrollTo({ top: yFine, behavior: 'instant' });
+    };
+    const sblocca = () => { fermo = false; };
+
     const leggi = () => {
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
       const corsa = r.height - window.innerHeight;
-      obiettivo = corsa > 0 ? clamp01(-r.top / corsa) : 0;
+      if (corsa <= 0) { obiettivo = 0; return; }
+      const grezzo = -r.top / corsa;
+      obiettivo = clamp01(grezzo);
+      if (!riduci && grezzo >= 1 && attuale < FINITO && !fermo && r.bottom > -window.innerHeight) {
+        ferma(window.scrollY + r.top + corsa);
+      } else if (fermo && window.scrollY > yFine) {
+        window.scrollTo({ top: yFine, behavior: 'instant' });
+      }
     };
     const passo = (ora) => {
       const dt = prima ? Math.min(0.05, (ora - prima) / 1000) : 1 / 60;
@@ -119,6 +151,7 @@ function useProgresso(ref, durataMinima = 4) {
         const max = dt / durataMinima;
         attuale += Math.max(-max, Math.min(max, morbido));
       }
+      if (fermo && attuale >= FINITO) sblocca();
       setP(attuale);
       if (attuale !== obiettivo) raf = requestAnimationFrame(passo);
       else { raf = 0; prima = 0; }
@@ -129,9 +162,17 @@ function useProgresso(ref, durataMinima = 4) {
     setP(attuale);
     window.addEventListener('scroll', pianifica, { passive: true });
     window.addEventListener('resize', pianifica);
+    window.addEventListener('wheel', blocca, { passive: false });
+    window.addEventListener('touchmove', blocca, { passive: false });
+    window.addEventListener('touchstart', tocco, { passive: true });
+    window.addEventListener('keydown', blocca);
     return () => {
       window.removeEventListener('scroll', pianifica);
       window.removeEventListener('resize', pianifica);
+      window.removeEventListener('wheel', blocca);
+      window.removeEventListener('touchmove', blocca);
+      window.removeEventListener('touchstart', tocco);
+      window.removeEventListener('keydown', blocca);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [ref, durataMinima]);
@@ -383,8 +424,8 @@ function DisegnoTecnico() {
 // ---------- Il racconto a capitoli ----------
 function Racconto() {
   const ref = useRef(null);
-  // circa un secondo e mezzo per capitolo anche scorrendo di corsa
-  const p = useProgresso(ref, CAPITOLI.length * 1.5);
+  // circa un secondo per capitolo anche scorrendo di corsa
+  const p = useProgresso(ref, CAPITOLI.length * 1.1);
   const pos = p * CAPITOLI.length;
   const cap = Math.min(CAPITOLI.length - 1, Math.floor(pos));
   const t = clamp01(pos - cap);
@@ -701,7 +742,7 @@ function ProvaTu() {
 // ---------- Frase che si accende parola per parola ----------
 function FraseAccesa({ testo }) {
   const ref = useRef(null);
-  const p = useProgresso(ref, 2.5);
+  const p = useProgresso(ref, 1.8);
   const parole = useMemo(() => testo.split(' '), [testo]);
   return (
     <section ref={ref} className="relative" style={{ height: '180vh' }}>
