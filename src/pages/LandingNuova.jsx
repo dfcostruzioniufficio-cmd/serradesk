@@ -80,25 +80,53 @@ const L = {
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const lerp = (a, b, t) => a + (b - a) * t;
-const euro = (n) => '€ ' + n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Il punto delle migliaia a mano: it-IT non lo mette sotto 10.000 e usciva
+// "€ 1025,64" accanto a "€ 4.102,56".
+const euro = (n) => {
+  const [int, dec] = Number(n).toFixed(2).split('.');
+  return '€ ' + int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
+};
 const mm = (n) => Math.round(n).toLocaleString('it-IT');
 
 // Quanto si e' scesi dentro una sezione alta: 0 quando entra in cima, 1 quando
 // la sua fine arriva in fondo allo schermo.
-function useProgresso(ref) {
+//
+// Il valore restituito NON e' quello della rotella: la insegue con una
+// velocita' massima. Prima era legato direttamente allo scroll, e chi scorreva
+// veloce vedeva l'animazione saltare a scatti ("veniva davvero brutto"). Ora,
+// che si scorra piano o di corsa, il racconto completo non dura mai meno di
+// `durataMinima` secondi e si muove sempre fluido.
+function useProgresso(ref, durataMinima = 4) {
   const [p, setP] = useState(0);
   useEffect(() => {
-    let raf = 0;
-    const calcola = () => {
-      raf = 0;
+    const riduci = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let raf = 0, obiettivo = 0, attuale = 0, prima = 0;
+    const leggi = () => {
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
       const corsa = r.height - window.innerHeight;
-      setP(corsa > 0 ? clamp01(-r.top / corsa) : 0);
+      obiettivo = corsa > 0 ? clamp01(-r.top / corsa) : 0;
     };
-    const pianifica = () => { if (!raf) raf = requestAnimationFrame(calcola); };
-    calcola();
+    const passo = (ora) => {
+      const dt = prima ? Math.min(0.05, (ora - prima) / 1000) : 1 / 60;
+      prima = ora;
+      const diff = obiettivo - attuale;
+      if (riduci || Math.abs(diff) < 0.0005) {
+        attuale = obiettivo;
+      } else {
+        const morbido = diff * (1 - Math.exp(-dt * 9));
+        const max = dt / durataMinima;
+        attuale += Math.max(-max, Math.min(max, morbido));
+      }
+      setP(attuale);
+      if (attuale !== obiettivo) raf = requestAnimationFrame(passo);
+      else { raf = 0; prima = 0; }
+    };
+    const pianifica = () => { leggi(); if (!raf) raf = requestAnimationFrame(passo); };
+    leggi();
+    attuale = obiettivo;
+    setP(attuale);
     window.addEventListener('scroll', pianifica, { passive: true });
     window.addEventListener('resize', pianifica);
     return () => {
@@ -106,7 +134,7 @@ function useProgresso(ref) {
       window.removeEventListener('resize', pianifica);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [ref]);
+  }, [ref, durataMinima]);
   return p;
 }
 
@@ -355,7 +383,8 @@ function DisegnoTecnico() {
 // ---------- Il racconto a capitoli ----------
 function Racconto() {
   const ref = useRef(null);
-  const p = useProgresso(ref);
+  // circa un secondo e mezzo per capitolo anche scorrendo di corsa
+  const p = useProgresso(ref, CAPITOLI.length * 1.5);
   const pos = p * CAPITOLI.length;
   const cap = Math.min(CAPITOLI.length - 1, Math.floor(pos));
   const t = clamp01(pos - cap);
@@ -672,7 +701,7 @@ function ProvaTu() {
 // ---------- Frase che si accende parola per parola ----------
 function FraseAccesa({ testo }) {
   const ref = useRef(null);
-  const p = useProgresso(ref);
+  const p = useProgresso(ref, 2.5);
   const parole = useMemo(() => testo.split(' '), [testo]);
   return (
     <section ref={ref} className="relative" style={{ height: '180vh' }}>
