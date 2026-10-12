@@ -310,7 +310,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   <svg
     width="100%"
     viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-    style={{ display: 'block', maxHeight: inline ? (proporzione > 1 ? '340px' : '210px') : (proporzione > 1 ? '480px' : '340px'), borderRadius: '12px', overflow: 'visible' }}
+    style={{ display: 'block', maxHeight: inline ? (proporzione > 1 ? '420px' : '210px') : (proporzione > 1 ? '480px' : '340px'), borderRadius: '12px', overflow: 'visible' }}
   >
     {/* Frame */}
     <rect x={0} y={0} width={CANVAS_W} height={CANVAS_H} fill={safeFrameColor} rx="6"/>

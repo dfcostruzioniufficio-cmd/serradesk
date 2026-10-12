@@ -107,8 +107,9 @@ export function calcolaUw(item, sistemiCam) {
   const riquadri = [];
   if (!fisso && sonoSovrapposte(item)) {
     // Ante una sopra l'altra: ogni vetro e' a tutta larghezza, e fra un'anta
-    // e l'altra c'e' un nodo orizzontale. Niente sopraluce ne' traversa.
-    const hVetro = (H - 2 * b - (numAnte - 1) * nodo) / numAnte;
+    // e l'altra c'e' un traverso del telaio con le due ante. Niente sopraluce
+    // ne' traversa d'anta.
+    const hVetro = (H - 2 * b - (numAnte - 1) * Math.max(nodo, bt)) / numAnte;
     for (let a = 0; a < numAnte; a++) riquadri.push([W - 2 * b, hVetro]);
   } else {
     let parteBassa = H;

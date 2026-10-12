@@ -629,9 +629,11 @@ export default function WindowPreview({
                 // L'altezza che conta e' quella dell'anta: con un sopraluce
                 // da 600 su un serramento da 2100 l'anta e' 1500, e due
                 // cerniere bastano.
-                const hAntaReale = hasSopraluce
-                  ? Math.max(1, safeH - (Number(sopraluceHeight) || 400))
-                  : safeH;
+                const hAntaReale = sovrapposte
+                  ? safeH / anteCount
+                  : hasSopraluce
+                    ? Math.max(1, safeH - (Number(sopraluceHeight) || 400))
+                    : safeH;
                 return hAntaReale >= 2000
                   ? <>{hinge(ay + ah * 0.10)} {hinge(ay + ah * 0.46)} {hinge(ay + ah * 0.82)}</>
                   : <>{hinge(ay + ah * 0.15)} {hinge(ay + ah * 0.80)}</>;
@@ -710,10 +712,16 @@ export default function WindowPreview({
                 // La quota va misurata sull'anta, non sul serramento: col
                 // sopraluce l'anta comincia piu' in basso, e una barra a 1050
                 // finirebbe disegnata a ottocento e rotti.
-                const hAnta = hasSopraluce
-                  ? Math.max(1, safeH - (Number(sopraluceHeight) || 400))
-                  : safeH;
-                const quotaBarra = Math.max(0.05, Math.min(0.95, 1 - hBarra / hAnta));
+                // Sulle ante impilate la quota da terra vale solo per quella
+                // in basso; sulle altre la barra resta a meta' anta.
+                const hAnta = sovrapposte
+                  ? safeH / anteCount
+                  : hasSopraluce
+                    ? Math.max(1, safeH - (Number(sopraluceHeight) || 400))
+                    : safeH;
+                const quotaBarra = sovrapposte && !isLast
+                  ? 0.5
+                  : Math.max(0.05, Math.min(0.95, 1 - hBarra / hAnta));
                 // Con il traverso la barra sta nella parte sotto, che e'
                 // l'anta che si apre; e comunque mai fuori dal telaio. Su una
                 // parte sotto bassissima i due limiti si incrociano, e allora

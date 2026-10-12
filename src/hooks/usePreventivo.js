@@ -299,8 +299,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
 
     const numAnte = newItem.numAnte;
     const hasTraverso = !!newItem.hasTraverso;
-    const prima = anteApribili({ numAnte, hasTraverso, paneConfigs: paneConfigsRef.current });
-    const dopo = anteApribili({ numAnte, hasTraverso, paneConfigs: conManiglione });
+    const forma = { numAnte, hasTraverso, apertura: newItem.apertura, anteSovrapposte: newItem.anteSovrapposte, composto: newItem.composto };
+    const prima = anteApribili({ ...forma, paneConfigs: paneConfigsRef.current });
+    const dopo = anteApribili({ ...forma, paneConfigs: conManiglione });
     paneConfigsRef.current = conManiglione;
     setPaneConfigs(conManiglione);
     const ricalcola = prima !== dopo && itemType === 'window';
@@ -768,7 +769,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
    * riscriveva con le sue (1200x1400) e andavano rifatte.
    */
   const applicaModello = (props) => {
-    updateItemFields({ antaRibalta: false, soloRibalta: false });
+    // Un modello dice com'e' fatto il serramento: le ante impilate le si
+    // sceglie dopo, con la spunta, come per i bottoni rapidi (RIPULITI).
+    updateItemFields({ antaRibalta: false, soloRibalta: false, anteSovrapposte: false });
     azzeraTipiAnte();
     // Scegliere "2 ante" su un composto non faceva niente di visibile: il
     // disegno del composto resta nascosto e il prezzo restava d'ingombro.

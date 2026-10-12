@@ -125,7 +125,10 @@ export function calculateWindowPrice(item, sistemiCam) {
     }
 
     let baseVetroInferiore = baseVetro;
-    if (conVetro && item.hasTraverso && item.vetroInferioreId && item.vetroInferioreId !== 'custom') {
+    // Sulle ante una sopra l'altra il traverso non c'e', anche se la spunta
+    // e' rimasta accesa nel modulo: niente vetro inferiore a parte.
+    const conTraverso = !!item.hasTraverso && !sonoSovrapposte(item);
+    if (conVetro && conTraverso && item.vetroInferioreId && item.vetroInferioreId !== 'custom') {
       const vInf = sistemiCam.find(s => s.id === item.vetroInferioreId);
       if (vInf) baseVetroInferiore = Number(vInf.base_price) || 0;
     }
@@ -140,7 +143,7 @@ export function calculateWindowPrice(item, sistemiCam) {
     }
 
     let costoVetro = 0;
-    if (item.hasTraverso) {
+    if (conTraverso) {
       const tH = Number(item.traversoHeight) || 1000;
       const hH = Math.max(0, hM - (tH / 1000));
       const bH = tH / 1000;

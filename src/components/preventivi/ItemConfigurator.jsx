@@ -11,6 +11,7 @@ import TapparellePreventivoPanel from './TapparellePreventivoPanel';
 import WindowConfigurator from '../WindowConfigurator';
 import { moduloVuoto, larghezzaModuli, superficieModuli, moduliValidi } from '../../utils/composto';
 import { ALTEZZA_BALCONE_MM, SENZA_VETRO } from '../../hooks/usePreventivo';
+import { sonoSovrapposte } from '../../utils/anteSovrapposte';
 
 /**
  * I serramenti che si fanno di piu', a un clic. Dicono solo che cosa e' il
@@ -544,7 +545,7 @@ export default function ItemConfigurator({
                   <span className="text-sm font-medium text-gray-700">Ante una sopra l&#39;altra</span>
                 </label>
               )}
-              {!newItem.anteSovrapposte && (
+              {!sonoSovrapposte(newItem) && (
                 <>
                   <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
                     <input type="checkbox" checked={!!newItem.hasTraverso} onChange={e => updateItemField('hasTraverso', e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
