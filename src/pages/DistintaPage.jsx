@@ -276,7 +276,7 @@ export default function DistintaPage() {
           <ul className="space-y-1.5">
             {camResult.pezziTroppoLunghi.map((p, i) => (
               <li key={i} className="text-sm text-red-800">
-                <strong>{p.profile}</strong> — {p.mm} mm
+                <strong>{p.profile}</strong> — {p.mm} mm{p.qta > 1 ? ` × ${p.qta}` : ''}
               </li>
             ))}
           </ul>
@@ -290,7 +290,7 @@ export default function DistintaPage() {
           </h2>
           <p className="text-sm text-amber-800 mb-3">
             Per traversi e fissi il sistema non ha ancora i dati del catalogo: questi pezzi
-            sono calcolati con un ingombro stimato di 50 mm e sulla distinta hanno un
+            sono calcolati con un ingombro stimato e sulla distinta hanno un
             asterisco (*). Controllali sul catalogo prima di tagliare.
           </p>
           <ul className="space-y-1.5">

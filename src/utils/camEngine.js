@@ -592,8 +592,10 @@ export function runCamEngine(items, barLength = 6500) {
     if (item.hasSopraluce) {
       const altezzaSopraluce = Number(item.sopraluceHeight) || 400;
       const divisioni = Math.max(1, Number(item.sopraluceDivisioni) || 1);
+      // Il profilo resta quello di prima (il telaio): cambiarlo farebbe
+      // cambiare le barre da ordinare sugli ordini gia' fatti.
       traversoPieces.push(
-        { part: 'traverso_sopraluce', profile: 'TRAV-GEN', mm: fw - (INGOMBRO_STIMATO * 2) + saldTel, stimato: true }
+        { part: 'traverso_sopraluce', profile: cTelStd, mm: fw - (INGOMBRO_STIMATO * 2) + saldTel, stimato: true }
       );
       // Il vetro del sopraluce ha i suoi fermavetri: prima mancavano del
       // tutto. Diviso in piu' riquadri servono anche i montanti, che il
@@ -643,16 +645,22 @@ export function runCamEngine(items, barLength = 6500) {
   // barra tutta sua, con lo sfrido negativo, e nessuno se ne accorgeva fino
   // alla troncatrice: va ordinato a parte, con una barra piu' lunga.
   const lunghezzaUtile = barLength - DOUBLE_TRIM - SFRIDO_MORSA - KERF;
-  const pezziTroppoLunghi = [];
+  // Raggruppati per profilo e misura: un articolo lungo con piu' ante e
+  // quantita' darebbe altrimenti decine di righe uguali.
+  const troppoLunghi = new Map();
   const byProfile = {};
   for (const entry of allBom) {
     if (!byProfile[entry.profile]) byProfile[entry.profile] = [];
     if (entry.mm > lunghezzaUtile) {
-      pezziTroppoLunghi.push({ itemId: entry.itemId, profile: entry.profile, mm: entry.mm });
+      const chiave = `${entry.profile}|${entry.mm}`;
+      if (!troppoLunghi.has(chiave)) troppoLunghi.set(chiave, { profile: entry.profile, mm: entry.mm, qta: 0 });
+      troppoLunghi.get(chiave).qta += Number(entry.n) || 1;
       continue;
     }
     byProfile[entry.profile].push(entry.mm);
   }
+
+  const pezziTroppoLunghi = [...troppoLunghi.values()];
 
   const nesting = Object.entries(byProfile).map(([code, pieces]) => {
     const bars      = packBars(pieces, barLength);

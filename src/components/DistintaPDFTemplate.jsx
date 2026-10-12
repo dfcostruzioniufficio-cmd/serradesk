@@ -83,7 +83,7 @@ const rif = (i) => `#${String(i + 1).padStart(2, '0')}`;
  * "Anta 1 - Montante SX", serve sapere che di quel profilo servono quattro
  * pezzi da 1360.
  */
-function listaDiTaglio(itemResults, nesting) {
+function listaDiTaglio(itemResults, nesting, lunghezzaUtile) {
   const perProfilo = new Map();
 
   itemResults.forEach((it, idx) => {
@@ -100,6 +100,8 @@ function listaDiTaglio(itemResults, nesting) {
       // Misura stimata (traversi e fissi senza i dati del catalogo): basta
       // un pezzo stimato perche' la riga vada controllata.
       if (pezzo.stimato) riga.stimato = true;
+      // Non entra nella barra: e' negli avvisi e non nel piano di taglio.
+      if (Number.isFinite(lunghezzaUtile) && chiave > lunghezzaUtile) riga.fuoriBarra = true;
       riga.da.set(rif(idx), (riga.da.get(rif(idx)) || 0) + pezziQui);
     }
   });
@@ -127,7 +129,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
   const nesting = (camResult.nesting || []).filter((n) => n.bars_required > 0);
   const avvisi = avvisiOfficina(camResult);
   const today = new Date().toLocaleDateString('it-IT');
-  const gruppi = listaDiTaglio(itemResults, camResult.nesting);
+  const gruppi = listaDiTaglio(itemResults, camResult.nesting, camResult.lunghezzaUtile);
   const barreTotali = (nesting || []).reduce((s, n) => s + n.bars_required, 0);
   const barra = barLength || 6500;
 
@@ -284,7 +286,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
               <tbody>
                 {g.righe.map((r) => (
                   <tr key={r.mm}>
-                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 800, fontSize: '11px' }}>{r.mm} mm{r.stimato ? ' *' : ''}</td>
+                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 800, fontSize: '11px' }}>{r.mm} mm{r.stimato ? ' *' : ''}{r.fuoriBarra && <span style={{ display: 'block', fontSize: '7px', color: '#b4530f' }}>fuori barra</span>}</td>
                     <td style={{ ...TD, textAlign: 'center', fontWeight: 700 }}>{r.qta}</td>
                     <td style={{ ...TD, fontSize: '8.5px', color: '#445' }}>
                       {[...r.da.entries()].map(([k, v]) => (v > 1 ? `${k}×${v}` : k)).join(' ')}
@@ -420,16 +422,25 @@ function avvisiOfficina(camResult) {
     titolo: 'Pezzi mancanti', testo: p.descrizione,
   }));
   if (camResult.pezziTroppoLunghi?.length) {
-    const elenco = camResult.pezziTroppoLunghi.map((p) => `${p.profile} ${p.mm} mm`).join(', ');
+    const elenco = camResult.pezziTroppoLunghi
+      .map((p) => `${p.profile} ${p.mm} mm${p.qta > 1 ? ` ×${p.qta}` : ''}`).join(', ');
     avvisi.push({
       titolo: 'Più lunghi della barra',
       testo: `${elenco} — oltre ${camResult.lunghezzaUtile} mm tagliabili: non sono nel piano di taglio né nelle barre da ordinare`,
     });
   }
-  (camResult.misureStimate || []).forEach((m) => avvisi.push({
-    titolo: 'Misure stimate (*)',
-    testo: `${m.descrizione} — ${m.pezzi.join(' e ')} calcolati con ingombro stimato di 50 mm, verificare sul catalogo`,
-  }));
+  // Una riga sola, anche con tanti serramenti: se no l'avviso spinge
+  // "Da ordinare" alla pagina dopo.
+  if (camResult.misureStimate?.length) {
+    const quali = camResult.misureStimate.map((m) => {
+      const idx = (camResult.itemResults || []).findIndex((ir) => ir.id === m.itemId);
+      return idx >= 0 ? rif(idx) : m.descrizione;
+    }).join(' ');
+    avvisi.push({
+      titolo: 'Misure stimate (*)',
+      testo: `${quali} — traversi e fermavetri senza i dati del catalogo, calcolati con un ingombro stimato: verificare prima di tagliare`,
+    });
+  }
   return avvisi;
 }
 
