@@ -44,6 +44,8 @@ const partLabel = (part) => {
 
   const fermFisso = part.match(/^ferm_fisso_(.+)$/);
   if (fermFisso && LATI_FERM[fermFisso[1]]) return `Fermavetro — ${LATI_FERM[fermFisso[1]]}`;
+  const fermSopraluce = part.match(/^ferm_sopraluce_(.+)$/);
+  if (fermSopraluce && LATI_FERM[fermSopraluce[1]]) return `Fermavetro sopraluce — ${LATI_FERM[fermSopraluce[1]]}`;
 
   const travAnta = part.match(/^traverso_anta_(\d+)$/);
   if (travAnta) return `Traverso Anta ${travAnta[1]}`;
@@ -68,6 +70,7 @@ const partLabelCorto = (part) => partLabel(part)
   .replace(/^Anta \d+ — /, '')
   .replace(/^Fermavetro Anta \d+ — /, 'Fermav. ')
   .replace(/^Fermavetro — /, 'Fermav. ')
+  .replace(/^Fermavetro sopraluce — /, 'Fermav. sopral. ')
   .replace(/ Telaio$/, '');
 
 // Numero d'ordine del serramento: e' il riferimento che l'operaio scrive a
@@ -94,6 +97,9 @@ function listaDiTaglio(itemResults, nesting) {
       // n: pezzi uguali descritti una volta sola (le lamelle di un'anta).
       const pezziQui = quante * (Number(pezzo.n) || 1);
       riga.qta += pezziQui;
+      // Misura stimata (traversi e fissi senza i dati del catalogo): basta
+      // un pezzo stimato perche' la riga vada controllata.
+      if (pezzo.stimato) riga.stimato = true;
       riga.da.set(rif(idx), (riga.da.get(rif(idx)) || 0) + pezziQui);
     }
   });
@@ -115,9 +121,13 @@ function listaDiTaglio(itemResults, nesting) {
 
 export default function DistintaPDFTemplate({ clientName, items, camResult, userSettings, barLength, soloOrdine = false }) {
   if (!camResult || !camResult.itemResults) return null;
-  const { itemResults, nesting, ferramentaRiepilogo } = camResult;
+  const { itemResults, ferramentaRiepilogo } = camResult;
+  // Un profilo con tutti i pezzi piu' lunghi della barra non ha barre: sta
+  // negli avvisi qui sotto, non in tabella con zero barre.
+  const nesting = (camResult.nesting || []).filter((n) => n.bars_required > 0);
+  const avvisi = avvisiOfficina(camResult);
   const today = new Date().toLocaleDateString('it-IT');
-  const gruppi = listaDiTaglio(itemResults, nesting);
+  const gruppi = listaDiTaglio(itemResults, camResult.nesting);
   const barreTotali = (nesting || []).reduce((s, n) => s + n.bars_required, 0);
   const barra = barLength || 6500;
 
@@ -161,6 +171,24 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
           </tbody>
         </table>
       </div>
+
+      {/* Gli avvisi stavano solo sullo schermo: in officina arriva il foglio,
+          e un pezzo che manca o una misura stimata si scoprivano alla
+          troncatrice. */}
+      {avvisi.length > 0 && (
+        <div style={{ ...BLOCCO, width: '100%', marginTop: '8px', border: '1.5px solid #b4530f' }}>
+          <div style={{ ...INTESTAZIONE_BLOCCO, background: '#fdf1e7', color: '#8a3c08', fontWeight: 800 }}>
+            Da controllare prima di tagliare
+          </div>
+          <div style={{ padding: '4px 8px', fontSize: '8.5px' }}>
+            {avvisi.map((a, i) => (
+              <div key={i} style={{ padding: '1.5px 0' }}>
+                <b>{a.titolo}:</b> {a.testo}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ═══ 1. DA ORDINARE ═══ */}
       <Sezione n="1" titolo="Da ordinare"
@@ -256,7 +284,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
               <tbody>
                 {g.righe.map((r) => (
                   <tr key={r.mm}>
-                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 800, fontSize: '11px' }}>{r.mm} mm</td>
+                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 800, fontSize: '11px' }}>{r.mm} mm{r.stimato ? ' *' : ''}</td>
                     <td style={{ ...TD, textAlign: 'center', fontWeight: 700 }}>{r.qta}</td>
                     <td style={{ ...TD, fontSize: '8.5px', color: '#445' }}>
                       {[...r.da.entries()].map(([k, v]) => (v > 1 ? `${k}×${v}` : k)).join(' ')}
@@ -351,7 +379,7 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
                   <tr key={bi}>
                     <td style={{ ...TD, fontSize: '8.5px' }}>{partLabel(b.part)}{Number(b.n) > 1 && <b> × {b.n}</b>}</td>
                     <td style={{ ...TD, fontFamily: MONO, fontSize: '8px', color: '#5a6b7d', width: '24%' }}>{b.profile}</td>
-                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 700, width: '20%' }}>{b.mm}</td>
+                    <td style={{ ...TD, textAlign: 'right', fontFamily: MONO, fontWeight: 700, width: '20%' }}>{b.mm}{b.stimato ? ' *' : ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -371,6 +399,38 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
       </div>
     </div>
   );
+}
+
+/**
+ * Tutto quello che chi taglia deve sapere prima di cominciare, in righe
+ * brevi: articoli senza distinta, pezzi mancanti, pezzi che non entrano
+ * nella barra, misure stimate.
+ */
+function avvisiOfficina(camResult) {
+  const avvisi = [];
+  (camResult.sistemiIncompleti || []).forEach((s) => avvisi.push({
+    titolo: 'Senza distinta',
+    testo: `${s.marca ? `${s.marca} ` : ''}${s.sistema} — mancano: ${s.mancano.join('; ')}`,
+  }));
+  (camResult.apertureNonSupportate || []).forEach((a) => avvisi.push({
+    titolo: 'Senza distinta',
+    testo: `${a.descrizione} — ${a.motivo || 'calcolo non disponibile'}`,
+  }));
+  (camResult.pezziNonCalcolati || []).forEach((p) => avvisi.push({
+    titolo: 'Pezzi mancanti', testo: p.descrizione,
+  }));
+  if (camResult.pezziTroppoLunghi?.length) {
+    const elenco = camResult.pezziTroppoLunghi.map((p) => `${p.profile} ${p.mm} mm`).join(', ');
+    avvisi.push({
+      titolo: 'Più lunghi della barra',
+      testo: `${elenco} — oltre ${camResult.lunghezzaUtile} mm tagliabili: non sono nel piano di taglio né nelle barre da ordinare`,
+    });
+  }
+  (camResult.misureStimate || []).forEach((m) => avvisi.push({
+    titolo: 'Misure stimate (*)',
+    testo: `${m.descrizione} — ${m.pezzi.join(' e ')} calcolati con ingombro stimato di 50 mm, verificare sul catalogo`,
+  }));
+  return avvisi;
 }
 
 function Sezione({ n, titolo, nota, nuovaPagina }) {

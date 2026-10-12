@@ -239,11 +239,7 @@ export default function DistintaPage() {
             {camResult.apertureNonSupportate.map((a, i) => (
               <li key={i} className="text-sm text-slate-700">
                 <span className="font-semibold">{a.descrizione}</span>
-                <span className="block text-xs text-slate-500">
-                  {a.apertura === 'Serramento composto'
-                    ? 'Un composto va tagliato modulo per modulo, piu\' il profilo di accoppiamento.'
-                    : 'Uno scorrevole non si costruisce come un battente: le ante si sormontano fra loro e l\'altezza dipende dal binario.'}
-                </span>
+                <span className="block text-xs text-slate-500">{a.motivo}</span>
               </li>
             ))}
           </ul>
@@ -262,6 +258,46 @@ export default function DistintaPage() {
           <ul className="space-y-1.5">
             {camResult.pezziNonCalcolati.map((a, i) => (
               <li key={i} className="text-sm text-red-800">{a.descrizione}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {camResult?.pezziTroppoLunghi?.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+          <h2 className="font-bold text-red-800 flex items-center gap-2 mb-2">
+            <Lock size={18} /> Pezzi più lunghi della barra
+          </h2>
+          <p className="text-sm text-red-700 mb-3">
+            Con la barra da {barLength} mm si possono tagliare pezzi fino a {camResult.lunghezzaUtile} mm
+            (tolti sbucciatura, morsa e lama). Questi pezzi non sono nel piano di taglio e
+            non sono contati nelle barre da ordinare: servono barre più lunghe.
+          </p>
+          <ul className="space-y-1.5">
+            {camResult.pezziTroppoLunghi.map((p, i) => (
+              <li key={i} className="text-sm text-red-800">
+                <strong>{p.profile}</strong> — {p.mm} mm
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {camResult?.misureStimate?.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <h2 className="font-bold text-amber-900 flex items-center gap-2 mb-2">
+            <Lock size={18} /> Misure stimate, da controllare
+          </h2>
+          <p className="text-sm text-amber-800 mb-3">
+            Per traversi e fissi il sistema non ha ancora i dati del catalogo: questi pezzi
+            sono calcolati con un ingombro stimato di 50 mm e sulla distinta hanno un
+            asterisco (*). Controllali sul catalogo prima di tagliare.
+          </p>
+          <ul className="space-y-1.5">
+            {camResult.misureStimate.map((s, i) => (
+              <li key={i} className="text-sm text-amber-900">
+                <strong>{s.descrizione}</strong> — {s.pezzi.join(' e ')}
+              </li>
             ))}
           </ul>
         </div>

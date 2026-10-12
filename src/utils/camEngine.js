@@ -32,6 +32,26 @@ export const PROFILE_LABELS = {
   'FERM-24':     'Fermavetro',
 };
 
+// Ingombro stimato del telaio fisso e del traverso, usato quando il sistema
+// non ha i dati del catalogo. I pezzi calcolati cosi' escono marcati come
+// stimati: in officina vanno controllati prima di tagliare.
+const INGOMBRO_STIMATO = 50;
+
+// Misure intere: il volantino della troncatrice non imposta i mezzi
+// millimetri, e una misura con la virgola sulla distinta fa solo sbagliare.
+// Un pezzo con misura nulla o negativa (articolo troppo piccolo per il
+// sistema) non si taglia: si scarta e si dice quanti sono.
+function pezziTagliabili(pezzi) {
+  const validi = [];
+  let scartati = 0;
+  for (const p of pezzi) {
+    const mm = Math.round(Number(p.mm));
+    if (Number.isFinite(mm) && mm > 0) validi.push({ ...p, mm });
+    else scartati += 1;
+  }
+  return { validi, scartati };
+}
+
 function packBars(pieces, barLength) {
   const sorted = [...pieces].sort((a, b) => b - a);
   const bars   = [];
@@ -67,6 +87,12 @@ export function runCamEngine(items, barLength = 6500) {
   // Vanno mostrati: una distinta a cui mancano pezzi in silenzio fa
   // scoprire il problema in officina.
   const pezziNonCalcolati = [];
+  const scartaInvalidi = (item, nomeArticolo, scartati) => {
+    if (scartati > 0) pezziNonCalcolati.push({
+      itemId: item.id,
+      descrizione: `${nomeArticolo} ${item.width}x${item.height}: ${scartati === 1 ? '1 pezzo esce' : `${scartati} pezzi escono`} con misura nulla o negativa, le misure sono troppo piccole per questo sistema`,
+    });
+  };
 
   for (const item of items) {
     if (item.type === 'custom' || item.type === 'complemento') continue;
@@ -94,6 +120,7 @@ export function runCamEngine(items, barLength = 6500) {
         itemId: item.id,
         apertura: 'Serramento composto',
         descrizione: item.model || 'Serramento composto',
+        motivo: 'Un composto va tagliato modulo per modulo, piu\' il profilo di accoppiamento.',
       });
       continue;
     }
@@ -107,6 +134,7 @@ export function runCamEngine(items, barLength = 6500) {
         itemId: item.id,
         apertura: item.apertura,
         descrizione: item.model || `${item.apertura} ${numAnte} ante`,
+        motivo: 'Uno scorrevole non si costruisce come un battente: le ante si sormontano fra loro e l\'altezza dipende dal binario.',
       });
       continue;
     }
@@ -141,6 +169,9 @@ export function runCamEngine(items, barLength = 6500) {
       const ris = calcolaPersiana(item, sys);
       Object.assign(profileLabels, ris.etichette);
       ris.avvisi.forEach((descrizione) => pezziNonCalcolati.push({ itemId: item.id, descrizione }));
+      const tagliPersiana = pezziTagliabili(ris.pezzi);
+      ris.pezzi = tagliPersiana.validi;
+      scartaInvalidi(item, item.model || item.apertura || 'Persiana', tagliPersiana.scartati);
       for (let q = 0; q < qty; q++) {
         for (const pz of ris.pezzi) {
           for (let k = 0; k < (pz.n || 1); k++) allBom.push({ ...pz, itemId: item.id, qty });
@@ -158,6 +189,46 @@ export function runCamEngine(items, barLength = 6500) {
         ferramenta: ris.pezzi.length ? ferramentaPersiana(item, numAnte, qty, ris.dettaglio?.conTelaio) : [],
       });
       continue;
+    }
+
+    // Come si apre ogni anta, dal disegno del configuratore. Il traverso si
+    // accende o si spegne sulla singola anta, e ognuna ha la sua quota:
+    // stessa regola del disegno (WindowConfigurator), se no la distinta
+    // taglierebbe un serramento diverso da quello venduto.
+    const ante = Array.isArray(item.paneConfigs) ? item.paneConfigs
+      : (Array.isArray(item.rawInput?.paneConfigs) ? item.rawInput.paneConfigs : []);
+    const conTraverso = (a) => !!(ante[a]?.traverso ?? item.hasTraverso);
+    const quotaTraverso = (a) => Number(ante[a]?.traversoH) || Number(item.traversoHeight) || 1000;
+
+    // Un'anta segnata come fissa, o con sopra e sotto il traverso due
+    // aperture diverse (la F06: vasistas sopra, fisso sotto), non e' un'anta
+    // con il traverso: e' vetro sul telaio o due ante separate, divise da un
+    // montante o da un traverso del telaio. Prima venivano tagliate tutte
+    // come ante apribili, con riporti e fermavetri che non servono e senza
+    // i pezzi che servono davvero.
+    if (!isFisso) {
+      const tipi = Array.from({ length: numAnte }, (_, a) => {
+        const sotto = ante[a]?.tipo || 'battente';
+        return { sotto, sopra: conTraverso(a) ? (ante[a]?.tipoSopra || sotto) : sotto };
+      });
+      const parteFissa = tipi.some((t) => t.sotto === 'fissa' || t.sopra === 'fissa');
+      const partiDiverse = tipi.some((t) => t.sopra !== t.sotto);
+      // Un vasistas accanto a un'anta a battente non puo' avere lo scambio
+      // battuta: fra i due serve un montante.
+      const vasistasAffiancati = numAnte > 1
+        && tipi.some((t) => t.sotto === 'vasistas')
+        && tipi.some((t) => t.sotto !== 'vasistas');
+      if (parteFissa || partiDiverse || vasistasAffiancati) {
+        apertureNonSupportate.push({
+          itemId: item.id,
+          apertura: item.apertura,
+          descrizione: item.model || `${item.apertura} ${numAnte} ante`,
+          motivo: parteFissa
+            ? 'Ha delle parti fisse: vanno su un montante o un traverso del telaio, che il calcolo non fa ancora.'
+            : 'Ha ante che si aprono in modo diverso, affiancate o sopra e sotto il traverso: fra loro serve un montante o un traverso del telaio, che il calcolo non fa ancora.',
+        });
+        continue;
+      }
     }
 
     // Senza i dati geometrici del profilo NON si producono tagli. Prima si
@@ -238,7 +309,8 @@ export function runCamEngine(items, barLength = 6500) {
     // e' fatto di due profili dedicati e il fermavetro si spezza sopra e
     // sotto il traverso secondo la sua altezza. I dati stanno nel sistema
     // (specs.porta_balcone); senza, il traverso resta calcolato come prima.
-    const pb = (!isFisso && item.hasTraverso && !item.hasSopraluce && sys?.specs?.porta_balcone)
+    const qualcheTraverso = Array.from({ length: numAnte }, (_, a) => conTraverso(a)).some(Boolean);
+    const pb = (!isFisso && qualcheTraverso && !item.hasSopraluce && sys?.specs?.porta_balcone)
       ? sys.specs.porta_balcone : null;
     const detrTraversaInf = pb && numeroValido(pb.traversa_inf_detrazione_mm)
       ? Number(pb.traversa_inf_detrazione_mm)
@@ -261,6 +333,9 @@ export function runCamEngine(items, barLength = 6500) {
     // e traversi interni appartengono a una singola anta, quindi devono
     // seguire la sua larghezza e non la media.
     let larghezzeAnte = [];
+    // Detrazione in altezza dell'anta: serve anche ai fermavetri, per sapere
+    // a che quota comincia il vetro rispetto al traverso.
+    let detrAltezzaAnta = 0;
     // Un sistema puo' descrivere l'anta in due modi: con battuta e sormonto,
     // oppure con le detrazioni prese dalla distinta del produttore. Basta uno
     // dei due: chiedere per forza la battuta escludeva le serie caricate
@@ -297,6 +372,7 @@ export function runCamEngine(items, barLength = 6500) {
         ? Number(ant.detrazione_larghezza_mm) : daBattutaESormonto;
       const detrAltezza = numeroValido(ant.detrazione_altezza_mm)
         ? Number(ant.detrazione_altezza_mm) : daBattutaESormonto;
+      detrAltezzaAnta = detrAltezza;
 
       const sw_totale = fw - detrLarghezza - ((numAnte - 1) * detrazioneNodo);
       // Ante asimmetriche: la larghezza totale va ripartita secondo le
@@ -342,35 +418,60 @@ export function runCamEngine(items, barLength = 6500) {
     }
 
     // BOM Fermavetri
+    // Il nome del serramento negli avvisi.
+    const nomeArticolo = `${item.model || `${item.apertura} ${numAnte} ante`} ${width}x${height}`;
+    // Fermavetri sopra e sotto un traverso. "quota" e' l'asse del traverso,
+    // "base" la quota a cui comincia il vetro, "luce" l'altezza totale dei
+    // fermavetri senza traverso: tutte misurate dal fondo del telaio, come
+    // la quota del traverso nel preventivo. Prima si divideva sempre a meta',
+    // qualunque fosse l'altezza scelta: su una porta finestra col traverso a
+    // 900 i fermavetri sotto uscivano lunghi quanto quelli sopra.
+    const fermavetriDivisi = (quota, base, luce) => {
+      const sotto = Math.round(quota - base - INGOMBRO_STIMATO / 2);
+      const sopra = Math.round(luce - INGOMBRO_STIMATO - sotto);
+      return { sotto, sopra };
+    };
+    const avvisoTraverso = (quota, sotto, cosa) => pezziNonCalcolati.push({
+      itemId: item.id,
+      descrizione: `${nomeArticolo}: traverso a ${quota} mm troppo ${sotto > 0 ? 'alto' : 'basso'}, ${cosa} non calcolati`,
+    });
+    // Fermavetri che non si possono calcolare perche' il vetro uscirebbe di
+    // misura nulla: prima sparivano dalla distinta senza dire niente.
+    const avvisoFermavetri = (cosa) => pezziNonCalcolati.push({
+      itemId: item.id,
+      descrizione: `${nomeArticolo}: misure troppo piccole, ${cosa} non calcolati`,
+    });
     const fermavetroPieces = [];
     if (fv.codice) {
       if (isFisso) {
-         const ingombroFisso = 50; // Stima ingombro per telaio fisso
-         const fvW = fw - (ingombroFisso * 2);
-         let fvH = fh - (ingombroFisso * 2);
-         
+         const fvW = fw - (INGOMBRO_STIMATO * 2);
+         const fvH = fh - (INGOMBRO_STIMATO * 2);
+
          if (item.hasTraverso) {
-             const ingombroTraverso = 50; // stima spessore traverso
-             const fvH_mezzo = (fvH - ingombroTraverso) / 2;
-             if (fvW > 0 && fvH_mezzo > 0) {
+             const quota = quotaTraverso(0);
+             const { sotto, sopra } = fermavetriDivisi(quota, INGOMBRO_STIMATO, fvH);
+             if (!(fvW > 0)) avvisoFermavetri('i fermavetri del fisso');
+             else if (!(sotto > 0 && sopra > 0)) avvisoTraverso(quota, sotto, 'i fermavetri del fisso');
+             else {
                fermavetroPieces.push(
-                  { part: `ferm_fisso_top`,       profile: fv.codice, mm: fvW },
-                  { part: `ferm_fisso_mid_top`,   profile: fv.codice, mm: fvW },
-                  { part: `ferm_fisso_left_sup`,  profile: fv.codice, mm: fvH_mezzo },
-                  { part: `ferm_fisso_right_sup`, profile: fv.codice, mm: fvH_mezzo },
-                  { part: `ferm_fisso_mid_bot`,   profile: fv.codice, mm: fvW },
-                  { part: `ferm_fisso_bottom`,    profile: fv.codice, mm: fvW },
-                  { part: `ferm_fisso_left_inf`,  profile: fv.codice, mm: fvH_mezzo },
-                  { part: `ferm_fisso_right_inf`, profile: fv.codice, mm: fvH_mezzo }
+                  { part: `ferm_fisso_top`,       profile: fv.codice, mm: fvW, stimato: true },
+                  { part: `ferm_fisso_mid_top`,   profile: fv.codice, mm: fvW, stimato: true },
+                  { part: `ferm_fisso_left_sup`,  profile: fv.codice, mm: sopra, stimato: true },
+                  { part: `ferm_fisso_right_sup`, profile: fv.codice, mm: sopra, stimato: true },
+                  { part: `ferm_fisso_mid_bot`,   profile: fv.codice, mm: fvW, stimato: true },
+                  { part: `ferm_fisso_bottom`,    profile: fv.codice, mm: fvW, stimato: true },
+                  { part: `ferm_fisso_left_inf`,  profile: fv.codice, mm: sotto, stimato: true },
+                  { part: `ferm_fisso_right_inf`, profile: fv.codice, mm: sotto, stimato: true }
                );
              }
          } else {
-             if (fvW > 0 && fvH > 0) {
+             if (!(fvW > 0 && fvH > 0)) avvisoFermavetri('i fermavetri del fisso');
+             else {
                fermavetroPieces.push(
-                  { part: `ferm_fisso_top`,    profile: fv.codice, mm: fvW },
-                  { part: `ferm_fisso_bottom`, profile: fv.codice, mm: fvW },
-                  { part: `ferm_fisso_left`,   profile: fv.codice, mm: fvH },
-                  { part: `ferm_fisso_right`,  profile: fv.codice, mm: fvH }
+                  { part: `ferm_fisso_top`,    profile: fv.codice, mm: fvW, stimato: true },
+                  { part: `ferm_fisso_bottom`, profile: fv.codice, mm: fvW, stimato: true },
+                  { part: `ferm_fisso_left`,   profile: fv.codice, mm: fvH, stimato: true },
+                  { part: `ferm_fisso_right`,  profile: fv.codice, mm: fvH, stimato: true }
                );
              }
          }
@@ -387,6 +488,9 @@ export function runCamEngine(items, barLength = 6500) {
          const detrFermavetroH = numeroValido(ant.detrazione_fermavetro_altezza_mm)
            ? Number(ant.detrazione_fermavetro_altezza_mm) : ingombroVista * 2;
          const fvH = sh - detrFermavetroH;
+         // Anta e vetro stanno al centro delle loro detrazioni: il vetro
+         // comincia a meta' di tutte e due sopra il fondo del telaio.
+         const baseVetro = detrAltezzaAnta / 2 + detrFermavetroH / 2;
          // Il fermavetro appartiene a una singola anta: si misura sulla
          // larghezza di QUELLA anta. Usando la media, con ante asimmetriche
          // uscivano tutti uguali - troppo lunghi per l'anta stretta (non
@@ -396,85 +500,74 @@ export function runCamEngine(items, barLength = 6500) {
            return Math.round(base) - detrFermavetroL;
          };
 
-         if (pb) {
+         for (let a = 0; a < numAnte; a++) {
+           const fvW = larghezzaFermavetro(a);
+           const qualeAnta = numAnte > 1 ? `i fermavetri dell'anta ${a+1}` : 'i fermavetri dell\'anta';
+           if (fvW <= 0) { avvisoFermavetri(qualeAnta); continue; }
+           if (!conTraverso(a)) {
+             if (!(fvH > 0)) avvisoFermavetri(qualeAnta);
+             else {
+               fermavetroPieces.push(
+                 { part: `ferm_${a+1}_top`,    profile: fv.codice, mm: fvW },
+                 { part: `ferm_${a+1}_bottom`, profile: fv.codice, mm: fvW },
+                 { part: `ferm_${a+1}_left`,   profile: fv.codice, mm: fvH },
+                 { part: `ferm_${a+1}_right`,  profile: fv.codice, mm: fvH },
+               );
+             }
+             continue;
+           }
+           const quota = quotaTraverso(a);
+           let sopra, sotto;
+           // I pezzi della porta balcone vengono dalla distinta del
+           // produttore; gli altri sono calcolati con l'ingombro stimato.
+           const stimato = !pb;
+           if (pb) {
              // Quote della distinta del produttore. HT e' l'altezza dell'asse
              // del traverso misurata dalla linea H del catalogo, che sta
              // quota_traverso_da_fondo_mm sopra il fondo del telaio: nel
              // preventivo l'altezza del traverso si misura dal fondo.
-             const htCatalogo = (Number(item.traversoHeight) || 1000) - (Number(pb.quota_traverso_da_fondo_mm) || 0);
-             const fvSopra = Math.round(sh - htCatalogo - Number(pb.fermavetro?.sopra_mm || 0));
-             const fvSotto = Math.round(htCatalogo - Number(pb.fermavetro?.sotto_mm || 0));
-             if (!(fvSopra > 0 && fvSotto > 0)) {
-               pezziNonCalcolati.push({
-                 itemId: item.id,
-                 descrizione: `${item.model || `${item.apertura} ${numAnte} ante`} ${width}x${height}: traverso a ${Number(item.traversoHeight) || 1000} mm troppo ${fvSopra > 0 ? 'basso' : 'alto'}, i fermavetri dell'anta non sono calcolati`,
-               });
-             }
-             if (fvSopra > 0 && fvSotto > 0) {
-               for (let a = 0; a < numAnte; a++) {
-                 const fvW = larghezzaFermavetro(a);
-                 if (fvW <= 0) continue;
-                 fermavetroPieces.push(
-                   { part: `ferm_${a+1}_top`,       profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_mid_top`,   profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_left_sup`,  profile: fv.codice, mm: fvSopra },
-                   { part: `ferm_${a+1}_right_sup`, profile: fv.codice, mm: fvSopra },
-                   { part: `ferm_${a+1}_mid_bot`,   profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_bottom`,    profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_left_inf`,  profile: fv.codice, mm: fvSotto },
-                   { part: `ferm_${a+1}_right_inf`, profile: fv.codice, mm: fvSotto }
-                 );
-               }
-             }
-         } else if (item.hasTraverso) {
-             const ingombroTraverso = 50;
-             const fvH_mezzo = (fvH - ingombroTraverso) / 2;
-             if (fvH_mezzo > 0) {
-               for (let a = 0; a < numAnte; a++) {
-                 const fvW = larghezzaFermavetro(a);
-                 if (fvW <= 0) continue;
-                 fermavetroPieces.push(
-                   { part: `ferm_${a+1}_top`,       profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_mid_top`,   profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_left_sup`,  profile: fv.codice, mm: fvH_mezzo },
-                   { part: `ferm_${a+1}_right_sup`, profile: fv.codice, mm: fvH_mezzo },
-                   { part: `ferm_${a+1}_mid_bot`,   profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_bottom`,    profile: fv.codice, mm: fvW },
-                   { part: `ferm_${a+1}_left_inf`,  profile: fv.codice, mm: fvH_mezzo },
-                   { part: `ferm_${a+1}_right_inf`, profile: fv.codice, mm: fvH_mezzo }
-                 );
-               }
-             }
-         } else {
-             if (fvH > 0) {
-               for (let a = 0; a < numAnte; a++) {
-                const fvW = larghezzaFermavetro(a);
-                if (fvW <= 0) continue;
-                fermavetroPieces.push(
-                  { part: `ferm_${a+1}_top`,    profile: fv.codice, mm: fvW },
-                  { part: `ferm_${a+1}_bottom`, profile: fv.codice, mm: fvW },
-                  { part: `ferm_${a+1}_left`,   profile: fv.codice, mm: fvH },
-                  { part: `ferm_${a+1}_right`,  profile: fv.codice, mm: fvH },
-                );
-              }
-            }
+             const htCatalogo = quota - (Number(pb.quota_traverso_da_fondo_mm) || 0);
+             sopra = Math.round(sh - htCatalogo - Number(pb.fermavetro?.sopra_mm || 0));
+             sotto = Math.round(htCatalogo - Number(pb.fermavetro?.sotto_mm || 0));
+           } else {
+             ({ sopra, sotto } = fermavetriDivisi(quota, baseVetro, fvH));
+           }
+           if (!(sopra > 0 && sotto > 0)) {
+             avvisoTraverso(quota, sotto, qualeAnta);
+             continue;
+           }
+           fermavetroPieces.push(
+             { part: `ferm_${a+1}_top`,       profile: fv.codice, mm: fvW, stimato },
+             { part: `ferm_${a+1}_mid_top`,   profile: fv.codice, mm: fvW, stimato },
+             { part: `ferm_${a+1}_left_sup`,  profile: fv.codice, mm: sopra, stimato },
+             { part: `ferm_${a+1}_right_sup`, profile: fv.codice, mm: sopra, stimato },
+             { part: `ferm_${a+1}_mid_bot`,   profile: fv.codice, mm: fvW, stimato },
+             { part: `ferm_${a+1}_bottom`,    profile: fv.codice, mm: fvW, stimato },
+             { part: `ferm_${a+1}_left_inf`,  profile: fv.codice, mm: sotto, stimato },
+             { part: `ferm_${a+1}_right_inf`, profile: fv.codice, mm: sotto, stimato }
+           );
          }
       }
     }
 
     // BOM traverso intermedio (montante orizzontale centrale o per sopraluce)
+    // Un traverso sta DENTRO il telaio o l'anta, fra i due montanti: prima
+    // veniva tagliato lungo quanto tutto il telaio o tutta l'anta, e cosi'
+    // non entra. Senza i dati del catalogo si toglie l'ingombro stimato,
+    // lo stesso usato per i fermavetri, e il pezzo esce marcato come stimato.
     const traversoPieces = [];
-    if (item.hasTraverso) {
-      if (isFisso) {
-        // Se è fisso, il traverso taglia il telaio ed è unico
-        traversoPieces.push({ part: 'traverso_centrale', profile: 'TRAV-GEN', mm: fw + saldTel });
-      } else if (pb && Array.isArray(pb.traverso) && pb.traverso.length) {
+    if (isFisso && item.hasTraverso) {
+      traversoPieces.push({ part: 'traverso_centrale', profile: 'TRAV-GEN',
+        mm: fw - (INGOMBRO_STIMATO * 2) + saldTel, stimato: true });
+    } else if (!isFisso && qualcheTraverso) {
+      if (pb && Array.isArray(pb.traverso) && pb.traverso.length) {
         // Traverso della porta balcone: ogni profilo della distinta, uno per
         // anta, tagliato alla larghezza di quell'anta meno la sua detrazione.
         pb.traverso.forEach((t) => {
           if (t.codice) profileLabels[t.codice] = t.descrizione || t.codice;
         });
         for (let a = 0; a < numAnte; a++) {
+          if (!conTraverso(a)) continue;
           const swA = Number.isFinite(larghezzeAnte[a]) ? Math.round(larghezzeAnte[a]) : sw;
           pb.traverso.forEach((t, k) => {
             traversoPieces.push({
@@ -485,21 +578,49 @@ export function runCamEngine(items, barLength = 6500) {
           });
         }
       } else {
-        // Se ci sono le ante, il traverso sta dentro ogni singola anta
+        // Il traverso sta dentro ogni singola anta che ce l'ha, fra i suoi
+        // due montanti: si toglie l'ingombro a vista dell'anta per lato.
+        const ingombroVista = Number(ant.ingombro_vista_mm) || 70;
         for (let a = 0; a < numAnte; a++) {
-          // Anche il traverso sta dentro una singola anta: stessa ragione.
+          if (!conTraverso(a)) continue;
           const swA = Number.isFinite(larghezzeAnte[a]) ? Math.round(larghezzeAnte[a]) : sw;
-          traversoPieces.push({ part: `traverso_anta_${a+1}`, profile: 'TRAV-GEN', mm: swA + saldAnta });
+          traversoPieces.push({ part: `traverso_anta_${a+1}`, profile: 'TRAV-GEN',
+            mm: swA - (ingombroVista * 2) + saldAnta, stimato: true });
         }
       }
     }
     if (item.hasSopraluce) {
+      const altezzaSopraluce = Number(item.sopraluceHeight) || 400;
+      const divisioni = Math.max(1, Number(item.sopraluceDivisioni) || 1);
       traversoPieces.push(
-        { part: 'traverso_sopraluce', profile: cTelStd, mm: fw + saldTel }
+        { part: 'traverso_sopraluce', profile: 'TRAV-GEN', mm: fw - (INGOMBRO_STIMATO * 2) + saldTel, stimato: true }
       );
+      // Il vetro del sopraluce ha i suoi fermavetri: prima mancavano del
+      // tutto. Diviso in piu' riquadri servono anche i montanti, che il
+      // calcolo non fa ancora: meglio dirlo che dare meta' dei pezzi.
+      if (divisioni > 1) {
+        pezziNonCalcolati.push({
+          itemId: item.id,
+          descrizione: `${nomeArticolo}: sopraluce diviso in ${divisioni}, montanti e fermavetri del sopraluce non calcolati`,
+        });
+      } else if (fv.codice) {
+        const fvW = fw - (INGOMBRO_STIMATO * 2);
+        const fvH = altezzaSopraluce - INGOMBRO_STIMATO - (INGOMBRO_STIMATO / 2);
+        if (!(fvW > 0 && fvH > 0)) avvisoFermavetri('i fermavetri del sopraluce');
+        else {
+          fermavetroPieces.push(
+            { part: 'ferm_sopraluce_top',    profile: fv.codice, mm: fvW, stimato: true },
+            { part: 'ferm_sopraluce_bottom', profile: fv.codice, mm: fvW, stimato: true },
+            { part: 'ferm_sopraluce_left',   profile: fv.codice, mm: fvH, stimato: true },
+            { part: 'ferm_sopraluce_right',  profile: fv.codice, mm: fvH, stimato: true },
+          );
+        }
+      }
     }
 
-    const pieces = [...framepieces, ...traversoPieces, ...sashPieces, ...fermavetroPieces];
+    const tagli = pezziTagliabili([...framepieces, ...traversoPieces, ...sashPieces, ...fermavetroPieces]);
+    const pieces = tagli.validi;
+    scartaInvalidi(item, item.model || `${item.apertura} ${numAnte} ante`, tagli.scartati);
     for (let q = 0; q < qty; q++) {
       allBom.push(...pieces.map(p => ({ ...p, itemId: item.id, qty })));
     }
@@ -517,9 +638,19 @@ export function runCamEngine(items, barLength = 6500) {
   }
 
   // Aggregazione nesting per profilo
+  // Un pezzo piu' lungo di quanto la barra lascia tagliare (tolte sbucciatura,
+  // morsa e lama) non entra in nessuna barra. Prima finiva comunque in una
+  // barra tutta sua, con lo sfrido negativo, e nessuno se ne accorgeva fino
+  // alla troncatrice: va ordinato a parte, con una barra piu' lunga.
+  const lunghezzaUtile = barLength - DOUBLE_TRIM - SFRIDO_MORSA - KERF;
+  const pezziTroppoLunghi = [];
   const byProfile = {};
   for (const entry of allBom) {
     if (!byProfile[entry.profile]) byProfile[entry.profile] = [];
+    if (entry.mm > lunghezzaUtile) {
+      pezziTroppoLunghi.push({ itemId: entry.itemId, profile: entry.profile, mm: entry.mm });
+      continue;
+    }
     byProfile[entry.profile].push(entry.mm);
   }
 
@@ -550,7 +681,21 @@ export function runCamEngine(items, barLength = 6500) {
   }
   const ferramentaRiepilogo = Object.values(ferramentaTotale);
 
-  return { itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti, apertureNonSupportate, pezziNonCalcolati };
+  // Serramenti con almeno una misura stimata, da controllare prima di
+  // tagliare.
+  const misureStimate = itemResults
+    .filter((ir) => ir.bom.some((p) => p.stimato))
+    .map((ir) => ({
+      itemId: ir.id,
+      descrizione: `${ir.description} ${ir.width}x${ir.height}`,
+      pezzi: [...new Set(ir.bom.filter((p) => p.stimato).map((p) =>
+        p.part.startsWith('traverso') ? 'traverso' : 'fermavetri'))],
+    }));
+
+  return {
+    itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti, apertureNonSupportate,
+    pezziNonCalcolati, pezziTroppoLunghi, lunghezzaUtile, misureStimate,
+  };
 }
 
 /**
