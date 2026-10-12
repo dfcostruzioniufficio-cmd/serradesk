@@ -1,4 +1,5 @@
 import { mqTapparella } from '../utils/tapparella';
+import { sonoSovrapposte } from '../utils/anteSovrapposte';
 /**
  * usePricingEngine.js
  * Motore di calcolo prezzi estratto da PreventiviPage.
@@ -42,12 +43,15 @@ export function anteApribili(item) {
   // sopra (tipoSopra) e sotto (tipo): contano una per una, come si aprono.
   // Senza traverso, o su un'anta mai toccata, conta l'anta intera.
   const traverso = item?.hasTraverso ?? item?.rawInput?.hasTraverso;
+  // Ante una sopra l'altra: ogni anta conta per se', la traversa dell'anta
+  // li' non esiste anche se nella configurazione e' rimasta accesa.
+  const sovrapposte = sonoSovrapposte(item);
   let apribili = 0;
   for (let i = 0; i < numAnte; i++) {
     const c = configurazione[i];
     // Il traverso puo' essere acceso o spento sulla singola anta: la P01 ha
     // la traversa solo sui due fissi laterali, non sulle ante della porta.
-    const traversoAnta = c?.traverso ?? traverso;
+    const traversoAnta = !sovrapposte && (c?.traverso ?? traverso);
     if (traversoAnta && c?.tipoSopra) {
       if (c.tipo !== 'fissa') apribili += 1;
       if (c.tipoSopra !== 'fissa') apribili += 1;
@@ -56,6 +60,19 @@ export function anteApribili(item) {
     }
   }
   return apribili;
+}
+
+/**
+ * Metri di profilo anta e di riporto (il nodo fra due ante) per il prezzo a
+ * peso. Ante affiancate: ognuna larga L/n e alta H, i nodi sono verticali e
+ * alti H. Ante una sopra l'altra: ognuna larga L e alta H/n, i nodi sono
+ * orizzontali e lunghi L.
+ */
+export function metriAnteERiporti(item, wM, hM) {
+  const numAnte = Number(item.numAnte) || 1;
+  const sovrapposte = sonoSovrapposte(item);
+  const [antaW, antaH, nodo] = sovrapposte ? [wM, hM / numAnte, wM] : [wM / numAnte, hM, hM];
+  return { anta: (antaW + antaH) * 2 * numAnte, riporto: numAnte > 1 ? nodo * (numAnte - 1) : 0 };
 }
 
 /** Minimo fatturabile e maggiorazione per ante, contando solo le apribili. */
@@ -160,11 +177,9 @@ export function calculateWindowPrice(item, sistemiCam) {
       let kgRiporto = 0;
 
       if (!isFisso && numAnte > 0) {
-        const antaW = wM / numAnte;
-        kgAnta = (antaW + hM) * 2 * numAnte * pesoAnta;
-        if (numAnte > 1) {
-          kgRiporto = hM * (numAnte - 1) * pesoRiporto;
-        }
+        const metri = metriAnteERiporti(item, wM, hM);
+        kgAnta = metri.anta * pesoAnta;
+        kgRiporto = metri.riporto * pesoRiporto;
       }
 
       const totalKg = (kgTelaio + kgAnta + kgRiporto) * 1.05;
@@ -209,11 +224,9 @@ export function calculateWindowPrice(item, sistemiCam) {
         let kgRiporto = 0;
 
         if (!isFisso && numAnte > 0) {
-          const antaW = wM / numAnte;
-          kgAnta = (antaW + hM) * 2 * numAnte * pesoAnta;
-          if (numAnte > 1) {
-            kgRiporto = hM * (numAnte - 1) * pesoRiporto;
-          }
+          const metri = metriAnteERiporti(item, wM, hM);
+          kgAnta = metri.anta * pesoAnta;
+          kgRiporto = metri.riporto * pesoRiporto;
         }
 
         const totalKg = (kgTelaio + kgAnta + kgRiporto) * 1.05;

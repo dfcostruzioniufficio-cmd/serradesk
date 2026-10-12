@@ -2,6 +2,7 @@ import React from 'react';
 import { getFrameColorHex, getAccessoriHex } from '../utils/colors';
 import { dimensioniDisegno } from '../lib/scalaDisegno';
 import { vistaProfili } from '../utils/trasmittanza';
+import { sonoSovrapposte } from '../utils/anteSovrapposte';
 
 /**
  * WindowPreview — Finestra PVC iper-realistica con:
@@ -30,6 +31,10 @@ export default function WindowPreview({
   handlePosition = 'right',
   paneConfigs = {},
   anteWidths = null,
+  // Ante una sopra l'altra, tutte alte uguali, a tutta larghezza: il
+  // finestrone alto e stretto (1100x2800 in tre ante). Anta 1 e' quella in
+  // alto.
+  anteSovrapposte = false,
   maniglioneAntipanico = false,
   // Indici delle ante con il maniglione. Assente (articoli vecchi): tutte.
   maniglioneAnte = null,
@@ -63,7 +68,10 @@ export default function WindowPreview({
   // uguali, perche' restano due ante con due ferramenta.
   // Traverso acceso su questa anta: la spunta generale, o la scelta fatta
   // sull'anta nel disegno (la P01 ha la traversa solo sui fissi laterali).
-  const traversoAnta = (i) => (paneConfigs?.[i]?.traverso ?? hasTraverso);
+  const sovrapposte = sonoSovrapposte({ anteSovrapposte, apertura, numAnte: anteCount });
+  // Sulle ante impilate il traverso dell'anta non c'e': le divide gia' il
+  // traverso del telaio fra un'anta e l'altra.
+  const traversoAnta = (i) => !sovrapposte && (paneConfigs?.[i]?.traverso ?? hasTraverso);
   const partiDiverse = (i) => !!(traversoAnta(i) && paneConfigs?.[i]?.tipoSopra);
 
   const getOpeningInfo = (i) => {
@@ -85,12 +93,13 @@ export default function WindowPreview({
       // ?. qui tutta l'app finiva sulla schermata rossa.
       const bordo = paneConfigs?.[i]?.handleEdge;
       if (bordo) return { openingEdge: bordo, hasHandle: true };
-      return { openingEdge: i === anteCount - 1 && anteCount > 1 ? 'left' : 'right', hasHandle: false };
+      return { openingEdge: i === anteCount - 1 && anteCount > 1 && !sovrapposte ? 'left' : 'right', hasHandle: false };
     }
     if (paneConfigs && paneConfigs.length > i && 'handleEdge' in paneConfigs[i]) {
       const edge = paneConfigs[i].handleEdge;
       if (edge) return { openingEdge: edge, hasHandle: true };
       if (apertura === 'Battente' || apertura === 'Vasistas' || apertura === 'Bilico') {
+        if (sovrapposte) return { openingEdge: 'right', hasHandle: false };
         if (anteCount === 1) return { openingEdge: handlePosition === 'right' ? 'right' : 'left', hasHandle: false };
         if (anteCount === 2) {
           if (i === 0) return { openingEdge: 'right', hasHandle: false };
@@ -102,6 +111,7 @@ export default function WindowPreview({
       return { openingEdge: null, hasHandle: false };
     }
     if (anteCount === 1) return { openingEdge: handlePosition === 'right' ? 'right' : 'left', hasHandle: true };
+    if (sovrapposte) return { openingEdge: handlePosition === 'left' ? 'left' : 'right', hasHandle: true };
     if (anteCount === 2) {
       if (i === 0) return { openingEdge: 'right', hasHandle: handlePosition === 'left' };
       else return { openingEdge: 'left', hasHandle: handlePosition === 'right' };
@@ -357,17 +367,20 @@ export default function WindowPreview({
             : Array(anteCount).fill(1);
           const totalRaw = rawWidths.reduce((s, w) => s + w, 0);
           const scaledWidths = rawWidths.map(w => (w / totalRaw) * innerW);
-          const antaW = scaledWidths[i];
-          const ax = FT + scaledWidths.slice(0, i).reduce((s, w) => s + w, 0);
-          
           const realH = Math.max(1, safeH);
           const sSvgH = hasSopraluce ? ((Math.min(Number(sopraluceHeight) || 400, realH * 0.7) / realH) * dH) : 0;
-          
-          const ay = hasSopraluce ? sSvgH + TT/2 : FT;
+          const inizioAnte = hasSopraluce ? sSvgH + TT/2 : FT;
+          // Impilate: tutte a tutta larghezza, alte uguali, dall'alto in basso.
+          const altezzaImpilata = (dH - FT - inizioAnte) / anteCount;
+
+          const antaW = sovrapposte ? innerW : scaledWidths[i];
+          const ax = sovrapposte ? FT : FT + scaledWidths.slice(0, i).reduce((s, w) => s + w, 0);
+          const ay = sovrapposte ? inizioAnte + altezzaImpilata * i : inizioAnte;
           const aw = Math.max(0, antaW);
-          const ah = Math.max(0, dH - FT - ay); 
+          const ah = Math.max(0, sovrapposte ? altezzaImpilata : dH - FT - ay);
           const isLast = i === anteCount - 1;
           const sepX = ax + aw;
+          const sepY = ay + ah;
           const paneAT = edge ? AT : 0;
           const gx = ax + paneAT, gy = ay + paneAT, gw = Math.max(0, aw - paneAT * 2), gh = Math.max(0, ah - paneAT * 2);
           // I contorni del vetro sono tarati su un'anta di larghezza normale.
@@ -383,7 +396,15 @@ export default function WindowPreview({
 
           return (
             <g key={i}>
-              {!isLast && (
+              {!isLast && sovrapposte && (
+                <>
+                  <rect x={ax} y={sepY - FT/2} width={aw} height={FT} fill={frameMid}/>
+                  <rect x={ax} y={sepY - FT/2} width={aw} height={2} fill={`url(#frameTop_${uid})`}/>
+                  <rect x={ax} y={sepY + FT/2 - 2} width={aw} height={2} fill={`url(#frameBottom_${uid})`}/>
+                  <rect x={ax} y={sepY - FT/2 - 1} width={aw} height={FT+2} fill="none" stroke={frameShadow} strokeWidth="1"/>
+                </>
+              )}
+              {!isLast && !sovrapposte && (
                 <>
                   <rect x={sepX - FT/2} y={ay} width={FT} height={ah} fill={frameMid}/>
                   <rect x={sepX - FT/2} y={ay} width={2} height={ah} fill={`url(#frameLeft_${uid})`}/>
@@ -740,7 +761,7 @@ export default function WindowPreview({
             500. Con le ante uguali la misura del telaio, scritta accanto,
             basta. Stanno nella striscia sotto il disegno, gia' riservata. */}
         {(() => {
-          if (!anteWidths || anteWidths.length !== anteCount || anteCount < 2) return null;
+          if (sovrapposte || !anteWidths || anteWidths.length !== anteCount || anteCount < 2) return null;
           const mm = anteWidths.map((w) => Number(w) || 0);
           if (mm.some((w) => w <= 0) || mm.every((w) => w === mm[0])) return null;
           // Se le ante scritte non fanno la larghezza del serramento, le

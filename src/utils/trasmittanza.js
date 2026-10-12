@@ -1,3 +1,4 @@
+import { sonoSovrapposte } from './anteSovrapposte';
 /**
  * Trasmittanza termica del serramento, Uw, secondo UNI EN ISO 10077-1:
  *
@@ -104,22 +105,29 @@ export function calcolaUw(item, sistemiCam) {
 
   // Ogni riquadro di vetro: [larghezza, altezza] in metri.
   const riquadri = [];
-  let parteBassa = H;
-  if (item.hasSopraluce) {
-    const hs = Math.min((Number(item.sopraluceHeight) || 400) / 1000, H * 0.7);
-    parteBassa = H - hs;
-    // Sopraluce fisso a tutta larghezza, separato da un traverso del telaio.
-    riquadri.push([W - 2 * b, hs - b - bt / 2]);
-  }
-  const altezzaVetriBassi = parteBassa - (item.hasSopraluce ? b + bt / 2 : 2 * b);
-  const larghezzaVetri = W - 2 * b - (numAnte - 1) * nodo;
-  const perAnta = larghezzaVetri / numAnte;
-  for (let a = 0; a < numAnte; a++) {
-    if (item.hasTraverso) {
-      const h = (altezzaVetriBassi - bt) / 2;
-      riquadri.push([perAnta, h], [perAnta, h]);
-    } else {
-      riquadri.push([perAnta, altezzaVetriBassi]);
+  if (!fisso && sonoSovrapposte(item)) {
+    // Ante una sopra l'altra: ogni vetro e' a tutta larghezza, e fra un'anta
+    // e l'altra c'e' un nodo orizzontale. Niente sopraluce ne' traversa.
+    const hVetro = (H - 2 * b - (numAnte - 1) * nodo) / numAnte;
+    for (let a = 0; a < numAnte; a++) riquadri.push([W - 2 * b, hVetro]);
+  } else {
+    let parteBassa = H;
+    if (item.hasSopraluce) {
+      const hs = Math.min((Number(item.sopraluceHeight) || 400) / 1000, H * 0.7);
+      parteBassa = H - hs;
+      // Sopraluce fisso a tutta larghezza, separato da un traverso del telaio.
+      riquadri.push([W - 2 * b, hs - b - bt / 2]);
+    }
+    const altezzaVetriBassi = parteBassa - (item.hasSopraluce ? b + bt / 2 : 2 * b);
+    const larghezzaVetri = W - 2 * b - (numAnte - 1) * nodo;
+    const perAnta = larghezzaVetri / numAnte;
+    for (let a = 0; a < numAnte; a++) {
+      if (item.hasTraverso) {
+        const h = (altezzaVetriBassi - bt) / 2;
+        riquadri.push([perAnta, h], [perAnta, h]);
+      } else {
+        riquadri.push([perAnta, altezzaVetriBassi]);
+      }
     }
   }
 

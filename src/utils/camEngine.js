@@ -8,6 +8,7 @@
  */
 
 import { ePersiana, sistemaPersiana, calcolaPersiana, datiMancantiPersiana, ferramentaPersiana } from './persianaEngine.js';
+import { sonoSovrapposte } from './anteSovrapposte.js';
 
 const KERF     = 4;
 const END_TRIM = 20;
@@ -206,6 +207,18 @@ export function runCamEngine(items, barLength = 6500) {
     // montante o da un traverso del telaio. Prima venivano tagliate tutte
     // come ante apribili, con riporti e fermavetri che non servono e senza
     // i pezzi che servono davvero.
+    // Ante una sopra l'altra: fra un'anta e l'altra serve un traverso del
+    // telaio, e le ante sono larghe quanto il serramento. Il calcolo le
+    // taglierebbe affiancate, con misure sbagliate: meglio dirlo.
+    if (!isFisso && sonoSovrapposte(item)) {
+      apertureNonSupportate.push({
+        itemId: item.id,
+        apertura: item.apertura,
+        descrizione: item.model || `${item.apertura} ${numAnte} ante`,
+        motivo: 'Ha le ante una sopra l\'altra: fra loro serve un traverso del telaio, che il calcolo non fa ancora.',
+      });
+      continue;
+    }
     if (!isFisso) {
       const tipi = Array.from({ length: numAnte }, (_, a) => {
         const sotto = ante[a]?.tipo || 'battente';

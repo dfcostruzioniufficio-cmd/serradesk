@@ -7,6 +7,7 @@ export { SENZA_VETRO };
 import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { descriviComposto, moduliValidi } from '../utils/composto';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
+import { sonoSovrapposte } from '../utils/anteSovrapposte';
 
 /**
  * Il colore scritto a mano nel campo "Colore Infisso".
@@ -48,14 +49,14 @@ const TIPI_ANTA = {
   vasistas: ['A VASISTAS', 'A VASISTAS'],
   apribile: ['APRIBILE', 'APRIBILI'],
 };
-const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
+const descriviAnte = (configurazione, numAnte, apertura, traverso = false, sovrapposte = false) => {
   const ante = (configurazione || []).slice(0, numAnte);
   // Il titolo non ripete piu' "BATTENTE 5 ANTE": sullo scorrevole quindi le
   // ante che si aprono si chiamano col loro nome, o il tipo andrebbe perso.
   const nomi = apertura === 'Scorrevole'
     ? { ...TIPI_ANTA, apribile: ['SCORREVOLE', 'SCORREVOLI'] }
     : TIPI_ANTA;
-  if (!ante.some((c) => c && (c.tipo || (traverso && c.tipoSopra)))) return '';
+  if (!ante.some((c) => c && (c.tipo || (!sovrapposte && traverso && c.tipoSopra)))) return '';
   const tipoDi = (t) => (nomi[t] ? t : 'apribile');
   // Ogni anta ha una chiave: il suo tipo, oppure "sopra|sotto" quando col
   // traverso le due parti si aprono in modo diverso. Le ante con la stessa
@@ -63,7 +64,8 @@ const descriviAnte = (configurazione, numAnte, apertura, traverso = false) => {
   const gruppi = new Map();
   for (let i = 0; i < numAnte; i++) {
     const sotto = tipoDi(ante[i]?.tipo);
-    const dueAnte = (ante[i]?.traverso ?? traverso) && ante[i]?.tipoSopra;
+    // Sulle ante una sopra l'altra la traversa dell'anta non c'e'.
+    const dueAnte = !sovrapposte && (ante[i]?.traverso ?? traverso) && ante[i]?.tipoSopra;
     const sopra = dueAnte ? tipoDi(ante[i].tipoSopra) : sotto;
     // Due ante uguali sopra e sotto si scrivono "SOPRA E SOTTO", se no
     // sembrerebbero una sola anta alta; due fisse sono semplicemente fisse.
@@ -366,6 +368,13 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         updatedItem.isManualBasePrice = true;
       }
 
+      // Ante una sopra l'altra: traverso e sopraluce li' non ci sono, le
+      // ante le divide gia' il traverso del telaio.
+      if (field === 'anteSovrapposte' && value) {
+        updatedItem.hasTraverso = false;
+        updatedItem.hasSopraluce = false;
+      }
+
       // 'composto' entra qui perche' cambia la regola: sul composto i minimi
       // e le maggiorazioni per anta non si applicano. Senza, accendendo la
       // spunta restava il prezzo di prima e la differenza finiva al cliente.
@@ -373,7 +382,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // fisso) scritto dall'utente: il calcolo da finestra lo sostituiva con
       // il prezzo del profilo, minimi per anta compresi, appena si toccavano
       // le misure. Una zanzariera da 25 €/m² usciva a 840 €/m².
-      if (itemType === 'window' && ['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId', 'composto', 'vetroFinestreId', 'vetroBalconiId', 'vetroScelto'].includes(field)) {
+      if (itemType === 'window' && ['width', 'height', 'manualMq', 'numAnte', 'apertura', 'sistemaCamId', 'vetroId', 'basePrice', 'calcType', 'hasTraverso', 'traversoHeight', 'vetroInferioreId', 'composto', 'anteSovrapposte', 'vetroFinestreId', 'vetroBalconiId', 'vetroScelto'].includes(field)) {
         // Le ante fisse contano nel prezzo. Cambiando il numero di ante pero'
         // la configurazione viene rifatta da capo, quindi quella vecchia non vale.
         const conAnte = field === 'numAnte' ? updatedItem : { ...updatedItem, paneConfigs: paneConfigsRef.current };
@@ -554,13 +563,19 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // dice anta per anta e prende il posto della ribalta generica.
       // Niente "BATTENTE 5 ANTE:" davanti: l'elenco anta per anta dice gia'
       // quante sono e come si aprono, ripeterlo allungava solo il titolo.
-      const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1), newItem.apertura, !!newItem.hasTraverso);
+      // Ante una sopra l'altra (il finestrone 1100x2800 in tre ante): solo sul
+      // battente con piu' ante. Traverso e sopraluce li' non ci sono, le ante
+      // sono gia' divise dal traverso del telaio, e l'anta 1 e' quella in alto.
+      const sovrapposte = sonoSovrapposte(newItem);
+      const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1), newItem.apertura, !sovrapposte && !!newItem.hasTraverso, sovrapposte);
       let desc2 = newItem.composto
         ? descriviComposto(newItem.moduli)
-        : anteDescritte
-          ? anteDescritte
-          : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
-      if (newItem.hasSopraluce) {
+        : sovrapposte
+          ? `FINESTRA ${anteText} UNA SOPRA L'ALTRA${anteDescritte ? ` (DALL'ALTO): ${anteDescritte}` : ''}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`
+          : anteDescritte
+            ? anteDescritte
+            : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
+      if (newItem.hasSopraluce && !sovrapposte) {
         const partiSopraluce = Math.max(1, Math.min(6, Number(newItem.sopraluceDivisioni) || 1));
         desc2 += ` CON SOPRALUCE H: ${newItem.sopraluceHeight} mm${partiSopraluce > 1 ? ` IN ${partiSopraluce} PARTI` : ''}`;
       }
@@ -602,10 +617,11 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // e nel titolo del PDF ci va quello che il serramento e' davvero.
         model: newItem.composto
           ? 'SERRAMENTO COMPOSTO'
-          : [nomeApertura, anteText].filter(Boolean).join(' '),
+          : [nomeApertura, anteText, sovrapposte ? 'SOVRAPPOSTE' : ''].filter(Boolean).join(' '),
         apertura: newItem.apertura, numAnte: newItem.numAnte,
-        antaRibalta: hasRibalta, soloRibalta, hasTraverso: newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
-        hasSopraluce: newItem.hasSopraluce, sopraluceHeight: Number(newItem.sopraluceHeight),
+        antaRibalta: hasRibalta, soloRibalta, hasTraverso: sovrapposte ? false : newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
+        hasSopraluce: sovrapposte ? false : newItem.hasSopraluce, sopraluceHeight: Number(newItem.sopraluceHeight),
+        anteSovrapposte: sovrapposte,
         sopraluceDivisioni: Math.max(1, Math.min(6, Number(newItem.sopraluceDivisioni) || 1)),
         handlePosition: newItem.handlePosition, paneConfigs: [...paneConfigs],
         // La spunta si vedeva nell'anteprima ma non veniva copiata
@@ -631,7 +647,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // Uw calcolata al momento dell'inserimento con UNI EN ISO 10077-1 su
         // misure, ante, traverso e sopraluce di QUESTO articolo. Prima qui
         // finiva la trasmittanza del solo telaio (Uf) presa dal sistema.
-        trasmittanza: formattaUw(calcolaUw(newItem, sistemiCam).uw),
+        trasmittanza: formattaUw(calcolaUw({ ...newItem, anteSovrapposte: sovrapposte }, sistemiCam).uw),
         description1: (newItem.vetro && !isPersiana && !isBlindata && !senzaVetro) ? `Vetro: ${newItem.vetro}` : '',
         description2: desc2,
         description3: isBlindata ? 'Porta Blindata di Sicurezza' : [newItem.marca, sistemaCam?.nome].filter(Boolean).join(' - '),

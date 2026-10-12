@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { getFrameColorHex } from '../utils/colors';
+import { sonoSovrapposte } from '../utils/anteSovrapposte';
 
 const CANVAS_W = 600;
-const CANVAS_H = 360;
+// L'altezza del disegno segue le proporzioni vere del serramento, entro
+// questi limiti: un finestrone alto e stretto si disegna in piedi, non
+// sdraiato come una finestra larga (e' cosi' che si finiva a girare le misure).
+const PROPORZIONE_MIN = 0.5;
+const PROPORZIONE_MAX = 1.8;
 const FRAME = 14;
 const GAP = 5;
 const ZONE = 26; // thickness of clickable edge zone
@@ -31,7 +36,7 @@ const CICLO = {
  * parte. Ogni tocco viene gia' applicato subito (onChange), quindi aprire e
  * chiudere una finestra apposta per tre clic era solo strada in piu'.
  */
-export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose, hasTraverso = false, traversoHeight = 1000, height = 1000, maniglioneAntipanico = false, maniglioneAnte = null, inline = false }) {
+export default function WindowConfigurator({ numAnte, apertura, frameColor, paneConfigs, onChange, onClose, hasTraverso = false, traversoHeight = 1000, width = 1000, height = 1000, anteSovrapposte = false, maniglioneAntipanico = false, maniglioneAnte = null, inline = false }) {
   const ciclo = CICLO[apertura] || null;
   // Chi porta il maniglione, con la stessa ricaduta che usa il disegno: senza
   // di essa, su un preventivo vecchio il pulsante direbbe "+ maniglione" su
@@ -43,7 +48,11 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   // (la F06 degli abachi: tutto fisso tranne il vasistas in alto al centro).
   // Il traverso si puo' accendere o spegnere sulla singola anta: la P01 ha
   // la traversa solo sui due fissi laterali, non sulle ante della porta.
-  const dueParti = (i) => !!(ciclo && (paneConfigs[i]?.traverso ?? hasTraverso));
+  const count = Math.max(1, Math.min(6, Number(numAnte)));
+  // Ante una sopra l'altra: tutte a tutta larghezza, alte uguali, la 1 in
+  // alto. La traversa dell'anta li' non c'e'.
+  const sovrapposte = sonoSovrapposte({ anteSovrapposte, apertura, numAnte: count });
+  const dueParti = (i) => !sovrapposte && !!(ciclo && (paneConfigs[i]?.traverso ?? hasTraverso));
   // Ogni anta porta la sua altezza di traverso: su una porta finestra con i
   // fissi laterali il traverso dei fissi quasi mai sta alla stessa quota di
   // quello dell'anta. Senza un valore suo, l'anta usa quello del serramento.
@@ -52,18 +61,19 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   const safeFrameColor = getFrameColorHex(frameColor);
   const [hovered, setHovered] = useState(null); // { pane: i, edge: 'top'|'right'|... }
 
-  const count = Math.max(1, Math.min(6, Number(numAnte)));
+  const proporzione = Math.max(PROPORZIONE_MIN, Math.min(PROPORZIONE_MAX, (Number(height) || 1000) / (Number(width) || 1000)));
+  const CANVAS_H = Math.round(CANVAS_W * proporzione);
   const innerW = CANVAS_W - FRAME * 2;
   const innerH = CANVAS_H - FRAME * 2;
-  const paneW = (innerW - GAP * (count - 1)) / count;
-  const paneH = innerH;
+  const paneW = sovrapposte ? innerW : (innerW - GAP * (count - 1)) / count;
+  const paneH = sovrapposte ? (innerH - GAP * (count - 1)) / count : innerH;
   // Dentro il modulo le zone da toccare sono piu' larghe: sul telefono il
   // disegno e' largo tre dita, e una fascia da 26 su 600 diventava un
   // bersaglio di un paio di millimetri. Mai oltre un terzo dell'anta, se no
   // al centro non resterebbe spazio per cambiare il tipo.
-  const Z = inline ? Math.min(60, paneW / 3.5) : ZONE;
-  const getPX = (i) => FRAME + i * (paneW + GAP);
-  const getPY = () => FRAME;
+  const Z = inline ? Math.min(60, paneW / 3.5, paneH / 3.5) : ZONE;
+  const getPX = (i) => (sovrapposte ? FRAME : FRAME + i * (paneW + GAP));
+  const getPY = (i) => (sovrapposte ? FRAME + i * (paneH + GAP) : FRAME);
 
   const getEdge = (i) => paneConfigs[i]?.handleEdge || null;
 
@@ -71,7 +81,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
 
   // Bordo predefinito della maniglia quando un'anta torna apribile: l'ultima
   // anta ce l'ha a sinistra (dove incontra la vicina), le altre a destra.
-  const bordoPredefinito = (i) => (i === count - 1 && count > 1 ? 'left' : 'right');
+  const bordoPredefinito = (i) => (i === count - 1 && count > 1 && !sovrapposte ? 'left' : 'right');
 
   // Col traverso ogni parte e' un'anta a se': maniglia e tipo suoi.
   const CHIAVI = {
@@ -300,13 +310,13 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
   <svg
     width="100%"
     viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-    style={{ display: 'block', maxHeight: inline ? '210px' : '340px', borderRadius: '12px', overflow: 'visible' }}
+    style={{ display: 'block', maxHeight: inline ? (proporzione > 1 ? '340px' : '210px') : (proporzione > 1 ? '480px' : '340px'), borderRadius: '12px', overflow: 'visible' }}
   >
     {/* Frame */}
     <rect x={0} y={0} width={CANVAS_W} height={CANVAS_H} fill={safeFrameColor} rx="6"/>
 
     {Array.from({ length: count }).map((_, i) => {
-      const px = getPX(i), py = getPY(), pw = paneW, ph = paneH;
+      const px = getPX(i), py = getPY(i), pw = paneW, ph = paneH;
       return (
         <g key={i}>
           {/* Glass */}
@@ -377,7 +387,7 @@ export default function WindowConfigurator({ numAnte, apertura, frameColor, pane
         <div key={i} className={`rounded-lg p-2 text-center border text-xs font-semibold transition-all ${fissa ? 'bg-gray-100 border-gray-300 text-gray-600' : (edge || tipo) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
           <div className="text-[10px] font-normal opacity-70 mb-0.5">Anta {i+1}</div>
           {testo}
-          {ciclo && (
+          {ciclo && !sovrapposte && (
             <button
               type="button"
               onClick={() => {

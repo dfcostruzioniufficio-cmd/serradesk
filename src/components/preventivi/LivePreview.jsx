@@ -95,6 +95,7 @@ export default function LivePreview({ newItem, paneConfigs, profilo = null }) {
             handlePosition={newItem.handlePosition}
             paneConfigs={paneConfigs}
             anteWidths={newItem.anteAsimmetriche ? newItem.anteWidths : null}
+            anteSovrapposte={!!newItem.anteSovrapposte}
             maniglioneAntipanico={newItem.maniglioneAntipanico}
             maniglioneAnte={newItem.maniglioneAnte}
             profilo={profilo}

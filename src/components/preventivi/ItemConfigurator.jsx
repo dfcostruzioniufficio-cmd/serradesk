@@ -28,7 +28,7 @@ const MODELLI_RAPIDI = [
   { nome: 'Persiana', props: { apertura: 'Persiana', numAnte: 2, hasTraverso: false } },
   { nome: 'Blindata', props: { apertura: 'Porta Blindata', numAnte: 1, hasTraverso: false } },
 ];
-const RIPULITI = { hasSopraluce: false, anteAsimmetriche: false };
+const RIPULITI = { hasSopraluce: false, anteAsimmetriche: false, anteSovrapposte: false };
 
 // Le aperture che hanno un disegno su cui scegliere ante e maniglie.
 const CON_DISEGNO = ['Battente', 'Scorrevole', 'Vasistas', 'Bilico', 'Persiana'];
@@ -504,7 +504,9 @@ export default function ItemConfigurator({
                 apertura={newItem.apertura}
                 hasTraverso={!!newItem.hasTraverso}
                 traversoHeight={newItem.traversoHeight}
+                width={newItem.width}
                 height={newItem.height}
+                anteSovrapposte={!!newItem.anteSovrapposte}
                 frameColor={newItem.previewColor || newItem.frameColor}
                 maniglioneAntipanico={!!newItem.maniglioneAntipanico}
                 maniglioneAnte={newItem.maniglioneAnte}
@@ -528,14 +530,32 @@ export default function ItemConfigurator({
                   <span className="text-sm font-medium text-gray-700">Maniglione Antipanico</span>
                 </label>
               )}
-              <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
-                <input type="checkbox" checked={!!newItem.hasTraverso} onChange={e => updateItemField('hasTraverso', e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                <span className="text-sm font-medium text-gray-700">Traverso Centrale</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
-                <input type="checkbox" checked={!!newItem.hasSopraluce} onChange={e => updateItemField('hasSopraluce', e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                <span className="text-sm font-medium text-gray-700">Sopraluce</span>
-              </label>
+              {/* Il finestrone alto e stretto: le ante una sopra l'altra,
+                  alte uguali, la 1 in alto. Traverso e sopraluce li' non
+                  servono, le ante le divide gia' il traverso del telaio. */}
+              {newItem.apertura === 'Battente' && (Number(newItem.numAnte) || 1) > 1 && !newItem.composto && (
+                <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!newItem.anteSovrapposte}
+                    onChange={e => updateItemField('anteSovrapposte', e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Ante una sopra l&#39;altra</span>
+                </label>
+              )}
+              {!newItem.anteSovrapposte && (
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
+                    <input type="checkbox" checked={!!newItem.hasTraverso} onChange={e => updateItemField('hasTraverso', e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Traverso Centrale</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
+                    <input type="checkbox" checked={!!newItem.hasSopraluce} onChange={e => updateItemField('hasSopraluce', e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Sopraluce</span>
+                  </label>
+                </>
+              )}
               {!!newItem.maniglioneAntipanico && newItem.apertura?.toLowerCase() !== 'porta blindata' && (
                 <div className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
                   <span className="text-sm font-medium text-amber-800">
