@@ -654,7 +654,7 @@ export function runCamEngine(items, barLength = 6500) {
     if (entry.mm > lunghezzaUtile) {
       const chiave = `${entry.profile}|${entry.mm}`;
       if (!troppoLunghi.has(chiave)) troppoLunghi.set(chiave, { profile: entry.profile, mm: entry.mm, qta: 0 });
-      troppoLunghi.get(chiave).qta += Number(entry.n) || 1;
+      troppoLunghi.get(chiave).qta += 1;
       continue;
     }
     byProfile[entry.profile].push(entry.mm);
