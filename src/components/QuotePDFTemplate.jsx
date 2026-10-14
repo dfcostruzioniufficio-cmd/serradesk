@@ -626,10 +626,14 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               <span className="font-bold text-emerald-800">- {formatCurrency(scontoAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-slate-500 font-medium tracking-wide">Imponibile Scontato</span>
-            <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
-          </div>
+          {/* Senza sconto l'imponibile scontato e' lo stesso numero di sopra:
+              ripeterlo fa solo pensare che ci sia uno sconto. */}
+          {scontoAmount > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-slate-500 font-medium tracking-wide">Imponibile Scontato</span>
+              <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center text-sm pb-2.5 border-b border-slate-100">
             <span className="text-slate-500 font-medium tracking-wide">I.V.A. ({iva || 10}%)</span>
             <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
@@ -745,16 +749,18 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
           <span className="text-slate-500 font-medium">{diviso ? 'Totale imponibile' : 'Totale Articoli'}</span>
           <span className="font-semibold text-slate-900">{formatCurrency(imponibile)}</span>
         </div>
-        <div className="flex justify-between items-baseline">
-          <span className="text-slate-500 font-medium">Imponibile Scontato</span>
-          <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
-        </div>
-        {scontoAmount > 0 ? (
-          <div className="flex justify-between items-baseline text-emerald-700">
-            <span className="font-bold">Sconto ({discountPercent}%)</span>
-            <span className="font-bold">- {formatCurrency(scontoAmount)}</span>
-          </div>
-        ) : <div />}
+        {scontoAmount > 0 && (
+          <>
+            <div className="flex justify-between items-baseline text-emerald-700">
+              <span className="font-bold">Sconto ({discountPercent}%)</span>
+              <span className="font-bold">- {formatCurrency(scontoAmount)}</span>
+            </div>
+            <div className="flex justify-between items-baseline">
+              <span className="text-slate-500 font-medium">Imponibile Scontato</span>
+              <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
+            </div>
+          </>
+        )}
         <div className="flex justify-between items-baseline">
           <span className="text-slate-500 font-medium">I.V.A. ({iva || 10}%)</span>
           <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>

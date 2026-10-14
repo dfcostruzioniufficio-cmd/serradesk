@@ -40,12 +40,14 @@ export default function CostSummary({
           </div>
         )}
         
-        <div className="flex justify-between text-gray-600 border-t pt-3">
-          <span>Imponibile Scontato:</span>
-          <span className="font-medium">€ {formatCurrency(imponibileScontato)}</span>
-        </div>
+        {Number(sconto) > 0 && (
+          <div className="flex justify-between text-gray-600 border-t pt-3">
+            <span>Imponibile Scontato:</span>
+            <span className="font-medium">€ {formatCurrency(imponibileScontato)}</span>
+          </div>
+        )}
         
-        <div className="flex justify-between text-gray-600 border-b pb-3">
+        <div className={`flex justify-between text-gray-600 border-b pb-3 ${Number(sconto) > 0 ? '' : 'border-t pt-3'}`}>
           <span>I.V.A. ({iva}%):</span>
           <span className="font-medium">€ {formatCurrency(totaleIva)}</span>
         </div>
