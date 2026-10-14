@@ -32,7 +32,7 @@ const MODELLI_RAPIDI = [
 const RIPULITI = { hasSopraluce: false, anteAsimmetriche: false, anteSovrapposte: false };
 
 // Le aperture che hanno un disegno su cui scegliere ante e maniglie.
-const CON_DISEGNO = ['Battente', 'Scorrevole', 'Vasistas', 'Bilico', 'Persiana'];
+const CON_DISEGNO = ['Battente', 'Scorrevole', 'Vasistas', 'Bilico', 'Persiana', 'Persiana Balcone'];
 // Dove traverso e sopraluce non hanno senso. Le persiane li possono avere;
 // il vetro no (SENZA_VETRO, la stessa regola che toglie il vetro dal prezzo).
 const SENZA_TRAVERSO = ['Cassonetto', 'Tapparella', 'Porta Blindata'];
