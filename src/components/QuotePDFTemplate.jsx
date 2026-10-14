@@ -202,12 +202,13 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
       } : null
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // Nelle dipendenze niente importi: il riquadro dei totali ha sempre le
-    // stesse quattro caselle, anche senza sconto, quindi la sua altezza non
-    // cambia con le cifre.
+    // Nelle dipendenze niente importi, ma c'e' se lo sconto c'e' o no: senza
+    // sconto le righe "Sconto" e "Imponibile scontato" non si stampano e i
+    // riquadri dei totali sono piu' bassi. Mettendo lo sconto dopo l'ultimo
+    // articolo, senza rimisurare il totale finirebbe fuori pagina.
     // `note` fra le dipendenze: cambiandole cambia l'altezza del blocco di
     // chiusura, e senza rimisurare l'ultima pagina andrebbe in overflow.
-  }, [heightSignature, includeRecap, note, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.vat_number, userSettings?.legal_address, userSettings?.logo_base64, clientName, rif, numeroDoc, cData.address, cData.vat, cData.phone, cData.email]);
+  }, [heightSignature, includeRecap, note, scontoAmount > 0, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.vat_number, userSettings?.legal_address, userSettings?.logo_base64, clientName, rif, numeroDoc, cData.address, cData.vat, cData.phone, cData.email]);
 
   const getPages = () => {
     if (!measured) return getPagesEstimate();
