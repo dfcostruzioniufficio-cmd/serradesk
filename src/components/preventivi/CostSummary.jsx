@@ -1,4 +1,5 @@
 import React from 'react';
+import { riepilogoPerTipo } from '../../hooks/usePricingEngine';
 
 export default function CostSummary({
   imponibile,
@@ -8,8 +9,12 @@ export default function CostSummary({
   totaleIva,
   iva,
   totalePreventivo,
-  onSpalmaQuadratura
+  onSpalmaQuadratura,
+  items = []
 }) {
+  // Infissi e persiane nello stesso preventivo: si vedono separati, come nel PDF.
+  const perTipo = riepilogoPerTipo(items);
+  const diviso = perTipo.length > 1;
   const formatCurrency = (val) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 
   return (
@@ -17,8 +22,14 @@ export default function CostSummary({
       <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Riepilogo Costi</h2>
       
       <div className="space-y-3">
-        <div className="flex justify-between text-gray-600">
-          <span>Totale Articoli:</span>
+        {diviso && perTipo.map((t) => (
+          <div key={t.chiave} className="flex justify-between text-gray-600 text-sm">
+            <span>{t.nome}{t.mq > 0 ? ` (${t.mq.toFixed(2).replace('.', ',')} m²)` : ''}:</span>
+            <span className="font-medium">€ {formatCurrency(t.imponibile)}</span>
+          </div>
+        ))}
+        <div className={`flex justify-between text-gray-600 ${diviso ? 'border-t pt-3' : ''}`}>
+          <span>{diviso ? 'Totale imponibile:' : 'Totale Articoli:'}</span>
           <span className="font-medium">€ {formatCurrency(imponibile)}</span>
         </div>
         

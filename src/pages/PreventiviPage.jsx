@@ -769,6 +769,7 @@ export default function PreventiviPage() {
               iva={p.iva}
               totalePreventivo={p.totalePreventivo}
               onSpalmaQuadratura={p.handleSpalmaQuadratura}
+              items={p.items}
             />
 
             <PrezzoDaTotale

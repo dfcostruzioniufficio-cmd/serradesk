@@ -5,7 +5,7 @@ import ShutterPreview from './ShutterPreview';
 import CassonettoPreview from './CassonettoPreview';
 import BlindataPreview from './BlindataPreview';
 import PulsarPreviewPage from './preventivi/PulsarPreviewPage';
-import { calculateItemMq } from '../hooks/usePricingEngine';
+import { calculateItemMq, riepilogoPerTipo } from '../hooks/usePricingEngine';
 import { isClientePuntoAlluminio } from '../lib/personalizzazioni';
 
 export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, isExporting, includeRecap }) {
@@ -248,6 +248,11 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   const totalPerimetro = actualItems.reduce((acc, item) => item.type === 'custom' ? acc : acc + ((((item.width / 1000) + (item.height / 1000)) * 2) * item.quantity), 0);
   const ivaAmount = totaleIva;
   const totaleIvato = totalePreventivo;
+  // Infissi e persiane insieme: m² e imponibile si danno separati, perche'
+  // sommati non dicono niente. Con un solo tipo il riepilogo resta com'era.
+  const perTipo = riepilogoPerTipo(actualItems);
+  const diviso = perTipo.length > 1;
+  const mqPerTipo = perTipo.filter((t) => t.mq > 0);
 
   // Righe di riepilogo compatte: altezza uniforme, a differenza delle
   // pagine di dettaglio che usano pesi diversi per articolo.
@@ -584,10 +589,17 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
         <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400"></div>
         <h4 className="font-extrabold text-[10px] text-slate-800 uppercase tracking-widest mb-2 border-b border-slate-200 pb-2 pl-2">Riepilogo Misure</h4>
         <div className="space-y-1.5 text-[11px] pl-2">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500 font-medium tracking-wide">Quadratura Totale</span>
-            <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{totalQuadratura.toFixed(2).replace('.', ',')} m²</span>
-          </div>
+          {diviso && mqPerTipo.length > 0 ? mqPerTipo.map((t) => (
+            <div key={t.chiave} className="flex justify-between items-center">
+              <span className="text-slate-500 font-medium tracking-wide">Quadratura {t.nome.toLowerCase()}</span>
+              <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{t.mq.toFixed(2).replace('.', ',')} m²</span>
+            </div>
+          )) : (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 font-medium tracking-wide">Quadratura Totale</span>
+              <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{totalQuadratura.toFixed(2).replace('.', ',')} m²</span>
+            </div>
+          )}
           <div className="flex justify-between items-center">
             <span className="text-slate-500 font-medium tracking-wide">Perimetro Totale</span>
             <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{totalPerimetro.toFixed(2).replace('.', ',')} m</span>
@@ -598,8 +610,14 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
       <div className="flex-1 px-5 py-3.5 bg-white rounded-xl border border-slate-200 shadow-md relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
         <div className="space-y-1.5 pl-2">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-slate-500 font-medium tracking-wide">Totale Articoli</span>
+          {diviso && perTipo.map((t) => (
+            <div key={t.chiave} className="flex justify-between items-center text-sm">
+              <span className="text-slate-500 font-medium tracking-wide">Imponibile {t.nome.toLowerCase()}</span>
+              <span className="font-semibold text-slate-900">{formatCurrency(t.imponibile)}</span>
+            </div>
+          ))}
+          <div className={`flex justify-between items-center text-sm ${diviso ? 'border-t border-slate-100 pt-1.5' : ''}`}>
+            <span className="text-slate-500 font-medium tracking-wide">{diviso ? 'Totale imponibile' : 'Totale Articoli'}</span>
             <span className="font-semibold text-slate-900">{formatCurrency(imponibile)}</span>
           </div>
           {scontoAmount > 0 && (
@@ -716,8 +734,15 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     <div className="mt-4 flex items-stretch gap-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
       <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
       <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1 py-3 pl-5 pr-2 text-[11px]">
+        {diviso && perTipo.map((t) => (
+          <div key={t.chiave} className="flex justify-between items-baseline">
+            <span className="text-slate-500 font-medium">Imponibile {t.nome.toLowerCase()}</span>
+            <span className="font-semibold text-slate-900">{formatCurrency(t.imponibile)}</span>
+          </div>
+        ))}
+        {diviso && perTipo.length % 2 === 1 && <div />}
         <div className="flex justify-between items-baseline">
-          <span className="text-slate-500 font-medium">Totale Articoli</span>
+          <span className="text-slate-500 font-medium">{diviso ? 'Totale imponibile' : 'Totale Articoli'}</span>
           <span className="font-semibold text-slate-900">{formatCurrency(imponibile)}</span>
         </div>
         <div className="flex justify-between items-baseline">

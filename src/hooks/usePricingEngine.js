@@ -285,6 +285,38 @@ export function calculateQuoteSummary(items, sconto, iva) {
 }
 
 /**
+ * Metri quadri e imponibile divisi per tipo: infissi, persiane, altre voci.
+ * Sommare i m² di una persiana a quelli di una finestra non vuol dire niente,
+ * e chi riceve il preventivo vuole vedere quanto costano gli uni e gli altri.
+ * L'imponibile si somma come in calculateQuoteSummary, cosi' le parti tornano
+ * col totale al centesimo. Si restituiscono solo i tipi presenti.
+ */
+const PERSIANE = ['Persiana', 'Persiana Balcone'];
+const ALTRE_APERTURE = ['Cassonetto', 'Tapparella'];
+export const TIPI_RIEPILOGO = [
+  { chiave: 'infissi', nome: 'Infissi' },
+  { chiave: 'persiane', nome: 'Persiane' },
+  { chiave: 'altro', nome: 'Altre voci' },
+];
+export function tipoDiRiepilogo(item) {
+  if (item?.type !== 'window') return 'altro';
+  if (PERSIANE.includes(item.apertura)) return 'persiane';
+  if (ALTRE_APERTURE.includes(item.apertura) || String(item.apertura || '').toLowerCase() === 'tapparella') return 'altro';
+  return 'infissi';
+}
+export function riepilogoPerTipo(items) {
+  const parti = Object.fromEntries(TIPI_RIEPILOGO.map((t) => [t.chiave, { ...t, mq: 0, imponibile: 0, presente: false }]));
+  for (const item of items || []) {
+    if (!item || item.type === 'metadata' || item.type === 'note') continue;
+    const p = parti[tipoDiRiepilogo(item)];
+    p.presente = true;
+    p.imponibile += item.unitPrice * item.quantity;
+    p.mq += calculateItemMq(item) * (item.quantity || 1);
+  }
+  return TIPI_RIEPILOGO.map((t) => parti[t.chiave]).filter((p) => p.presente);
+}
+
+/**
  * L'IVA di un preventivo salvato. Fino a ottobre 2026 non si salvava: si
  * ricava dal totale (salvato insieme agli articoli), purche' esca un numero
  * intero sensato. Altrimenti `predefinita`.
