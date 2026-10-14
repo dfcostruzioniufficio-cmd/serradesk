@@ -1,5 +1,6 @@
 import { mqTapparella } from '../utils/tapparella';
 import { sonoSovrapposte } from '../utils/anteSovrapposte';
+import { ePersiana } from '../utils/persianaEngine';
 /**
  * usePricingEngine.js
  * Motore di calcolo prezzi estratto da PreventiviPage.
@@ -291,8 +292,7 @@ export function calculateQuoteSummary(items, sconto, iva) {
  * L'imponibile si somma come in calculateQuoteSummary, cosi' le parti tornano
  * col totale al centesimo. Si restituiscono solo i tipi presenti.
  */
-const PERSIANE = ['Persiana', 'Persiana Balcone'];
-const ALTRE_APERTURE = ['Cassonetto', 'Tapparella'];
+const ALTRE_APERTURE = ['Cassonetto', 'Tapparella', 'tapparella'];
 export const TIPI_RIEPILOGO = [
   { chiave: 'infissi', nome: 'Infissi' },
   { chiave: 'persiane', nome: 'Persiane' },
@@ -300,8 +300,8 @@ export const TIPI_RIEPILOGO = [
 ];
 export function tipoDiRiepilogo(item) {
   if (item?.type !== 'window') return 'altro';
-  if (PERSIANE.includes(item.apertura)) return 'persiane';
-  if (ALTRE_APERTURE.includes(item.apertura) || String(item.apertura || '').toLowerCase() === 'tapparella') return 'altro';
+  if (ePersiana(item)) return 'persiane';
+  if (ALTRE_APERTURE.includes(item.apertura)) return 'altro';
   return 'infissi';
 }
 export function riepilogoPerTipo(items) {
