@@ -329,9 +329,14 @@ async function elaboraEvento(supabase, event) {
     // Se Stripe l'ha chiuso perche' il rinnovo non e' mai stato pagato, il
     // periodo "corrente" e' proprio quello non pagato: l'accesso si ferma
     // al suo inizio, non alla sua fine.
+    // Annullato subito (dal titolare o dal portale), non a fine periodo:
+    // l'accesso finisce quando e' finito l'abbonamento (ended_at), non alla
+    // fine del mese. Con la disdetta a fine periodo le due date coincidono.
+    const fine = scadenzaAbbonamento(subscription);
+    const finitoIl = Number(subscription?.ended_at) > 0 ? new Date(subscription.ended_at * 1000).toISOString() : null;
     const scadenza = subscription?.cancellation_details?.reason === 'payment_failed'
       ? scadenzaDaScrivere({ ...subscription, status: 'unpaid' })
-      : scadenzaAbbonamento(subscription);
+      : (finitoIl && fine && finitoIl < fine ? finitoIl : fine);
     return aggiornaProfilo(supabase, event, {
       userId,
       piano: PIANO_SENZA_ABBONAMENTO,
