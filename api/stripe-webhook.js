@@ -89,6 +89,9 @@ export function scadenzaAbbonamento(subscription) {
 const STATI_NON_PAGATI = ['past_due', 'unpaid', 'incomplete', 'incomplete_expired'];
 export function scadenzaDaScrivere(subscription) {
   if (!STATI_NON_PAGATI.includes(subscription?.status)) return scadenzaAbbonamento(subscription);
+  // Un cambio di piano con la differenza non pagata non sposta il periodo:
+  // quello in corso e' gia' pagato, non si chiude.
+  if (subscription?.latest_invoice?.billing_reason === 'subscription_update') return scadenzaAbbonamento(subscription);
   const posizioni = [
     subscription?.items?.data?.[0]?.current_period_start,
     subscription?.current_period_start,
@@ -284,7 +287,12 @@ async function elaboraEvento(supabase, event) {
   }
 
   if (event.type === 'customer.subscription.updated') {
-    return allineaDaAbbonamento(supabase, event, event.data.object);
+    // Si rilegge l'abbonamento invece di fidarsi della fotografia
+    // nell'evento: un past_due arrivato in ritardo, dopo che il cliente ha
+    // gia' pagato, lo chiuderebbe fuori; un active vecchio dopo un past_due
+    // gli regalerebbe il mese.
+    const subscription = await stripe.subscriptions.retrieve(event.data.object.id, { expand: ['latest_invoice'] });
+    return allineaDaAbbonamento(supabase, event, subscription);
   }
 
   // Rinnovo andato a buon fine: sposta in avanti la scadenza. Arriva anche
