@@ -80,6 +80,28 @@ export function scadenzaAbbonamento(subscription) {
   return null;
 }
 
+// Rinnovo non pagato (carta senza fondi, scaduta...): Stripe sposta lo
+// stesso il periodo al mese dopo e prova a incassare nei giorni seguenti.
+// Finche' non incassa, l'accesso si ferma all'inizio del periodo non pagato:
+// prima gli si dava il mese intero senza che avesse pagato. Quando un nuovo
+// tentativo riesce arriva invoice.paid, l'abbonamento torna 'active' e la
+// scadenza va avanti da sola.
+const STATI_NON_PAGATI = ['past_due', 'unpaid', 'incomplete', 'incomplete_expired'];
+export function scadenzaDaScrivere(subscription) {
+  if (!STATI_NON_PAGATI.includes(subscription?.status)) return scadenzaAbbonamento(subscription);
+  const posizioni = [
+    subscription?.items?.data?.[0]?.current_period_start,
+    subscription?.current_period_start,
+  ];
+  for (const valore of posizioni) {
+    const secondi = Number(valore);
+    if (Number.isFinite(secondi) && secondi > 0) {
+      return new Date(secondi * 1000).toISOString();
+    }
+  }
+  return null;
+}
+
 export function prodottoAbbonamento(subscription) {
   const item = subscription?.items?.data?.[0];
   return item?.price?.product || item?.plan?.product || null;
@@ -216,7 +238,7 @@ async function allineaDaAbbonamento(supabase, event, subscription, session = nul
     throw new Error(`Impossibile risalire all'utente per l'abbonamento ${subscription?.id}`);
   }
 
-  const scadenza = scadenzaAbbonamento(subscription);
+  const scadenza = scadenzaDaScrivere(subscription);
   if (!scadenza) {
     logError(event, 'scadenza_non_leggibile', null, {
       subscription_id: subscription?.id,
@@ -291,7 +313,12 @@ async function elaboraEvento(supabase, event) {
     // chiede la disdetta (quella arriva come subscription.updated con
     // cancel_at_period_end). Riportiamo comunque anche la data, così sul
     // profilo resta scritto fino a quando aveva pagato.
-    const scadenza = scadenzaAbbonamento(subscription);
+    // Se Stripe l'ha chiuso perche' il rinnovo non e' mai stato pagato, il
+    // periodo "corrente" e' proprio quello non pagato: l'accesso si ferma
+    // al suo inizio, non alla sua fine.
+    const scadenza = subscription?.cancellation_details?.reason === 'payment_failed'
+      ? scadenzaDaScrivere({ ...subscription, status: 'unpaid' })
+      : scadenzaAbbonamento(subscription);
     return aggiornaProfilo(supabase, event, {
       userId,
       piano: PIANO_SENZA_ABBONAMENTO,
