@@ -292,6 +292,11 @@ async function elaboraEvento(supabase, event) {
     // gia' pagato, lo chiuderebbe fuori; un active vecchio dopo un past_due
     // gli regalerebbe il mese.
     const subscription = await stripe.subscriptions.retrieve(event.data.object.id, { expand: ['latest_invoice'] });
+    // Ormai chiuso: la fine la scrive customer.subscription.deleted. Riscrivere
+    // qui riaprirebbe piano e mese a chi e' stato chiuso per mancato pagamento.
+    if (subscription?.status === 'canceled') {
+      return { ignorato: true, motivo: 'abbonamento_cancellato' };
+    }
     return allineaDaAbbonamento(supabase, event, subscription);
   }
 
