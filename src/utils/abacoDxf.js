@@ -4,8 +4,11 @@ import { moduliValidi, larghezzaModuli, ACCOPPIAMENTO_MM } from './composto';
 
 /**
  * L'abaco del preventivo come disegno DXF, da aprire in AutoCAD, BricsCAD,
- * LibreCAD o DraftSight: i serramenti in prospetto, alle misure vere in
- * millimetri, con quote, divisione delle ante e simboli di apertura.
+ * LibreCAD o DraftSight. E' impaginato come la tavola dell'abaco di un
+ * progetto: per ogni serramento sigla, descrizione, prospetto visto
+ * dall'interno con le quote e, sotto, la pianta con il muro e l'apertura
+ * delle ante; in fondo la legenda e il cartiglio. Tutto alle misure vere in
+ * millimetri.
  *
  * Il disegno del PDF (WindowPreview) e' fatto per l'occhio del cliente:
  * sfumature, ombre, maniglie in rilievo, tutto in pixel. Convertirlo
@@ -26,14 +29,23 @@ const LAYER = [
   { nome: 'ANTE', colore: 5, linea: 'CONTINUOUS' },
   { nome: 'APERTURA', colore: 1, linea: 'DASHED' },
   { nome: 'DETTAGLI', colore: 8, linea: 'CONTINUOUS' },
+  { nome: 'PIANTA', colore: 7, linea: 'CONTINUOUS' },
+  { nome: 'MURO', colore: 8, linea: 'CONTINUOUS' },
   { nome: 'QUOTE', colore: 3, linea: 'CONTINUOUS' },
-  { nome: 'TESTI', colore: 7, linea: 'CONTINUOUS' },
+  { nome: 'CODICI', colore: 1, linea: 'CONTINUOUS' },
+  { nome: 'TESTI', colore: 5, linea: 'CONTINUOUS' },
+  { nome: 'TAVOLA', colore: 7, linea: 'CONTINUOUS' },
 ];
 
-// Spazio fra un serramento e l'altro, e larghezza massima di una fila.
-const DISTANZA = 900;
+// Spazi fra un serramento e l'altro, larghezza massima di una fila.
+const SPAZIO_X = 1000;
+const SPAZIO_Y = 1400;
 const LARGHEZZA_FILA = 16000;
 const H_TESTO = 70;
+// Larghezza di un carattere rispetto alla sua altezza, per impaginare.
+const LARGO = 0.65;
+// La pianta sta sotto il prospetto: qui passa il centro del telaio.
+const PIANTA_Y = -750;
 
 export function articoliDisegnabili(items) {
   return (items || []).filter((i) => i && !ESCLUSI.includes(i.type) && Number(i.width) > 0 && Number(i.height) > 0);
@@ -53,9 +65,11 @@ const n = (v) => {
   return Number.isFinite(r) ? String(r) : '0';
 };
 
-// Raccoglie le entita' gia' spostate nella posizione del serramento.
+// Raccoglie le entita' gia' spostate nella posizione giusta. Ogni
+// serramento si disegna in un disegno suo, partendo da zero: cosi' se ne
+// conosce l'ingombro prima di metterlo nella tavola.
 function creaDisegno() {
-  const righe = [];
+  const entita = [];
   const lim = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   const allarga = (x, y) => {
     lim.x0 = Math.min(lim.x0, x); lim.y0 = Math.min(lim.y0, y);
@@ -64,20 +78,18 @@ function creaDisegno() {
   let ox = 0;
   let oy = 0;
   const d = {
-    righe, lim,
+    entita, lim,
     origine(x, y) { ox = x; oy = y; },
     // Disegna fn con l'origine spostata di dx, dy, poi la rimette dov'era.
     sposta(dx, dy, fn) {
       const px = ox, py = oy;
       ox += dx; oy += dy;
-      try { fn(); } finally { ox = px; oy = py; }
+      try { return fn(); } finally { ox = px; oy = py; }
     },
     linea(layer, x1, y1, x2, y2) {
       if (![x1, y1, x2, y2].every(Number.isFinite)) return;
       allarga(ox + x1, oy + y1); allarga(ox + x2, oy + y2);
-      righe.push('0', 'LINE', '8', layer,
-        '10', n(ox + x1), '20', n(oy + y1), '30', '0',
-        '11', n(ox + x2), '21', n(oy + y2), '31', '0');
+      entita.push({ tipo: 'LINE', layer, x1: ox + x1, y1: oy + y1, x2: ox + x2, y2: oy + y2 });
     },
     rett(layer, x, y, w, h) {
       if (!(w > 0 && h > 0)) return;
@@ -86,21 +98,73 @@ function creaDisegno() {
       d.linea(layer, x + w, y + h, x, y + h);
       d.linea(layer, x, y + h, x, y);
     },
+    // Angoli in gradi, in senso antiorario come vuole il DXF.
+    arco(layer, cx, cy, r, da, a) {
+      if (!(r > 0) || ![cx, cy, da, a].every(Number.isFinite)) return;
+      allarga(ox + cx - r, oy + cy - r); allarga(ox + cx + r, oy + cy + r);
+      entita.push({ tipo: 'ARC', layer, x: ox + cx, y: oy + cy, r, da, a });
+    },
+    // Tratteggio a 45 gradi dentro un rettangolo, per il muro in pianta.
+    tratteggio(layer, x, y, w, h, passo = 60) {
+      for (let c = -h + passo; c < w; c += passo) {
+        const t0 = Math.max(0, -c);
+        const t1 = Math.min(h, w - c);
+        if (t1 > t0) d.linea(layer, x + c + t0, y + t0, x + c + t1, y + t1);
+      }
+    },
     // allinea: 0 sinistra, 1 centro, 2 destra. Ruotato di 90 per le quote
     // verticali.
     testo(layer, x, y, altezza, contenuto, { allinea = 0, rotazione = 0 } = {}) {
       const t = testoAscii(contenuto);
       if (!t) return;
-      allarga(ox + x, oy + y);
-      const riga = ['0', 'TEXT', '8', layer,
-        '10', n(ox + x), '20', n(oy + y), '30', '0',
-        '40', n(altezza), '1', t];
-      if (rotazione) riga.push('50', n(rotazione));
-      if (allinea) riga.push('72', String(allinea), '11', n(ox + x), '21', n(oy + y), '31', '0');
-      righe.push(...riga);
+      const largo = t.length * altezza * LARGO;
+      const inizio = allinea === 1 ? -largo / 2 : allinea === 2 ? -largo : 0;
+      if (rotazione) {
+        allarga(ox + x - altezza, oy + y + inizio); allarga(ox + x, oy + y + inizio + largo);
+      } else {
+        allarga(ox + x + inizio, oy + y); allarga(ox + x + inizio + largo, oy + y + altezza);
+      }
+      entita.push({ tipo: 'TEXT', layer, x: ox + x, y: oy + y, h: altezza, testo: t, allinea, rotazione });
+    },
+    // Copia dentro questo disegno un altro disegno, spostato di dx, dy.
+    unisci(altro, dx, dy) {
+      for (const e of altro.entita) {
+        if (e.tipo === 'LINE') entita.push({ ...e, x1: e.x1 + dx, y1: e.y1 + dy, x2: e.x2 + dx, y2: e.y2 + dy });
+        else entita.push({ ...e, x: e.x + dx, y: e.y + dy });
+      }
+      if (Number.isFinite(altro.lim.x0)) {
+        allarga(altro.lim.x0 + dx, altro.lim.y0 + dy);
+        allarga(altro.lim.x1 + dx, altro.lim.y1 + dy);
+      }
     },
   };
   return d;
+}
+
+function righeEntita(e) {
+  if (e.tipo === 'LINE') {
+    return ['0', 'LINE', '8', e.layer, '10', n(e.x1), '20', n(e.y1), '30', '0', '11', n(e.x2), '21', n(e.y2), '31', '0'];
+  }
+  if (e.tipo === 'ARC') {
+    return ['0', 'ARC', '8', e.layer, '10', n(e.x), '20', n(e.y), '30', '0', '40', n(e.r), '50', n(e.da), '51', n(e.a)];
+  }
+  const r = ['0', 'TEXT', '8', e.layer, '10', n(e.x), '20', n(e.y), '30', '0', '40', n(e.h), '1', e.testo];
+  if (e.rotazione) r.push('50', n(e.rotazione));
+  if (e.allinea) r.push('72', String(e.allinea), '11', n(e.x), '21', n(e.y), '31', '0');
+  return r;
+}
+
+// Divide un testo lungo in righe di al massimo `max` caratteri.
+function aCapo(testo, max) {
+  const parole = testoAscii(testo).split(/\s+/).filter(Boolean);
+  const righe = [];
+  let riga = '';
+  for (const p of parole) {
+    if (riga && (riga + ' ' + p).length > max) { righe.push(riga); riga = p; }
+    else riga = riga ? `${riga} ${p}` : p;
+  }
+  if (riga) righe.push(riga);
+  return righe;
 }
 
 // Quota orizzontale fra x0 e x1 all'altezza y, con il testo sopra la linea.
@@ -260,7 +324,9 @@ function disegnaFinestra(d, a) {
   const innerW = W - 2 * FT;
   const bassoAnte = FT;
   const hAnte = altoAnte - bassoAnte;
-  if (!(innerW > 0 && hAnte > 0)) return;
+  if (!(innerW > 0 && hAnte > 0)) return [];
+  // Le ante come si vedono in pianta: dove stanno e come si aprono.
+  const pianta = sovrapposte ? [{ x0: FT, x1: W - FT, lato: null, tipo: 'altro' }] : [];
 
   const grezze = (a.anteAsimmetriche && Array.isArray(a.anteWidths) && a.anteWidths.length === anteCount)
     ? a.anteWidths.map((w) => Math.max(1, Number(w) || 1))
@@ -298,6 +364,18 @@ function disegnaFinestra(d, a) {
     const ribalta = tipo
       ? (tipo === 'ribalta' || tipo === 'vasistas') && laterale
       : vasistas || (!!a.antaRibalta && !!lato && laterale && maniglia);
+
+    if (!sovrapposte) {
+      let tipoPianta = 'fisso';
+      let latoPianta = lato;
+      if (partiDiverse(i)) {
+        tipoPianta = (paneConfigs[i].tipo || 'battente') === 'battente' ? 'battente' : 'altro';
+        latoPianta = paneConfigs[i].handleEdge === 'left' ? 'left' : 'right';
+      } else if (lato) {
+        tipoPianta = apertura === 'Scorrevole' ? 'scorrevole' : (laterale && !vasistas ? 'battente' : 'altro');
+      }
+      pianta.push({ x0: ax, x1: ax + aw, lato: latoPianta, tipo: tipoPianta });
+    }
 
     const sp = lato ? AT : 0;
     const gx = ax + sp, gy = ay + sp, gw = aw - 2 * sp, gh = ah - 2 * sp;
@@ -338,6 +416,7 @@ function disegnaFinestra(d, a) {
       }
     }
   }
+  return pianta;
 }
 
 function disegnaPersiana(d, a) {
@@ -350,8 +429,10 @@ function disegnaPersiana(d, a) {
     : Array(anteCount).fill(1);
   const somma = grezze.reduce((s, w) => s + w, 0);
   let x = 0;
+  const pianta = [];
   for (let i = 0; i < anteCount; i++) {
     const aw = (grezze[i] / somma) * W;
+    pianta.push({ x0: x, x1: x + aw, lato: null, tipo: 'persiana' });
     if (i > 0) d.linea('ANTE', x, 0, x, H);
     const t = Math.min(70, aw / 6);
     d.rett('ANTE', x + t, t, aw - 2 * t, H - 2 * t);
@@ -359,6 +440,7 @@ function disegnaPersiana(d, a) {
     for (let y = t + 80; y < H - t; y += 80) d.linea('DETTAGLI', x + t, y, x + aw - t, y);
     x += aw;
   }
+  return pianta;
 }
 
 function disegnaBlindata(d, a) {
@@ -371,6 +453,8 @@ function disegnaBlindata(d, a) {
   const sinistra = a.handlePosition === 'left';
   const hx = sinistra ? t + 40 : W - t - 64;
   d.rett('DETTAGLI', hx, 1000, 24, 160);
+  // Maniglia a sinistra: cerniere a destra.
+  return [{ x0: t, x1: W - t, lato: sinistra ? 'left' : 'right', tipo: 'battente' }];
 }
 
 function disegnaSemplice(d, a, nome) {
@@ -378,6 +462,7 @@ function disegnaSemplice(d, a, nome) {
   const H = Number(a.height);
   d.rett('TELAIO', 0, 0, W, H);
   d.testo('TESTI', W / 2, H / 2 - 25, Math.min(H_TESTO, H / 3, W / 10), nome, { allinea: 1 });
+  return null;
 }
 
 function disegnaComposto(d, a, moduli) {
@@ -388,20 +473,61 @@ function disegnaComposto(d, a, moduli) {
   const scalaX = occupata > W ? W / occupata : 1;
   const spessore = acc * scalaX;
   let cursore = 0;
+  const pianta = [];
   moduli.forEach((m, i) => {
     const mw = Number(m.larghezza) * scalaX;
     const mh = Math.min(Number(m.altezza), H);
     // I moduli si appoggiano a terra, salvo quelli ancorati in alto.
     const y = m.ancoraggio === 'alto' ? H - mh : 0;
-    d.sposta(cursore, y, () => disegnaFinestra(d, {
+    const ante = d.sposta(cursore, y, () => disegnaFinestra(d, {
       width: mw, height: mh, apertura: m.apertura, numAnte: m.numAnte,
       paneConfigs: m.paneConfigs || {}, hasTraverso: !!m.hasTraverso,
       traversoHeight: m.traversoHeight, profilo: a.profilo,
     }));
+    pianta.push(...ante.map((p) => ({ ...p, x0: p.x0 + cursore, x1: p.x1 + cursore })));
     if (i < moduli.length - 1 && spessore > 0) {
       d.rett('TELAIO', cursore + mw, 0, spessore, H);
     }
     cursore += mw + spessore;
+  });
+  return pianta;
+}
+
+/**
+ * La pianta sotto il prospetto: muro tratteggiato ai lati, telaio, vetro e
+ * apertura delle ante. Il lato interno e' in basso, cosi' destra e sinistra
+ * sono le stesse del prospetto visto dall'interno.
+ */
+function disegnaPianta(d, W, ante) {
+  const M = 300;
+  const P = 70;
+  const yInt = PIANTA_Y - P / 2;
+  d.rett('MURO', -250, PIANTA_Y - M / 2, 250, M);
+  d.tratteggio('MURO', -250, PIANTA_Y - M / 2, 250, M);
+  d.rett('MURO', W, PIANTA_Y - M / 2, 250, M);
+  d.tratteggio('MURO', W, PIANTA_Y - M / 2, 250, M);
+  d.rett('PIANTA', 0, yInt, W, P);
+  ante.forEach((a, k) => {
+    const w = a.x1 - a.x0;
+    if (!(w > 0)) return;
+    if (k > 0) d.linea('PIANTA', a.x0, yInt, a.x0, yInt + P);
+    d.linea('DETTAGLI', a.x0, PIANTA_Y, a.x1, PIANTA_Y);
+    if (a.tipo === 'battente') {
+      // L'anta aperta a 90 gradi verso l'interno, e l'arco che percorre.
+      const cerniera = a.lato === 'left' ? a.x1 : a.x0;
+      d.linea('PIANTA', cerniera, yInt, cerniera, yInt - w);
+      if (a.lato === 'left') d.arco('PIANTA', cerniera, yInt, w, 180, 270);
+      else d.arco('PIANTA', cerniera, yInt, w, 270, 360);
+    } else if (a.tipo === 'scorrevole') {
+      const y = yInt - 120;
+      const l = Math.min(w * 0.6, 600) / 2;
+      const c = (a.x0 + a.x1) / 2;
+      d.linea('PIANTA', c - l, y, c + l, y);
+      d.linea('PIANTA', c - l, y, c - l + 50, y + 40);
+      d.linea('PIANTA', c - l, y, c - l + 50, y - 40);
+      d.linea('PIANTA', c + l, y, c + l - 50, y + 40);
+      d.linea('PIANTA', c + l, y, c + l - 50, y - 40);
+    }
   });
 }
 
@@ -412,6 +538,15 @@ function titoloArticolo(item) {
   return item.apertura === 'Cassonetto' ? t.replace(/\s+\d+\s+ANT[AE]\b/i, '') : t;
 }
 
+function descrizioneArticolo(item) {
+  const q = Number(item.quantity) || 1;
+  return `N. ${q} - ${titoloArticolo(item)}`;
+}
+
+function misureArticolo(item) {
+  return `L ${Math.round(Number(item.width))} x H ${Math.round(Number(item.height))} mm`;
+}
+
 function disegnaArticolo(d, item, numero) {
   const W = Number(item.width);
   const H = Number(item.height);
@@ -419,68 +554,146 @@ function disegnaArticolo(d, item, numero) {
   const moduli = item.composto ? moduliValidi(item.moduli || item.rawInput?.moduli) : [];
   const a = { ...item, profilo: item.sistema_cam };
 
-  if (moduli.length) disegnaComposto(d, a, moduli);
-  else if (apertura === 'Persiana' || apertura === 'Persiana Balcone') disegnaPersiana(d, a);
-  else if (apertura.toLowerCase() === 'porta blindata') disegnaBlindata(d, a);
-  else if (apertura === 'Cassonetto') disegnaSemplice(d, a, 'CASSONETTO');
-  else if (apertura.toLowerCase() === 'tapparella') disegnaSemplice(d, a, 'TAPPARELLA');
-  else disegnaFinestra(d, a);
+  let ante;
+  if (moduli.length) ante = disegnaComposto(d, a, moduli);
+  else if (apertura === 'Persiana' || apertura === 'Persiana Balcone') ante = disegnaPersiana(d, a);
+  else if (apertura.toLowerCase() === 'porta blindata') ante = disegnaBlindata(d, a);
+  else if (apertura === 'Cassonetto') ante = disegnaSemplice(d, a, 'CASSONETTO');
+  else if (apertura.toLowerCase() === 'tapparella') ante = disegnaSemplice(d, a, 'TAPPARELLA');
+  else ante = disegnaFinestra(d, a);
 
   // Quote: larghezza sotto, altezza a sinistra; le ante diverse fra loro
   // hanno la loro quota, come nel PDF.
-  quotaOrizzontale(d, 0, W, -260, Math.round(W));
-  quotaVerticale(d, 0, H, -260, Math.round(H));
+  quotaOrizzontale(d, 0, W, -280, Math.round(W));
+  quotaVerticale(d, 0, H, -300, Math.round(H));
   const anteCount = Number(item.numAnte) || 1;
   const mm = Array.isArray(item.anteWidths) ? item.anteWidths.map((w) => Number(w) || 0) : [];
   if (!moduli.length && item.anteAsimmetriche && !sonoSovrapposte(item) && anteCount > 1 && mm.length === anteCount
       && mm.every((w) => w > 0) && !mm.every((w) => w === mm[0]) && Math.abs(mm.reduce((s, w) => s + w, 0) - W) <= 5) {
     let x = 0;
-    mm.forEach((w) => { quotaOrizzontale(d, x, x + w, -120, Math.round(w)); x += w; });
+    mm.forEach((w) => { quotaOrizzontale(d, x, x + w, -130, Math.round(w)); x += w; });
   }
   if (item.hasSopraluce && !moduli.length) {
     const sH = Math.min(Number(item.sopraluceHeight) || 400, H * 0.7);
     quotaVerticale(d, H - sH, H, W + 200, Math.round(sH));
   }
 
-  const q = Number(item.quantity) || 1;
-  d.testo('TESTI', 0, H + 300, H_TESTO * 1.4, `Pos. ${numero}${q > 1 ? `  -  n. ${q} pezzi` : ''}`);
-  d.testo('TESTI', 0, H + 140, H_TESTO, titoloArticolo(item));
+  if (ante?.length) disegnaPianta(d, W, ante);
+
+  // Sopra il prospetto: sigla in rosso, descrizione e misure sottolineate.
+  const hT = 95;
+  const passo = hT * 1.6;
+  const max = Math.max(28, Math.floor(Math.max(W, 2400) / (hT * LARGO)));
+  const righe = [...aCapo(descrizioneArticolo(item), max), `dimensioni ${misureArticolo(item)}`];
+  let y = H + 220;
+  for (let k = righe.length - 1; k >= 0; k--) {
+    d.testo('TESTI', 0, y, hT, righe[k]);
+    y += passo;
+  }
+  const larga = Math.max(...righe.map((r) => r.length)) * hT * LARGO;
+  d.linea('TESTI', 0, H + 180, larga, H + 180);
+  d.testo('CODICI', 0, y + 30, 150, `Pos. ${numero}:`);
+}
+
+// Legenda in fondo alla tavola: una riga per posizione.
+function disegnaLegenda(d, celle, x0, yAlto) {
+  const colonne = [
+    { titolo: 'POS.', largo: 1300 },
+    { titolo: 'DESCRIZIONE', largo: 8800 },
+    { titolo: 'DIMENSIONI', largo: 3000 },
+    { titolo: "Q.TA'", largo: 1400 },
+  ];
+  const hRiga = 380;
+  const hT = 120;
+  const larga = colonne.reduce((s, c) => s + c.largo, 0);
+  d.testo('TAVOLA', x0, yAlto + 120, 150, 'LEGENDA SERRAMENTI');
+  const righe = [colonne.map((c) => c.titolo), ...celle.map(({ item, numero }) => [
+    String(numero),
+    titoloArticolo(item),
+    misureArticolo(item),
+    String(Number(item.quantity) || 1),
+  ])];
+  righe.forEach((valori, r) => {
+    const y = yAlto - (r + 1) * hRiga;
+    d.linea('TAVOLA', x0, y, x0 + larga, y);
+    let x = x0;
+    valori.forEach((v, c) => {
+      const maxCar = Math.floor((colonne[c].largo - 160) / (hT * LARGO));
+      const t = testoAscii(v);
+      d.testo(r === 0 ? 'CODICI' : 'TAVOLA', x + 80, y + (hRiga - hT) / 2, hT, t.length > maxCar ? `${t.slice(0, maxCar - 3)}...` : t);
+      x += colonne[c].largo;
+    });
+  });
+  const yBasso = yAlto - righe.length * hRiga;
+  d.linea('TAVOLA', x0, yAlto, x0 + larga, yAlto);
+  let x = x0;
+  [0, ...colonne.map((c) => c.largo)].forEach((l) => { x += l; d.linea('TAVOLA', x, yAlto, x, yBasso); });
+  return { yBasso, larga };
+}
+
+function disegnaCartiglio(d, xDestra, yBasso, intestazione) {
+  const W = 6500;
+  const H = 1500;
+  const x = xDestra - W;
+  d.rett('TAVOLA', x, yBasso, W, H);
+  d.linea('TAVOLA', x, yBasso + 900, x + W, yBasso + 900);
+  d.testo('TAVOLA', x + 200, yBasso + 1100, 220, 'ABACO SERRAMENTI');
+  const righe = aCapo(intestazione || '', Math.floor((W - 400) / (110 * LARGO))).slice(0, 2);
+  righe.forEach((r, k) => d.testo('TAVOLA', x + 200, yBasso + 650 - k * 180, 110, r));
+  d.testo('TAVOLA', x + 200, yBasso + 150, 85, 'Misure in mm - prospetti visti dall\'interno - creato con SerraDesk');
 }
 
 /**
- * Il file DXF dell'abaco: un serramento accanto all'altro, a file, con
- * intestazione. Restituisce il testo del file, o null se non c'e' niente da
- * disegnare.
+ * Il file DXF dell'abaco: i serramenti a file come in una tavola, con
+ * legenda, cartiglio e cornice. Restituisce il testo del file, o null se
+ * non c'e' niente da disegnare.
  */
 export function generaAbacoDxf(items, { intestazione = '' } = {}) {
   const articoli = articoliDisegnabili(items);
   if (!articoli.length) return null;
 
-  const d = creaDisegno();
-
-  let x = 0;
-  let yFila = 0;
-  let hFila = 0;
-  articoli.forEach((item, i) => {
-    const W = Number(item.width);
-    const H = Number(item.height);
-    if (x > 0 && x + W > LARGHEZZA_FILA) {
-      yFila -= hFila + 1200;
-      x = 0;
-      hFila = 0;
-    }
-    // Il serramento sta sopra la fila: la fila si allinea a terra.
-    d.origine(x, yFila);
-    disegnaArticolo(d, item, item.id ?? i + 1);
-    // Un titolo lungo e' piu' largo del serramento: il prossimo parte dopo.
-    const larghezzaTitolo = testoAscii(titoloArticolo(item)).length * H_TESTO * 0.65;
-    x += Math.max(W, larghezzaTitolo) + DISTANZA + 300;
-    hFila = Math.max(hFila, H + 600);
+  // Ogni serramento nel suo disegno, per conoscerne l'ingombro.
+  const celle = articoli.map((item, i) => {
+    const c = creaDisegno();
+    const numero = item.id ?? i + 1;
+    disegnaArticolo(c, item, numero);
+    return { c, item, numero };
   });
 
-  d.origine(0, 0);
+  // A file, allineati sul pavimento del prospetto.
+  const file = [];
+  let fila = [];
+  let x = 0;
+  celle.forEach((cella) => {
+    const largo = cella.c.lim.x1 - cella.c.lim.x0;
+    if (fila.length && x + largo > LARGHEZZA_FILA) { file.push(fila); fila = []; x = 0; }
+    fila.push({ ...cella, dx: x - cella.c.lim.x0 });
+    x += largo + SPAZIO_X;
+  });
+  if (fila.length) file.push(fila);
+
+  const d = creaDisegno();
+  let fondo = 0;
+  file.forEach((f, k) => {
+    const sopra = Math.max(...f.map((c) => c.c.lim.y1));
+    const sotto = Math.min(...f.map((c) => c.c.lim.y0));
+    const base = k === 0 ? -sopra : fondo - SPAZIO_Y - sopra;
+    f.forEach((c) => d.unisci(c.c, c.dx, base));
+    fondo = base + sotto;
+  });
+
+  const sinistra = d.lim.x0;
   const titolo = testoAscii(intestazione);
-  if (titolo) d.testo('TESTI', 0, d.lim.y1 + 300, H_TESTO * 2, titolo);
+  d.testo('TAVOLA', sinistra, d.lim.y1 + 500, 260, titolo ? `ABACO SERRAMENTI - ${titolo}` : 'ABACO SERRAMENTI');
+
+  const legenda = disegnaLegenda(d, celle, sinistra, d.lim.y0 - 1000);
+  const destra = Math.max(d.lim.x1, sinistra + legenda.larga);
+  disegnaCartiglio(d, destra, legenda.yBasso - 2000, titolo);
+
+  // Cornice della tavola.
+  const m = 700;
+  const { x0: cx0, y0: cy0, x1: cx1, y1: cy1 } = d.lim;
+  d.rett('TAVOLA', cx0 - m, cy0 - m, cx1 - cx0 + 2 * m, cy1 - cy0 + 2 * m);
 
   const { x0, y0, x1, y1 } = d.lim;
   const out = [];
@@ -490,9 +703,23 @@ export function generaAbacoDxf(items, { intestazione = '' } = {}) {
     '9', '$INSBASE', '10', '0', '20', '0', '30', '0',
     '9', '$EXTMIN', '10', n(x0), '20', n(y0), '30', '0',
     '9', '$EXTMAX', '10', n(x1), '20', n(y1), '30', '0',
+    '9', '$LIMMIN', '10', n(x0), '20', n(y0),
+    '9', '$LIMMAX', '10', n(x1), '20', n(y1),
     '9', '$LTSCALE', '40', '1',
     '0', 'ENDSEC');
   g('0', 'SECTION', '2', 'TABLES');
+  // La vista d'apertura inquadra tutta la tavola: senza, alcuni programmi
+  // aprivano il file sul primo serramento.
+  const alto = (y1 - y0) * 1.05;
+  g('0', 'TABLE', '2', 'VPORT', '70', '1',
+    '0', 'VPORT', '2', '*ACTIVE', '70', '0',
+    '10', '0', '20', '0', '11', '1', '21', '1',
+    '12', n((x0 + x1) / 2), '22', n((y0 + y1) / 2),
+    '13', '0', '23', '0', '14', '10', '24', '10', '15', '10', '25', '10',
+    '16', '0', '26', '0', '36', '1', '17', '0', '27', '0', '37', '0',
+    '40', n(alto), '41', n(Math.max(0.5, (x1 - x0) / Math.max(1, y1 - y0))), '42', '50', '43', '0', '44', '0',
+    '50', '0', '51', '0', '71', '0', '72', '100', '73', '1', '74', '3', '75', '0', '76', '0', '77', '0', '78', '0',
+    '0', 'ENDTAB');
   g('0', 'TABLE', '2', 'LTYPE', '70', '2',
     '0', 'LTYPE', '2', 'CONTINUOUS', '70', '0', '3', 'Solid line', '72', '65', '73', '0', '40', '0',
     '0', 'LTYPE', '2', 'DASHED', '70', '0', '3', '__ __ __', '72', '65', '73', '2', '40', '60', '49', '40', '49', '-20',
@@ -504,7 +731,9 @@ export function generaAbacoDxf(items, { intestazione = '' } = {}) {
     '0', 'STYLE', '2', 'STANDARD', '70', '0', '40', '0', '41', '1', '50', '0', '71', '0', '42', '70', '3', 'txt', '4', '',
     '0', 'ENDTAB');
   g('0', 'ENDSEC');
-  g('0', 'SECTION', '2', 'ENTITIES', ...d.righe, '0', 'ENDSEC', '0', 'EOF');
+  g('0', 'SECTION', '2', 'ENTITIES');
+  d.entita.forEach((e) => g(...righeEntita(e)));
+  g('0', 'ENDSEC', '0', 'EOF');
   return out.join('\r\n') + '\r\n';
 }
 
