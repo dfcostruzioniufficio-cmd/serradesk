@@ -25,7 +25,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     scontoAmount,
     imponibileScontato,
     totaleIva,
-    totalePreventivo
+    totalePreventivo,
+    // Solo imponibile: niente riga IVA, il totale e' l'imponibile scontato.
+    ivaNascosta = false
   } = quoteData;
 
   const actualItems = items || [];
@@ -208,7 +210,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
     // articolo, senza rimisurare il totale finirebbe fuori pagina.
     // `note` fra le dipendenze: cambiandole cambia l'altezza del blocco di
     // chiusura, e senza rimisurare l'ultima pagina andrebbe in overflow.
-  }, [heightSignature, includeRecap, note, scontoAmount > 0, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.vat_number, userSettings?.legal_address, userSettings?.logo_base64, clientName, rif, numeroDoc, cData.address, cData.vat, cData.phone, cData.email]);
+    // Lo stesso per ivaNascosta: senza la riga IVA il riepilogo e' piu' basso.
+  }, [heightSignature, includeRecap, note, scontoAmount > 0, ivaNascosta, userSettings?.company_name, userSettings?.referente, userSettings?.address, userSettings?.vat_number, userSettings?.legal_address, userSettings?.logo_base64, clientName, rif, numeroDoc, cData.address, cData.vat, cData.phone, cData.email]);
 
   const getPages = () => {
     if (!measured) return getPagesEstimate();
@@ -248,7 +251,8 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
   }, 0);
   const totalPerimetro = actualItems.reduce((acc, item) => item.type === 'custom' ? acc : acc + ((((item.width / 1000) + (item.height / 1000)) * 2) * item.quantity), 0);
   const ivaAmount = totaleIva;
-  const totaleIvato = totalePreventivo;
+  const totaleIvato = ivaNascosta ? imponibileScontato : totalePreventivo;
+  const etichettaTotale = ivaNascosta ? 'Totale IVA esclusa' : 'Totale da pagare';
   // Infissi e persiane insieme: m² e imponibile si danno separati, perche'
   // sommati non dicono niente. Con un solo tipo il riepilogo resta com'era.
   const perTipo = riepilogoPerTipo(actualItems);
@@ -635,12 +639,16 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               <span className="font-bold text-slate-900">{formatCurrency(imponibileScontato)}</span>
             </div>
           )}
-          <div className="flex justify-between items-center text-sm pb-2.5 border-b border-slate-100">
-            <span className="text-slate-500 font-medium tracking-wide">I.V.A. ({iva || 10}%)</span>
-            <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
-          </div>
+          {ivaNascosta ? (
+            <div className="pb-2.5 border-b border-slate-100" />
+          ) : (
+            <div className="flex justify-between items-center text-sm pb-2.5 border-b border-slate-100">
+              <span className="text-slate-500 font-medium tracking-wide">I.V.A. ({iva || 10}%)</span>
+              <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center pt-2">
-            <span className="font-black text-[14px] text-slate-900 uppercase tracking-widest">TOTALE DA PAGARE</span>
+            <span className="font-black text-[14px] text-slate-900 uppercase tracking-widest">{etichettaTotale}</span>
             <span className="font-black text-lg text-blue-700">{formatCurrency(totaleIvato)}</span>
           </div>
         </div>
@@ -762,13 +770,15 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
             </div>
           </>
         )}
-        <div className="flex justify-between items-baseline">
-          <span className="text-slate-500 font-medium">I.V.A. ({iva || 10}%)</span>
-          <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
-        </div>
+        {!ivaNascosta && (
+          <div className="flex justify-between items-baseline">
+            <span className="text-slate-500 font-medium">I.V.A. ({iva || 10}%)</span>
+            <span className="font-semibold text-slate-900">{formatCurrency(ivaAmount)}</span>
+          </div>
+        )}
       </div>
       <div className="shrink-0 bg-slate-50 border-l border-slate-200 px-5 py-3 flex flex-col justify-center items-end">
-        <span className="font-black text-[9px] text-slate-500 uppercase tracking-widest">Totale da pagare</span>
+        <span className="font-black text-[9px] text-slate-500 uppercase tracking-widest">{etichettaTotale}</span>
         <span className="font-black text-xl text-blue-700 leading-tight">{formatCurrency(totaleIvato)}</span>
       </div>
     </div>

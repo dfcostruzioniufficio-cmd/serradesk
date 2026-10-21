@@ -13,6 +13,8 @@ export default function ClientInfoCard({
   setSconto,
   iva,
   setIva,
+  ivaNascosta = false,
+  setIvaNascosta,
   onOpenCRM
 }) {
   // Una riga sola: nome, sconto e IVA si scrivono una volta per preventivo e
@@ -62,6 +64,19 @@ export default function ClientInfoCard({
             className="mt-1 font-semibold"
           />
         </div>
+        {/* Molti clienti vogliono il preventivo con il solo imponibile: l'IVA
+            resta calcolata qui, ma nel PDF non si stampa. */}
+        {setIvaNascosta && (
+          <label className="h-10 flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none" title="Se togli la spunta, il PDF mostra solo l'imponibile con la scritta IVA esclusa">
+            <input
+              type="checkbox"
+              checked={!ivaNascosta}
+              onChange={(e) => setIvaNascosta(!e.target.checked)}
+              className="w-4 h-4 accent-blue-600"
+            />
+            IVA nel PDF
+          </label>
+        )}
         <Button variant="outline" onClick={onOpenCRM} className="h-10 text-blue-600 border-blue-200">
           <Users size={16} className="mr-2" /> Rubrica
         </Button>

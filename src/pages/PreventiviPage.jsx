@@ -577,6 +577,9 @@ export default function PreventiviPage() {
   // per l'amministratore: il titolare lo vuole provare prima di darlo ai
   // clienti (21/10/2026).
   const puoScaricareDxf = userProfile?.role === 'admin';
+  // Preventivo con il solo imponibile: la scelta sta nei dati del preventivo,
+  // cosi' vale anche riaprendolo o stampandolo dall'archivio.
+  const ivaNascosta = !!p.altriDatiMeta?.ivaNascosta;
   // Intestazione e nome del file dell'abaco, uguali per DXF e PDF.
   const datiAbaco = () => {
     const numero = p.numeroPreventivo?.numero ? `${p.numeroPreventivo.numero}/${p.numeroPreventivo.anno}` : '';
@@ -760,6 +763,8 @@ export default function PreventiviPage() {
         riferimento={p.riferimento} setRiferimento={p.setRiferimento}
         sconto={p.sconto} setSconto={p.setSconto}
         iva={p.iva} setIva={p.setIva}
+        ivaNascosta={ivaNascosta}
+        setIvaNascosta={(nascosta) => p.setAltriDatiMeta((m) => ({ ...m, ivaNascosta: nascosta || undefined }))}
         onOpenCRM={() => setIsCrmOpen(true)}
       />
 
@@ -838,6 +843,7 @@ export default function PreventiviPage() {
               totaleIva={p.totaleIva}
               iva={p.iva}
               totalePreventivo={p.totalePreventivo}
+              ivaNascosta={ivaNascosta}
               onSpalmaQuadratura={p.handleSpalmaQuadratura}
               items={p.items}
             />
@@ -896,7 +902,8 @@ export default function PreventiviPage() {
                     scontoAmount: p.scontoAmount,
                     imponibileScontato: p.imponibileScontato,
                     totaleIva: p.totaleIva,
-                    totalePreventivo: p.totalePreventivo
+                    totalePreventivo: p.totalePreventivo,
+                    ivaNascosta
                   }} 
                   userSettings={userSettings}
                   userEmail={session?.user?.email || userEmail}
@@ -960,7 +967,8 @@ export default function PreventiviPage() {
               scontoAmount: p.scontoAmount,
               imponibileScontato: p.imponibileScontato,
               totaleIva: p.totaleIva,
-              totalePreventivo: p.totalePreventivo
+              totalePreventivo: p.totalePreventivo,
+              ivaNascosta
             }} 
             userSettings={userSettings}
             userEmail={session?.user?.email || userEmail}

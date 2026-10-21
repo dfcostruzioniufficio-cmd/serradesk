@@ -640,7 +640,7 @@ function disegnaCartiglio(d, xDestra, yBasso, intestazione, firma) {
   d.testo('TAVOLA', x + 200, yBasso + 1100, 220, 'ABACO SERRAMENTI');
   const righe = aCapo(intestazione || '', Math.floor((W - 400) / (110 * LARGO))).slice(0, 2);
   righe.forEach((r, k) => d.testo('TAVOLA', x + 200, yBasso + 650 - k * 180, 110, r));
-  d.testo('TAVOLA', x + 200, yBasso + 150, 85, `Misure in mm - prospetti visti dall'interno${firma ? ' - creato con SerraDesk' : ''}`);
+  d.testo('TAVOLA', x + 200, yBasso + 150, 85, `Misure in mm${firma ? ' - creato con SerraDesk' : ''}`);
 }
 
 /**

@@ -88,6 +88,7 @@ export default function OrdiniPage() {
         sconto,
         iva,
         ...totali,
+        ivaNascosta: !!meta.ivaNascosta,
       },
     });
   };

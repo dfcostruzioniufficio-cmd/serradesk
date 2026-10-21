@@ -10,7 +10,8 @@ export default function CostSummary({
   iva,
   totalePreventivo,
   onSpalmaQuadratura,
-  items = []
+  items = [],
+  ivaNascosta = false
 }) {
   // Infissi e persiane nello stesso preventivo: si vedono separati, come nel PDF.
   const perTipo = riepilogoPerTipo(items);
@@ -58,6 +59,11 @@ export default function CostSummary({
             € {formatCurrency(totalePreventivo)}
           </span>
         </div>
+        {ivaNascosta && (
+          <p className="text-xs text-gray-500 text-right">
+            Nel PDF: totale € {formatCurrency(imponibileScontato)} IVA esclusa, senza riga IVA.
+          </p>
+        )}
       </div>
       
       {onSpalmaQuadratura && (
