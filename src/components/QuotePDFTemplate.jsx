@@ -536,7 +536,9 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
               {item.bicolore && item.colEst ? (
                 <div className="flex flex-col bg-slate-50 rounded-md px-2 py-1.5 border border-slate-100">
                   <span className="text-indigo-400/80 font-bold uppercase tracking-wider text-[6px] mb-[2px]">Colore</span>
-                  <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">Int. {item.colInt || item.colorName || item.colore || 'da definire'}</span>
+                  {(item.colInt || item.colorName || item.colore) && (
+                    <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">Int. {item.colInt || item.colorName || item.colore}</span>
+                  )}
                   <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">Est. {item.colEst}</span>
                 </div>
               ) : (item.colorName || item.colInt || item.colore) && (
