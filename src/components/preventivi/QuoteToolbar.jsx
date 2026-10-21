@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Save, Plus, Download, Lock, MoreVertical, HelpCircle, PenTool } from 'lucide-react';
+import { Trash2, Save, Plus, Download, Lock, MoreVertical, HelpCircle, PenTool, LayoutGrid } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function QuoteToolbar({
@@ -13,6 +13,7 @@ export default function QuoteToolbar({
   onCreateVariant,
   onExportPDF,
   onExportDXF,
+  onExportAbacoPdf,
   onExportDistinta,
   canAccessCAM,
   isSaving,
@@ -86,6 +87,15 @@ export default function QuoteToolbar({
               className="text-slate-700 focus:bg-slate-50 p-3 rounded-lg cursor-pointer flex items-center gap-2 mt-1"
             >
               <PenTool size={16} /> Disegno DXF (AutoCAD)
+            </DropdownMenuItem>
+            )}
+            {onExportAbacoPdf && (
+            <DropdownMenuItem
+              onClick={onExportAbacoPdf}
+              disabled={items.length === 0}
+              className="text-slate-700 focus:bg-slate-50 p-3 rounded-lg cursor-pointer flex items-center gap-2 mt-1"
+            >
+              <LayoutGrid size={16} /> Abaco in PDF (tavola)
             </DropdownMenuItem>
             )}
 

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import { esportaPdfPreventivo, nomeFilePdf } from '../lib/esportaPdfPreventivo';
 import { ivaDelPreventivo } from '../hooks/usePricingEngine';
 import { generaAbacoDxf, nomeFileAbaco } from '../utils/abacoDxf';
+import { generaAbacoPdf } from '../utils/abacoPdf';
 import { usePreventivo } from '../hooks/usePreventivo';
 
 import QuoteToolbar from '../components/preventivi/QuoteToolbar';
@@ -576,8 +577,8 @@ export default function PreventiviPage() {
   // per l'amministratore: il titolare lo vuole provare prima di darlo ai
   // clienti (21/10/2026).
   const puoScaricareDxf = userProfile?.role === 'admin';
-  const handleExportDXF = () => {
-    if (!puoScaricareDxf) return;
+  // Intestazione e nome del file dell'abaco, uguali per DXF e PDF.
+  const datiAbaco = () => {
     const numero = p.numeroPreventivo?.numero ? `${p.numeroPreventivo.numero}/${p.numeroPreventivo.anno}` : '';
     const intestazione = [
       userSettings?.company_name,
@@ -585,6 +586,23 @@ export default function PreventiviPage() {
       p.clientName,
       p.riferimento,
     ].filter((t) => String(t || '').trim()).join(' - ');
+    return { intestazione, nome: nomeFileAbaco(p.clientName, numero || p.riferimento) };
+  };
+
+  const scaricaFile = (blob, nome) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nome;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleExportDXF = () => {
+    if (!puoScaricareDxf) return;
+    const { intestazione, nome } = datiAbaco();
     let dxf;
     try {
       dxf = generaAbacoDxf(p.items, { intestazione });
@@ -597,14 +615,26 @@ export default function PreventiviPage() {
       toast.info('Nel preventivo non ci sono serramenti da disegnare.');
       return;
     }
-    const url = URL.createObjectURL(new Blob([dxf], { type: 'application/dxf' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = nomeFileAbaco(p.clientName, numero || p.riferimento);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    scaricaFile(new Blob([dxf], { type: 'application/dxf' }), nome);
+  };
+
+  // La stessa tavola in PDF, per chi non ha un programma CAD.
+  const handleExportAbacoPdf = async () => {
+    if (!puoScaricareDxf) return;
+    const { intestazione, nome } = datiAbaco();
+    let pdf;
+    try {
+      pdf = await generaAbacoPdf(p.items, { intestazione });
+    } catch (err) {
+      console.error('Errore abaco PDF:', err);
+      toast.error("Non sono riuscito a creare l'abaco.");
+      return;
+    }
+    if (!pdf) {
+      toast.info('Nel preventivo non ci sono serramenti da disegnare.');
+      return;
+    }
+    scaricaFile(pdf, nome.replace(/\.dxf$/, '.pdf'));
   };
 
   const handleExportDistinta = () => {
@@ -701,6 +731,7 @@ export default function PreventiviPage() {
         onCreateVariant={handleCreateVariant}
         onExportPDF={handleExportPDF}
         onExportDXF={puoScaricareDxf ? handleExportDXF : null}
+        onExportAbacoPdf={puoScaricareDxf ? handleExportAbacoPdf : null}
         onExportDistinta={handleExportDistinta}
         canAccessCAM={canAccessCAM}
         isSaving={isSaving}

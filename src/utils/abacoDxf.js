@@ -644,11 +644,11 @@ function disegnaCartiglio(d, xDestra, yBasso, intestazione) {
 }
 
 /**
- * Il file DXF dell'abaco: i serramenti a file come in una tavola, con
- * legenda, cartiglio e cornice. Restituisce il testo del file, o null se
- * non c'e' niente da disegnare.
+ * La tavola dell'abaco: i serramenti a file, con legenda, cartiglio e
+ * cornice, in millimetri. La stessa tavola diventa il DXF qui sotto e il PDF
+ * (abacoPdf.js). Null se non c'e' niente da disegnare.
  */
-export function generaAbacoDxf(items, { intestazione = '' } = {}) {
+export function costruisciTavola(items, { intestazione = '' } = {}) {
   const articoli = articoliDisegnabili(items);
   if (!articoli.length) return null;
 
@@ -694,6 +694,13 @@ export function generaAbacoDxf(items, { intestazione = '' } = {}) {
   const m = 700;
   const { x0: cx0, y0: cy0, x1: cx1, y1: cy1 } = d.lim;
   d.rett('TAVOLA', cx0 - m, cy0 - m, cx1 - cx0 + 2 * m, cy1 - cy0 + 2 * m);
+  return d;
+}
+
+/** Il file DXF dell'abaco, o null se non c'e' niente da disegnare. */
+export function generaAbacoDxf(items, opzioni = {}) {
+  const d = costruisciTavola(items, opzioni);
+  if (!d) return null;
 
   const { x0, y0, x1, y1 } = d.lim;
   const out = [];
