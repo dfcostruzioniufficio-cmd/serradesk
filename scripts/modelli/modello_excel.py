@@ -43,7 +43,7 @@ cella("A2", "Via, numero civico - CAP Città (Provincia)", dim=9, colore="475569
 cella("A3", "P.IVA 00000000000 - Tel. 000 0000000 - email@tuaditta.it", dim=9, colore="475569")
 cella("I1", "PREVENTIVO", grassetto=True, dim=18, colore=BLU, allinea="right")
 ws.merge_cells("I1:L1")
-for r, (etichetta, valore) in enumerate([("N. preventivo", "1/2026"), ("Data", "=TODAY()"), ("Validità offerta", "30 giorni")], start=2):
+for r, (etichetta, valore) in enumerate([("N. preventivo", "1/2026"), ("Data", None), ("Validità offerta", "30 giorni")], start=2):
     cella(f"I{r}", etichetta, dim=9, colore="475569", allinea="right")
     ws.merge_cells(f"I{r}:J{r}")
     c = cella(f"K{r}", valore, grassetto=True, dim=10, allinea="right", formato="DD/MM/YYYY" if etichetta == "Data" else None)

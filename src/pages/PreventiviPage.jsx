@@ -572,19 +572,12 @@ export default function PreventiviPage() {
     }
   };
 
-  // L'abaco come disegno DXF, da aprire in AutoCAD o simili. Stessa regola
-  // del PDF: serve un abbonamento attivo.
+  // L'abaco come disegno DXF, da aprire in AutoCAD o simili. Per ora solo
+  // per l'amministratore: il titolare lo vuole provare prima di darlo ai
+  // clienti (21/10/2026).
+  const puoScaricareDxf = userProfile?.role === 'admin';
   const handleExportDXF = () => {
-    if (!userProfile) {
-      toast.info("Per scaricare il disegno serve un abbonamento attivo.");
-      navigate('/login?mode=signup');
-      return;
-    }
-    if (needsPayment) {
-      toast.info("Serve un abbonamento attivo per scaricare il disegno.");
-      navigate('/dashboard');
-      return;
-    }
+    if (!puoScaricareDxf) return;
     const numero = p.numeroPreventivo?.numero ? `${p.numeroPreventivo.numero}/${p.numeroPreventivo.anno}` : '';
     const intestazione = [
       userSettings?.company_name,
@@ -592,7 +585,14 @@ export default function PreventiviPage() {
       p.clientName,
       p.riferimento,
     ].filter((t) => String(t || '').trim()).join(' - ');
-    const dxf = generaAbacoDxf(p.items, { intestazione });
+    let dxf;
+    try {
+      dxf = generaAbacoDxf(p.items, { intestazione });
+    } catch (err) {
+      console.error('Errore disegno DXF:', err);
+      toast.error('Non sono riuscito a creare il disegno.');
+      return;
+    }
     if (!dxf) {
       toast.info('Nel preventivo non ci sono serramenti da disegnare.');
       return;
@@ -700,7 +700,7 @@ export default function PreventiviPage() {
         onClear={handleClearAll}
         onCreateVariant={handleCreateVariant}
         onExportPDF={handleExportPDF}
-        onExportDXF={handleExportDXF}
+        onExportDXF={puoScaricareDxf ? handleExportDXF : null}
         onExportDistinta={handleExportDistinta}
         canAccessCAM={canAccessCAM}
         isSaving={isSaving}

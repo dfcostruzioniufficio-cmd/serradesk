@@ -79,6 +79,7 @@ export default function QuoteToolbar({
               </DropdownMenuItem>
             )}
 
+            {onExportDXF && (
             <DropdownMenuItem
               onClick={onExportDXF}
               disabled={items.length === 0}
@@ -86,6 +87,7 @@ export default function QuoteToolbar({
             >
               <PenTool size={16} /> Disegno DXF (AutoCAD)
             </DropdownMenuItem>
+            )}
 
             <DropdownMenuItem 
               onClick={onChangeProfileGlobale} 

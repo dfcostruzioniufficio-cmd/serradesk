@@ -47,4 +47,4 @@ Il modello parte dal 10%, l'aliquota che si usa spesso per i lavori sulle abitaz
 
 Il modello Excel fa i conti, ma i prezzi li devi scrivere tu, finestra per finestra, guardando il listino. E non disegna i serramenti: il cliente legge "finestra 2 ante 1200 x 1450" e deve immaginarsela.
 
-Se fai tanti preventivi, [SerraDesk](/) fa questo lavoro al posto tuo: inserisci le misure, scegli profilo, vetro e colore, e il prezzo si calcola dal tuo listino. Il PDF esce con il disegno di ogni finestra, le quote e il tuo logo. Il disegno si può anche scaricare in formato DXF, da aprire in AutoCAD.
+Se fai tanti preventivi, [SerraDesk](/) fa questo lavoro al posto tuo: inserisci le misure, scegli profilo, vetro e colore, e il prezzo si calcola dal tuo listino. Il PDF esce con il disegno di ogni finestra, le quote e il tuo logo.

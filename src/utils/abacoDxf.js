@@ -142,7 +142,7 @@ function infoApertura(f, i) {
     if (bordo) return { lato: bordo, maniglia: true };
     return { lato: i === anteCount - 1 && anteCount > 1 && !sovrapposte ? 'left' : 'right', maniglia: false };
   }
-  if (paneConfigs && paneConfigs.length > i && 'handleEdge' in paneConfigs[i]) {
+  if (paneConfigs && paneConfigs.length > i && paneConfigs[i] && typeof paneConfigs[i] === 'object' && 'handleEdge' in paneConfigs[i]) {
     const bordo = paneConfigs[i].handleEdge;
     if (bordo) return { lato: bordo, maniglia: true };
     if (apertura === 'Battente' || apertura === 'Vasistas' || apertura === 'Bilico') {
@@ -405,9 +405,11 @@ function disegnaComposto(d, a, moduli) {
   });
 }
 
+// Come titoloArticolo del PDF: il cassonetto non ha ante.
 function titoloArticolo(item) {
-  const t = item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' ante' : ''}`.trim();
-  return t.replace(/^.*?\d+ ANT[AE]: (?=ANT[AE] \d)/, '');
+  const t = (item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' ante' : ''}`.trim())
+    .replace(/^.*?\d+ ANT[AE]: (?=ANT[AE] \d)/, '');
+  return item.apertura === 'Cassonetto' ? t.replace(/\s+\d+\s+ANT[AE]\b/i, '') : t;
 }
 
 function disegnaArticolo(d, item, numero) {
@@ -470,7 +472,9 @@ export function generaAbacoDxf(items, { intestazione = '' } = {}) {
     // Il serramento sta sopra la fila: la fila si allinea a terra.
     d.origine(x, yFila);
     disegnaArticolo(d, item, item.id ?? i + 1);
-    x += W + DISTANZA + 300;
+    // Un titolo lungo e' piu' largo del serramento: il prossimo parte dopo.
+    const larghezzaTitolo = testoAscii(titoloArticolo(item)).length * H_TESTO * 0.65;
+    x += Math.max(W, larghezzaTitolo) + DISTANZA + 300;
     hFila = Math.max(hFila, H + 600);
   });
 
