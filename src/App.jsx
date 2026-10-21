@@ -21,7 +21,6 @@ const RubricaPage = lazy(caricaPagina(() => import('./pages/RubricaPage')));
 const DashboardPage = lazy(caricaPagina(() => import('./pages/DashboardPage')));
 const SettingsPage = lazy(caricaPagina(() => import('./pages/SettingsPage')));
 const UpdatePasswordPage = lazy(caricaPagina(() => import('./pages/UpdatePasswordPage')));
-const AdminPage = lazy(caricaPagina(() => import('./pages/AdminPage')));
 const PaywallPage = lazy(caricaPagina(() => import('./pages/PaywallPage')));
 const GuidaPage = lazy(caricaPagina(() => import('./pages/GuidaPage')));
 const ArticlePage = lazy(caricaPagina(() => import('./pages/ArticlePage')));
@@ -136,7 +135,6 @@ function App() {
           <Route path="/distinta"   element={session ? <ProtectedRoute><AppShell><DistintaPage /></AppShell></ProtectedRoute>   : <Navigate to="/login" />} />
           <Route path="/scheda-rilievo" element={session ? <ProtectedRoute><AppShell><SchedaRilievoPage /></AppShell></ProtectedRoute> : <Navigate to="/login" />} />
           <Route path="/settings"   element={session ? <ProtectedRoute><AppShell><SettingsPage /></AppShell></ProtectedRoute>   : <Navigate to="/login" />} />
-          <Route path="/admin"      element={session ? <AppShell><AdminPage /></AppShell>      : <Navigate to="/login" />} />
           <Route path="/guida"      element={<GuidaPage />} />
           <Route path="/guida/:slug" element={<ArticlePage />} />
 

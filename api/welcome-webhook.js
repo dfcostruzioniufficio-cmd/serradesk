@@ -113,7 +113,7 @@ export default async function handler(req, res) {
         `Si e' appena iscritto ${email} (${quando}).`,
         '',
         'Non ha giorni di prova: sta vedendo la pagina dei piani.',
-        'Per dargli la prova: https://serradesk.it/admin -> Modifica -> piano Trial e data di scadenza.',
+        'Per dargli la prova: chiedilo a Claude, oppure su Supabase metti piano Trial e data di scadenza.',
         `Per scrivergli: rispondi a ${email}.`,
       ].join('\n'),
     }),

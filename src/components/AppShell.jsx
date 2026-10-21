@@ -6,7 +6,6 @@ import {
   Scissors,
   Settings,
   BookOpen,
-  Shield,
   LogOut,
   LogIn,
   PanelLeftClose,
@@ -162,12 +161,9 @@ export default function AppShell({ children }) {
     ? BASE_NAV 
     : BASE_NAV.filter(n => n.name === 'Preventivatore' || n.name === 'Guida');
 
-  const navItems = [
-    ...baseFilteredNav,
-    ...(userProfile?.role === 'admin'
-      ? [{ name: 'Admin', path: '/admin', icon: Shield }]
-      : []),
-  ];
+  // L'area amministratore non c'e' piu': prove e piani si cambiano
+  // chiedendolo a Claude o dal pannello di Supabase.
+  const navItems = baseFilteredNav;
 
   const handleLogout = async () => {
     localStorage.removeItem('sd_draft_preventivo');
