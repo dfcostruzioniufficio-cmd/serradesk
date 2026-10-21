@@ -653,8 +653,8 @@ export default function PreventiviPage() {
     <main className="space-y-6 pb-32 max-w-[1400px] mx-auto">
       {runTour && <InteractiveGuide run={runTour} setRun={setRunTour} />}
       <SEOManager 
-        title="Generatore gratuito preventivi e distinte di taglio serramenti" 
-        description="Il calcolatore online per serramentisti: smetti di usare Excel. Crea preventivi veloci, calcola prezzi e ottieni le distinte di taglio esatte in pochi minuti."
+        title="Preventivi infissi con disegno e prezzo calcolato"
+        description="Il configuratore online per serramentisti: inserisci le misure, scegli profilo, vetro e colore, e il preventivo esce con il prezzo calcolato e il disegno di ogni finestra."
         path="/preventivi" 
       />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
@@ -663,7 +663,7 @@ export default function PreventiviPage() {
               account. Chi ci lavora vede solo dove si trova. */}
           <h1 className={`${userProfile ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 tracking-tight flex flex-wrap items-center gap-2`}>
             <FileText className="w-6 h-6 text-primary" />
-            {userProfile ? 'Preventivo' : 'Generatore gratuito preventivi e distinte di taglio serramenti'}
+            {userProfile ? 'Preventivo' : 'Preventivi infissi con disegno e prezzo calcolato'}
             {p.editingOrderId && <span className="ml-0 sm:ml-3 px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 rounded-full border border-amber-200 shadow-sm">Modifica Ordine</span>}
           </h1>
           {!userProfile && (
