@@ -53,7 +53,114 @@ function pezziTagliabili(pezzi) {
   return { validi, scartati };
 }
 
-function packBars(pieces, barLength) {
+/**
+ * Il piano di taglio: quali pezzi su quale barra.
+ *
+ * Il metodo di prima (il pezzo piu' lungo nella prima barra dove ci sta)
+ * lasciava spesso un'ultima barra quasi vuota: su un lavoro da 54 pezzi
+ * ordinava 12 barre dove ne bastavano 11. Ora ogni barra si riempie con la
+ * combinazione di pezzi che lascia meno sfrido, poi si passa alla successiva.
+ *
+ * Il piano nuovo si usa solo se supera tutti i controlli (stessi pezzi, stesse
+ * misure, una volta sola; ogni barra entro la sua lunghezza) e non chiede piu'
+ * barre del metodo di prima. Altrimenti resta quello di prima: la distinta va
+ * in officina, e un pezzo perso o una barra che non basta costano piu' di una
+ * barra in piu'.
+ */
+export function packBars(pieces, barLength) {
+  const vecchio = packBarsFFD(pieces, barLength);
+  let nuovo = null;
+  try {
+    nuovo = packBarsPieni(pieces, barLength);
+  } catch {
+    nuovo = null;
+  }
+  if (nuovo && nuovo.length <= vecchio.length && pianoCorretto(nuovo, pieces, barLength)) return nuovo;
+  return vecchio;
+}
+
+/** Spazio che un pezzo occupa sulla barra: la sua misura piu' la lama. */
+const ingombro = (mm) => mm + KERF;
+/** Quanto di una barra si puo' usare: tolte sbucciatura e morsa. */
+const lunghezzaUsabile = (barLength) => barLength - DOUBLE_TRIM - SFRIDO_MORSA;
+
+const barraDa = (cuts, barLength) => {
+  const tagli = [...cuts].sort((a, b) => b - a);
+  const used = tagli.reduce((s, c) => s + ingombro(c), DOUBLE_TRIM + SFRIDO_MORSA);
+  return { cuts_mm: tagli, waste_mm: barLength - used };
+};
+
+/**
+ * Controllo del piano prima di darlo all'officina: ogni pezzo richiesto c'e'
+ * una volta sola e con la sua misura, nessun pezzo in piu', e nessuna barra
+ * supera la sua lunghezza.
+ */
+function pianoCorretto(barre, pieces, barLength) {
+  const conta = new Map();
+  for (const p of pieces) conta.set(p, (conta.get(p) || 0) + 1);
+  for (const b of barre) {
+    if (!Array.isArray(b.cuts_mm) || !b.cuts_mm.length) return false;
+    const used = b.cuts_mm.reduce((s, c) => s + ingombro(c), DOUBLE_TRIM + SFRIDO_MORSA);
+    if (used > barLength || b.waste_mm !== barLength - used) return false;
+    for (const c of b.cuts_mm) {
+      const resto = conta.get(c);
+      if (!resto) return false;
+      conta.set(c, resto - 1);
+    }
+  }
+  for (const resto of conta.values()) if (resto !== 0) return false;
+  return true;
+}
+
+/**
+ * Riempie una barra alla volta con la combinazione che lascia meno sfrido.
+ * Si ragiona per misura (quante 1340, quante 880...), non pezzo per pezzo,
+ * cosi' venti pezzi uguali non fanno venti strade uguali. Su liste enormi la
+ * ricerca si ferma a un tetto di tentativi e tiene la migliore trovata: resta
+ * comunque un piano valido, e il controllo e il confronto qui sopra decidono.
+ */
+const TENTATIVI_PER_BARRA = 200000;
+function packBarsPieni(pieces, barLength) {
+  const spazio = lunghezzaUsabile(barLength);
+  const conta = new Map();
+  for (const p of pieces) conta.set(p, (conta.get(p) || 0) + 1);
+  const barre = [];
+  while (conta.size) {
+    const misure = [...conta.keys()].sort((a, b) => b - a);
+    let migliore = { usato: -1, scelta: [] };
+    const scelta = [];
+    let tentativi = 0;
+    const cerca = (i, usato) => {
+      if (usato > migliore.usato) migliore = { usato, scelta: scelta.slice() };
+      if (usato === spazio || i >= misure.length || tentativi > TENTATIVI_PER_BARRA) return;
+      const m = misure[i];
+      const massimo = Math.min(conta.get(m), Math.floor((spazio - usato) / ingombro(m)));
+      for (let k = massimo; k >= 0; k--) {
+        tentativi += 1;
+        if (k) scelta.push([m, k]);
+        cerca(i + 1, usato + k * ingombro(m));
+        if (k) scelta.pop();
+        if (migliore.usato === spazio) return;
+      }
+    };
+    cerca(0, 0);
+    // Un pezzo che da solo non sta nella barra qui non arriva mai (lo
+    // scartano prima come "troppo lungo"); se arrivasse, il ciclo non
+    // finirebbe: meglio fermarsi e lasciare il metodo di prima.
+    if (!migliore.scelta.length) throw new Error('pezzo piu lungo della barra');
+    const cuts = [];
+    for (const [m, k] of migliore.scelta) {
+      for (let j = 0; j < k; j++) cuts.push(m);
+      const resto = conta.get(m) - k;
+      if (resto) conta.set(m, resto); else conta.delete(m);
+    }
+    barre.push(barraDa(cuts, barLength));
+  }
+  return barre;
+}
+
+/** Il metodo di prima: il pezzo piu' lungo nella prima barra dove ci sta. */
+function packBarsFFD(pieces, barLength) {
   const sorted = [...pieces].sort((a, b) => b - a);
   const bars   = [];
   for (const piece of sorted) {
