@@ -283,6 +283,27 @@ export default function DistintaPage() {
         </div>
       )}
 
+      {/* Prima di tutto il resto: con i numeri d'esempio sono indicative
+          tutte le misure, non solo qualche pezzo. */}
+      {camResult?.profiliDiEsempio?.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
+          <h2 className="font-bold text-amber-900 flex items-center gap-2 mb-2">
+            <Lock size={18} /> Misure indicative: il profilo ha i valori d'esempio
+          </h2>
+          <p className="text-sm text-amber-800 mb-3">
+            {camResult.profiliDiEsempio.length === 1 ? 'Questo profilo ha' : 'Questi profili hanno'} ancora i numeri
+            con cui nasce una scheda nuova in archivio, non quelli del catalogo del produttore. La distinta
+            esce, ma telaio, ante e fermavetri vanno controllati prima di tagliare. Per misure esatte,
+            inserisci in Archivio Sistemi i dati della tabella di taglio.
+          </p>
+          <ul className="space-y-1.5">
+            {camResult.profiliDiEsempio.map((p) => (
+              <li key={p.sistema} className="text-sm text-amber-900"><strong>{p.sistema}</strong></li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {camResult?.misureStimate?.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
           <h2 className="font-bold text-amber-900 flex items-center gap-2 mb-2">

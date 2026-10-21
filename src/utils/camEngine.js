@@ -197,6 +197,10 @@ export function runCamEngine(items, barLength = 6500) {
   // Vanno mostrati: una distinta a cui mancano pezzi in silenzio fa
   // scoprire il problema in officina.
   const pezziNonCalcolati = [];
+  // Profili che hanno ancora i valori d'esempio della scheda nuova
+  // dell'archivio: la distinta esce, ma con la geometria di un profilo
+  // generico. Un Schuco e un Veka davano le stesse identiche misure.
+  const profiliDiEsempio = new Map();
   const scartaInvalidi = (item, nomeArticolo, scartati) => {
     if (scartati > 0) pezziNonCalcolati.push({
       itemId: item.id,
@@ -380,6 +384,11 @@ export function runCamEngine(items, barLength = 6500) {
     const ts  = tsReale;
     const ti  = sys?.profilo_basso || sys?.telaio_inf || DEF.profilo_basso;
     const ant = antReale || DEF.profilo_anta;
+    if (valoriDiEsempio(ts, ant, isFisso)) {
+      const nome = sys?.nome || 'Sistema senza nome';
+      if (!profiliDiEsempio.has(nome)) profiliDiEsempio.set(nome, { sistema: nome, itemIds: [] });
+      profiliDiEsempio.get(nome).itemIds.push(item.id);
+    }
     const rip = sys?.profilo_riporto || sys?.riporto  || sys?.specs?.riporto || DEF.profilo_riporto;
     const fv  = sys?.profilo_fermavetro || sys?.fermavetro || sys?.specs?.fermavetro || DEF.profilo_fermavetro;
 
@@ -825,7 +834,25 @@ export function runCamEngine(items, barLength = 6500) {
   return {
     itemResults, nesting, ferramentaRiepilogo, sistemiIncompleti, apertureNonSupportate,
     pezziNonCalcolati, pezziTroppoLunghi, lunghezzaUtile, misureStimate,
+    profiliDiEsempio: [...profiliDiEsempio.values()],
   };
+}
+
+/**
+ * Vero se il profilo ha ancora i numeri d'esempio con cui nasce una scheda
+ * nuova in archivio (telaio 30/6/5, anta 64/20/70) e nessuna detrazione presa
+ * dal catalogo. Sono numeri plausibili, non quelli di quel profilo.
+ */
+function valoriDiEsempio(ts, ant, isFisso) {
+  const n = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+  const telaio = n(ts?.aletta_mm) === 30 && n(ts?.saldatura_mm) === 6 && n(ts?.tolleranza_mm) === 5;
+  if (!telaio) return false;
+  if (isFisso) return true;
+  const catalogo = ['detrazione_larghezza_mm', 'detrazione_altezza_mm', 'detrazione_nodo_mm',
+    'detrazione_fermavetro_larghezza_mm', 'detrazione_fermavetro_altezza_mm']
+    .some((k) => n(ant?.[k]) !== null);
+  return !catalogo && n(ant?.rebate_mm) === 64 && n(ant?.sormonto_mm) === 20
+    && (n(ant?.ingombro_vista_mm) === null || n(ant?.ingombro_vista_mm) === 70);
 }
 
 /**

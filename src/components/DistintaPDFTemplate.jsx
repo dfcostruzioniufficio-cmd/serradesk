@@ -410,6 +410,18 @@ export default function DistintaPDFTemplate({ clientName, items, camResult, user
  */
 function avvisiOfficina(camResult) {
   const avvisi = [];
+  // Per primo: se il profilo ha i numeri d'esempio, tutte le misure sono
+  // indicative, non solo qualche pezzo.
+  (camResult.profiliDiEsempio || []).forEach((p) => {
+    const quali = p.itemIds.map((id) => {
+      const idx = (camResult.itemResults || []).findIndex((ir) => ir.id === id);
+      return idx >= 0 ? rif(idx) : '';
+    }).filter(Boolean).join(' ');
+    avvisi.push({
+      titolo: 'Misure indicative',
+      testo: `${p.sistema}${quali ? ` (${quali})` : ''} — il profilo in archivio ha ancora i valori d'esempio, non quelli del catalogo: controllare telaio, ante e fermavetri prima di tagliare`,
+    });
+  });
   (camResult.sistemiIncompleti || []).forEach((s) => avvisi.push({
     titolo: 'Senza distinta',
     testo: `${s.marca ? `${s.marca} ` : ''}${s.sistema} — mancano: ${s.mancano.join('; ')}`,
