@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Modello preventivo infissi</title>
+<style>
+  @page { size: A4 landscape; margin: 9mm 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 9pt; }
+  .testa { display: flex; justify-content: space-between; align-items: flex-start; }
+  .ditta { width: 105mm; }
+  .logo { border: 1px dashed #94a3b8; color: #94a3b8; font-size: 8pt; height: 13mm; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5mm; }
+  .linea { border-bottom: 1px solid #94a3b8; height: 5mm; margin-bottom: 1mm; }
+  .doc { text-align: right; }
+  h1 { margin: 0 0 2mm; font-size: 22pt; color: #1a365d; letter-spacing: 1px; }
+  .doc .campo { display: flex; gap: 2mm; justify-content: flex-end; align-items: flex-end; color: #475569; font-size: 8.5pt; margin-bottom: 1.2mm; }
+  .doc .campo span { display: inline-block; width: 38mm; border-bottom: 1px solid #94a3b8; height: 4.5mm; }
+  .blocchi { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin: 3mm 0; }
+  .blocco h2 { margin: 0; background: #1a365d; color: #fff; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .5px; padding: 1.2mm 2mm; }
+  .blocco .r { display: flex; gap: 2mm; align-items: flex-end; color: #475569; font-size: 8.5pt; margin-top: 1.2mm; }
+  .blocco .r span { flex: 1; border-bottom: 1px solid #cbd5e1; height: 5mm; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th { background: #1a365d; color: #fff; font-size: 7.3pt; text-transform: uppercase; letter-spacing: .3px; padding: 1.3mm 1mm; border: 1px solid #1a365d; }
+  td { border: 1px solid #cbd5e1; height: 7.6mm; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  td.n { text-align: center; color: #1a365d; font-weight: 700; }
+  .fondo { display: grid; grid-template-columns: 1fr 92mm; gap: 6mm; margin-top: 3mm; }
+  .cond h2 { margin: 0 0 1mm; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .5px; color: #1a365d; }
+  .cond p { margin: 0 0 1.1mm; font-size: 8pt; color: #334155; }
+  .tot div { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #e2e8f0; padding: 1.2mm 0; font-size: 9pt; color: #334155; }
+  .tot div span:last-child { width: 32mm; border-bottom: 1px solid #94a3b8; height: 4.5mm; }
+  .tot div.finale { background: #1a365d; color: #fff; font-weight: 700; padding: 1.8mm 2mm; border: none; margin-top: 1mm; }
+  .tot div.finale span:last-child { border-bottom-color: #fff; }
+  .firme { display: grid; grid-template-columns: 1fr 1fr; gap: 20mm; margin-top: 4mm; font-size: 8pt; color: #475569; }
+  .firme div { border-bottom: 1px solid #94a3b8; height: 9mm; }
+  .piede { text-align: right; font-size: 7pt; color: #94a3b8; margin-top: 1.5mm; }
+</style>
+</head>
+<body>
+  <div class="testa">
+    <div class="ditta">
+      <div class="logo">Logo della ditta</div>
+      <div class="linea"></div>
+      <div class="linea"></div>
+    </div>
+    <div class="doc">
+      <h1>PREVENTIVO</h1>
+      <div class="campo">N. <span></span></div>
+      <div class="campo">Data <span></span></div>
+      <div class="campo">Validità offerta <span></span></div>
+    </div>
+  </div>
+
+  <div class="blocchi">
+    <div class="blocco">
+      <h2>Cliente</h2>
+      <div class="r">Nome / Ragione sociale <span></span></div>
+      <div class="r">Telefono / email <span></span></div>
+    </div>
+    <div class="blocco">
+      <h2>Cantiere / luogo di posa</h2>
+      <div class="r">Indirizzo <span></span></div>
+      <div class="r">Riferimento <span></span></div>
+    </div>
+  </div>
+
+  <table>
+    <colgroup>
+      <col style="width:9mm"><col style="width:42mm"><col style="width:12mm"><col style="width:20mm"><col style="width:20mm">
+      <col style="width:15mm"><col style="width:11mm"><col style="width:16mm"><col><col style="width:40mm">
+      <col style="width:25mm"><col style="width:26mm">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Pos.</th><th>Tipologia</th><th>Ante</th><th>Largh. mm</th><th>Alt. mm</th><th>m² cad.</th>
+        <th>Q.tà</th><th>m² tot.</th><th>Profilo e colore</th><th>Vetro</th><th>Prezzo cad. €</th><th>Totale €</th>
+      </tr>
+    </thead>
+    <tbody id="righe"></tbody>
+  </table>
+
+  <div class="fondo">
+    <div class="cond">
+      <h2>Condizioni</h2>
+      <p>Posa in opera: &#9744; inclusa &nbsp; &#9744; esclusa &nbsp;&nbsp;&nbsp; Smontaggio e smaltimento vecchi serramenti: &#9744; inclusi &nbsp; &#9744; esclusi</p>
+      <p>Tempi di consegna: circa ______ settimane dalla conferma d'ordine e dal rilievo misure definitivo.</p>
+      <p>Pagamento: ______ % di acconto alla conferma, saldo a fine lavori.</p>
+      <p>Le misure indicate sono da confermare con il rilievo in cantiere. Aliquota IVA da verificare in base al tipo di intervento.</p>
+      <div class="firme">
+        <span>Data e firma della ditta<div></div></span>
+        <span>Firma del cliente per accettazione<div></div></span>
+      </div>
+    </div>
+    <div class="tot">
+      <div><span>Superficie totale (m²)</span><span></span></div>
+      <div><span>Totale imponibile</span><span></span></div>
+      <div><span>Sconto ______ %</span><span></span></div>
+      <div><span>Imponibile scontato</span><span></span></div>
+      <div><span>IVA ______ %</span><span></span></div>
+      <div class="finale"><span>TOTALE</span><span></span></div>
+    </div>
+  </div>
+  <div class="piede">Modello gratuito di SerraDesk - serradesk.it</div>
+
+<script>
+  document.getElementById('righe').innerHTML = Array.from({ length: 10 }, (_, i) =>
+    `<tr><td class="n">${i + 1}</td>${'<td></td>'.repeat(11)}</tr>`).join('');
+</script>
+</body>
+</html>

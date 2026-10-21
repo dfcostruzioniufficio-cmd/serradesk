@@ -3,12 +3,27 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import frontMatter from 'front-matter';
-import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Clock, Download } from 'lucide-react';
 import SEOManager from '../components/SEOManager';
 import CTAWidget from '../components/CTAWidget';
 
 // Importa tutti i file markdown come raw text
 const markdownFiles = import.meta.glob('../content/guides/*.md', { query: '?raw', import: 'default' });
+
+// I modelli gratuiti (public/modelli) si scaricano, non si aprono: un clic
+// sul file Excel come pagina non mostrerebbe niente. Le pagine del sito
+// restano dentro l'app, senza ricaricare tutto.
+function LinkArticolo({ href = '', children, node: _node, ...resto }) {
+  if (href.startsWith('/modelli/')) {
+    return (
+      <a href={href} download {...resto} className="inline-flex items-center gap-1.5 font-semibold">
+        <Download size={16} className="shrink-0" /> {children}
+      </a>
+    );
+  }
+  if (href.startsWith('/')) return <Link to={href} {...resto}>{children}</Link>;
+  return <a href={href} target="_blank" rel="noopener noreferrer" {...resto}>{children}</a>;
+}
 
 export default function ArticlePage() {
   const { slug } = useParams();
@@ -108,7 +123,7 @@ export default function ArticlePage() {
       {/* Contenuto Articolo */}
       <article className="max-w-3xl mx-auto px-6 py-12">
         <div className="prose prose-invert prose-blue max-w-none prose-headings:font-bold prose-h2:text-3xl prose-h2:mt-12 prose-h3:text-2xl prose-a:text-blue-400 hover:prose-a:text-blue-300 prose-img:rounded-2xl prose-img:shadow-2xl">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: LinkArticolo }}>
             {body}
           </ReactMarkdown>
         </div>

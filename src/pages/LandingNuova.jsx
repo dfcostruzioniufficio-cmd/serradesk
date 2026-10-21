@@ -983,6 +983,7 @@ export default function LandingNuova({ anteprima = false }) {
           </div>
           <div className="flex flex-wrap gap-5 justify-center">
             <Link to="/guida">Guide</Link>
+            <Link to="/guida/modello-preventivo-infissi-gratis">Modello preventivo gratis</Link>
             <Link to="/termini">Termini di Servizio</Link>
             <Link to="/privacy">Privacy Policy</Link>
             <Link to="/login">Accedi</Link>

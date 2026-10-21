@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Scheda rilievo misure serramenti</title>
+<style>
+  @page { size: A4 landscape; margin: 9mm 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 9pt; }
+  .testa { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1a365d; padding-bottom: 2mm; }
+  h1 { margin: 0; font-size: 17pt; color: #1a365d; letter-spacing: .3px; }
+  .sotto { color: #475569; font-size: 8.5pt; margin-top: 1mm; }
+  .pagina { font-size: 9pt; color: #475569; }
+  .dati { display: grid; grid-template-columns: 1.3fr 1.6fr 1fr 1fr; gap: 1.5mm 5mm; margin: 3mm 0 2.5mm; }
+  .campo { display: flex; gap: 2mm; align-items: flex-end; font-size: 8.5pt; color: #475569; }
+  .campo span.linea { flex: 1; border-bottom: 1px solid #94a3b8; height: 5.5mm; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th { background: #1a365d; color: #fff; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 1.4mm 1mm; border: 1px solid #1a365d; }
+  td { border: 1px solid #cbd5e1; padding: 1mm 1.2mm; vertical-align: middle; height: 18.2mm; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .pos { text-align: center; font-weight: 700; font-size: 11pt; color: #1a365d; }
+  .spunte { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 2mm; }
+  .sp { display: flex; align-items: center; gap: 1mm; font-size: 7.3pt; white-space: nowrap; }
+  .sp i { display: inline-block; width: 3.2mm; height: 3.2mm; border: 1px solid #64748b; flex: none; }
+  .cifre { display: flex; gap: .6mm; justify-content: center; }
+  .cifre i { display: block; width: 6mm; height: 8.5mm; border: 1px solid #94a3b8; border-radius: .5mm; background: #fff; }
+  .mm { text-align: center; font-size: 6.5pt; color: #64748b; margin-top: .8mm; }
+  .ante { display: flex; gap: 1.2mm; justify-content: center; }
+  .ante span { display: flex; flex-direction: column; align-items: center; font-size: 7pt; gap: .5mm; }
+  .ante i { display: block; width: 4mm; height: 4mm; border: 1px solid #64748b; }
+  .schizzo { border: 1px dashed #cbd5e1; height: 15mm; border-radius: 1mm; background: #fff; }
+  .piede { display: flex; justify-content: space-between; margin-top: 2mm; font-size: 7.5pt; color: #64748b; }
+  .piede b { color: #1a365d; }
+</style>
+</head>
+<body>
+  <div class="testa">
+    <div>
+      <h1>Scheda rilievo misure serramenti</h1>
+      <div class="sotto">Misure in millimetri: prima la larghezza, poi l'altezza. Indica se sono misure del vano (luce) o del serramento finito.</div>
+    </div>
+    <div class="pagina">Foglio ______ di ______</div>
+  </div>
+
+  <div class="dati">
+    <div class="campo">Cliente <span class="linea"></span></div>
+    <div class="campo">Indirizzo cantiere <span class="linea"></span></div>
+    <div class="campo">Telefono <span class="linea"></span></div>
+    <div class="campo">Data <span class="linea"></span></div>
+    <div class="campo">Rilevato da <span class="linea"></span></div>
+    <div class="campo">Misure: &nbsp;<span class="sp"><i></i> vano</span>&nbsp;<span class="sp"><i></i> serramento</span>&nbsp;<span class="sp"><i></i> con controtelaio</span></div>
+    <div class="campo">Piano <span class="linea"></span></div>
+    <div class="campo">Colore <span class="linea"></span></div>
+  </div>
+
+  <table>
+    <colgroup>
+      <col style="width:9mm"><col style="width:23mm"><col style="width:38mm"><col style="width:22mm">
+      <col style="width:28mm"><col style="width:28mm"><col style="width:32mm"><col style="width:24mm">
+      <col style="width:27mm"><col>
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Pos.</th><th>Locale</th><th>Tipologia</th><th>N. ante</th>
+        <th>Larghezza</th><th>Altezza</th><th>Apertura</th><th>Accessori</th>
+        <th>Schizzo</th><th>Note</th>
+      </tr>
+    </thead>
+    <tbody id="righe"></tbody>
+  </table>
+
+  <div class="piede">
+    <span>Apertura vista dall'interno: SX = maniglia a sinistra, DX = maniglia a destra.</span>
+    <span>Modello gratuito di <b>SerraDesk</b> - serradesk.it</span>
+  </div>
+
+<script>
+  const riga = (n) => `
+    <tr>
+      <td class="pos">${n}</td>
+      <td></td>
+      <td><div class="spunte">
+        <span class="sp"><i></i>Finestra</span><span class="sp"><i></i>Portafin.</span>
+        <span class="sp"><i></i>Scorrevole</span><span class="sp"><i></i>Vasistas</span>
+        <span class="sp"><i></i>Fisso</span><span class="sp"><i></i>Persiana</span>
+      </div></td>
+      <td><div class="ante">${[1,2,3,4].map(a => `<span>${a}<i></i></span>`).join('')}</div></td>
+      <td><div class="cifre"><i></i><i></i><i></i><i></i></div><div class="mm">mm</div></td>
+      <td><div class="cifre"><i></i><i></i><i></i><i></i></div><div class="mm">mm</div></td>
+      <td><div class="spunte">
+        <span class="sp"><i></i>SX</span><span class="sp"><i></i>DX</span>
+        <span class="sp"><i></i>Ribalta</span><span class="sp"><i></i>Traverso</span>
+      </div></td>
+      <td><div class="spunte" style="grid-template-columns:1fr">
+        <span class="sp"><i></i>Tapparella</span><span class="sp"><i></i>Zanzariera</span><span class="sp"><i></i>Davanzale</span>
+      </div></td>
+      <td><div class="schizzo"></div></td>
+      <td></td>
+    </tr>`;
+  document.getElementById('righe').innerHTML = Array.from({ length: 7 }, (_, i) => riga(i + 1)).join('');
+</script>
+</body>
+</html>

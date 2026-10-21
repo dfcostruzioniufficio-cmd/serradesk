@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabaseClient';
 import { esportaPdfPreventivo, nomeFilePdf } from '../lib/esportaPdfPreventivo';
 import { ivaDelPreventivo } from '../hooks/usePricingEngine';
+import { generaAbacoDxf, nomeFileAbaco } from '../utils/abacoDxf';
 import { usePreventivo } from '../hooks/usePreventivo';
 
 import QuoteToolbar from '../components/preventivi/QuoteToolbar';
@@ -571,6 +572,41 @@ export default function PreventiviPage() {
     }
   };
 
+  // L'abaco come disegno DXF, da aprire in AutoCAD o simili. Stessa regola
+  // del PDF: serve un abbonamento attivo.
+  const handleExportDXF = () => {
+    if (!userProfile) {
+      toast.info("Per scaricare il disegno serve un abbonamento attivo.");
+      navigate('/login?mode=signup');
+      return;
+    }
+    if (needsPayment) {
+      toast.info("Serve un abbonamento attivo per scaricare il disegno.");
+      navigate('/dashboard');
+      return;
+    }
+    const numero = p.numeroPreventivo?.numero ? `${p.numeroPreventivo.numero}/${p.numeroPreventivo.anno}` : '';
+    const intestazione = [
+      userSettings?.company_name,
+      numero && `Preventivo ${numero}`,
+      p.clientName,
+      p.riferimento,
+    ].filter((t) => String(t || '').trim()).join(' - ');
+    const dxf = generaAbacoDxf(p.items, { intestazione });
+    if (!dxf) {
+      toast.info('Nel preventivo non ci sono serramenti da disegnare.');
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([dxf], { type: 'application/dxf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nomeFileAbaco(p.clientName, numero || p.riferimento);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   const handleExportDistinta = () => {
     if (!userProfile) {
       toast.info("La distinta di taglio richiede un abbonamento attivo.");
@@ -664,6 +700,7 @@ export default function PreventiviPage() {
         onClear={handleClearAll}
         onCreateVariant={handleCreateVariant}
         onExportPDF={handleExportPDF}
+        onExportDXF={handleExportDXF}
         onExportDistinta={handleExportDistinta}
         canAccessCAM={canAccessCAM}
         isSaving={isSaving}
