@@ -164,6 +164,14 @@ export default function PaywallPage() {
           ))}
         </div>
 
+        {/* Il rinnovo automatico va detto qui, prima del pagamento, e non solo
+            nei Termini: chi si trova un addebito che non si aspettava lo
+            contesta, e ha ragione. */}
+        <p className="mt-10 max-w-2xl mx-auto text-center text-sm text-gray-400 leading-relaxed">
+          L&#39;abbonamento si rinnova automaticamente alla scadenza, ogni mese o ogni anno secondo il piano scelto,
+          con addebito sulla stessa carta. Puoi disdire quando vuoi da Impostazioni → Abbonamento:
+          SerraDesk resta attivo fino alla fine del periodo già pagato e non ti viene addebitato altro.
+        </p>
         {/* Chi si iscrive non ha giorni di prova: senza un modo per scriverci,
             davanti ai prezzi chiudeva la pagina e non si sentiva piu' (due
             iscritti di settembre, zero preventivi). La mail e non un numero

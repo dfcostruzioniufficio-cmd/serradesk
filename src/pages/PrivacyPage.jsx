@@ -63,8 +63,20 @@ export default function PrivacyPage() {
             e la portabilità dei dati. Tali richieste possono essere inoltrate all'indirizzo email di supporto.
           </p>
 
+          <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">7. Fornitori e Cookie</h2>
+          <p>
+            Per erogare il servizio SerraDesk si appoggia a fornitori che trattano i dati solo per suo conto: Supabase
+            (database e accesso all'account), Vercel (pubblicazione del sito e statistiche di visita anonime, senza cookie)
+            e Stripe (pagamento degli abbonamenti: i dati della carta li tratta solo Stripe, SerraDesk non li vede).
+          </p>
+          <p className="mt-3">
+            Il sito non usa cookie di profilazione né di pubblicità. Usa solo strumenti tecnici necessari al
+            funzionamento, come quelli che mantengono l'accesso all'account e le preferenze dell'interfaccia,
+            per i quali non serve il consenso.
+          </p>
+
           <div className="mt-12 text-sm text-gray-500 border-t pt-8">
-            Ultimo aggiornamento: Giugno 2026.<br/>
+            Ultimo aggiornamento: Ottobre 2026.<br/>
             Per richieste inerenti alla privacy: info@serradesk.it
           </div>
         </div>
