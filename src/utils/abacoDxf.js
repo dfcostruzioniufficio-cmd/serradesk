@@ -631,7 +631,7 @@ function disegnaLegenda(d, celle, x0, yAlto) {
   return { yBasso, larga };
 }
 
-function disegnaCartiglio(d, xDestra, yBasso, intestazione) {
+function disegnaCartiglio(d, xDestra, yBasso, intestazione, firma) {
   const W = 6500;
   const H = 1500;
   const x = xDestra - W;
@@ -640,7 +640,7 @@ function disegnaCartiglio(d, xDestra, yBasso, intestazione) {
   d.testo('TAVOLA', x + 200, yBasso + 1100, 220, 'ABACO SERRAMENTI');
   const righe = aCapo(intestazione || '', Math.floor((W - 400) / (110 * LARGO))).slice(0, 2);
   righe.forEach((r, k) => d.testo('TAVOLA', x + 200, yBasso + 650 - k * 180, 110, r));
-  d.testo('TAVOLA', x + 200, yBasso + 150, 85, 'Misure in mm - prospetti visti dall\'interno - creato con SerraDesk');
+  d.testo('TAVOLA', x + 200, yBasso + 150, 85, `Misure in mm - prospetti visti dall'interno${firma ? ' - creato con SerraDesk' : ''}`);
 }
 
 /**
@@ -648,7 +648,7 @@ function disegnaCartiglio(d, xDestra, yBasso, intestazione) {
  * cornice, in millimetri. La stessa tavola diventa il DXF qui sotto e il PDF
  * (abacoPdf.js). Null se non c'e' niente da disegnare.
  */
-export function costruisciTavola(items, { intestazione = '' } = {}) {
+export function costruisciTavola(items, { intestazione = '', firma = true } = {}) {
   const articoli = articoliDisegnabili(items);
   if (!articoli.length) return null;
 
@@ -688,7 +688,7 @@ export function costruisciTavola(items, { intestazione = '' } = {}) {
 
   const legenda = disegnaLegenda(d, celle, sinistra, d.lim.y0 - 1000);
   const destra = Math.max(d.lim.x1, sinistra + legenda.larga);
-  disegnaCartiglio(d, destra, legenda.yBasso - 2000, titolo);
+  disegnaCartiglio(d, destra, legenda.yBasso - 2000, titolo, firma);
 
   // Cornice della tavola.
   const m = 700;

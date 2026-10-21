@@ -586,7 +586,9 @@ export default function PreventiviPage() {
       p.clientName,
       p.riferimento,
     ].filter((t) => String(t || '').trim()).join(' - ');
-    return { intestazione, nome: nomeFileAbaco(p.clientName, numero || p.riferimento) };
+    // Sulla tavola del titolare niente "creato con SerraDesk" (21/10/2026).
+    const firma = userProfile?.role !== 'admin';
+    return { intestazione, firma, nome: nomeFileAbaco(p.clientName, numero || p.riferimento) };
   };
 
   const scaricaFile = (blob, nome) => {
@@ -602,10 +604,10 @@ export default function PreventiviPage() {
 
   const handleExportDXF = () => {
     if (!puoScaricareDxf) return;
-    const { intestazione, nome } = datiAbaco();
+    const { intestazione, firma, nome } = datiAbaco();
     let dxf;
     try {
-      dxf = generaAbacoDxf(p.items, { intestazione });
+      dxf = generaAbacoDxf(p.items, { intestazione, firma });
     } catch (err) {
       console.error('Errore disegno DXF:', err);
       toast.error('Non sono riuscito a creare il disegno.');
@@ -621,10 +623,10 @@ export default function PreventiviPage() {
   // La stessa tavola in PDF, per chi non ha un programma CAD.
   const handleExportAbacoPdf = async () => {
     if (!puoScaricareDxf) return;
-    const { intestazione, nome } = datiAbaco();
+    const { intestazione, firma, nome } = datiAbaco();
     let pdf;
     try {
-      pdf = await generaAbacoPdf(p.items, { intestazione });
+      pdf = await generaAbacoPdf(p.items, { intestazione, firma });
     } catch (err) {
       console.error('Errore abaco PDF:', err);
       toast.error("Non sono riuscito a creare l'abaco.");
