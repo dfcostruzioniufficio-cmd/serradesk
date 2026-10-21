@@ -10,7 +10,9 @@
 -- Ora: l'utente legge e aggiorna solo il suo profilo; lo crea soltanto
 -- handle_new_user (alla registrazione, sempre 'free'); piano, scadenza,
 -- ruolo, preventivatore web e cliente Stripe li cambiano solo il webhook di
--- Stripe (service_role) e l'amministratore.
+-- Stripe (service_role) e l'amministratore. Anche l'email: il portale di
+-- fatturazione e il webhook cercano il cliente Stripe per email, e cambiandola
+-- si arrivava alle fatture di un altro.
 
 drop policy if exists "Users update own profile" on public.profiles;
 create policy "Users update own profile" on public.profiles
@@ -32,7 +34,10 @@ begin
       or new.role is distinct from old.role
       or new.preventivatore_web is distinct from old.preventivatore_web
       or new.stripe_customer_id is distinct from old.stripe_customer_id
-      or new.user_id is distinct from old.user_id)
+      or new.user_id is distinct from old.user_id
+      or new.id is distinct from old.id
+      or new.email is distinct from old.email
+      or new.created_at is distinct from old.created_at)
      and auth.role() <> 'service_role'
      and not public.is_admin() then
     raise exception 'Non puoi modificare piano, scadenza o ruolo direttamente.';

@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_customer_id, email')
+      .select('stripe_customer_id')
       .eq('user_id', user.id)
       .single();
 
@@ -47,7 +47,9 @@ export default async function handler(req, res) {
     // Ricaduta per gli abbonamenti attivati prima che salvassimo l'id:
     // lo cerchiamo per email e lo memorizziamo, così succede una volta sola.
     if (!customerId) {
-      const email = profile?.email || user.email;
+      // L'email dell'accesso, verificata, non quella scritta nel profilo:
+      // quella un utente poteva cambiarsela e aprire il portale di un altro.
+      const email = user.email;
       if (email) {
         const clienti = await stripe.customers.list({ email, limit: 100 });
         // Se ci sono più schede cliente per la stessa email (succede quando
