@@ -72,10 +72,12 @@ export function packBars(pieces, barLength) {
   let nuovo = null;
   try {
     nuovo = packBarsPieni(pieces, barLength);
-  } catch {
+  } catch (e) {
+    console.warn('piano di taglio: metodo nuovo non riuscito, resta quello di prima', e);
     nuovo = null;
   }
   if (nuovo && nuovo.length <= vecchio.length && pianoCorretto(nuovo, pieces, barLength)) return nuovo;
+  if (nuovo && !pianoCorretto(nuovo, pieces, barLength)) console.warn('piano di taglio: piano nuovo scartato dal controllo, resta quello di prima');
   return vecchio;
 }
 
