@@ -242,8 +242,14 @@ export default function ItemConfigurator({
                 <span className="text-gray-300">·</span>
                 <span className="flex items-center gap-1.5 text-gray-700">
                   <span className="inline-block w-3.5 h-3.5 rounded border border-gray-300" style={{ background: newItem.previewColor || getFrameColorHex(newItem.frameColor) }} />
-                  {coloreScritto || 'colore non scritto'}
+                  {newItem.bicolore && newItem.coloreEsterno?.trim() ? `int. ${coloreScritto || 'non scritto'}` : (coloreScritto || 'colore non scritto')}
                 </span>
+                {newItem.bicolore && newItem.coloreEsterno?.trim() && (
+                  <span className="flex items-center gap-1.5 text-gray-700">
+                    <span className="inline-block w-3.5 h-3.5 rounded border border-gray-300" style={{ background: getFrameColorHex(newItem.coloreEsterno) }} />
+                    est. {newItem.coloreEsterno.trim()}
+                  </span>
+                )}
                 {newItem.sistemaCamId && (
                   <>
                     <span className="text-gray-300">·</span>
@@ -295,7 +301,7 @@ export default function ItemConfigurator({
                   />
                 </div>
                 <div className="col-span-1 relative">
-                  <Label className="font-semibold text-gray-700">Colore Infisso</Label>
+                  <Label className="font-semibold text-gray-700">{newItem.bicolore ? 'Colore Interno' : 'Colore Infisso'}</Label>
                   <div className="relative mt-1.5 flex items-center">
                     <Input
                       type="text"
@@ -317,7 +323,29 @@ export default function ItemConfigurator({
                       />
                     </div>
                   </div>
+                  <label className="mt-2 inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={!!newItem.bicolore}
+                      onChange={e => updateItemField('bicolore', e.target.checked)}
+                      className="w-4 h-4 accent-blue-600"
+                    />
+                    Bicolore (esterno diverso)
+                  </label>
                 </div>
+
+                {newItem.bicolore && (
+                  <div className="col-span-2 md:col-span-1 md:col-start-4">
+                    <Label className="font-semibold text-gray-700">Colore Esterno</Label>
+                    <Input
+                      type="text"
+                      value={newItem.coloreEsterno || ''}
+                      onChange={e => updateItemField('coloreEsterno', e.target.value)}
+                      placeholder="Es. RAL 7016, Noce..."
+                      className="mt-1.5 h-11 rounded-xl bg-white"
+                    />
+                  </div>
+                )}
 
                 {newItem.sistemaCamId && (
                   <>

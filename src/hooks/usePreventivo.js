@@ -28,6 +28,13 @@ const coloreScritto = (valore) => {
 /** Colore da scrivere sul preventivo: quello dell'utente, se l'ha scritto. */
 const coloreInfisso = (item) => item?.colorName || coloreScritto(item?.frameColor);
 
+/**
+ * Il colore esterno del bicolore. Senza la spunta "Bicolore" non conta,
+ * nemmeno se nel campo e' rimasto scritto qualcosa: fuori e dentro sono lo
+ * stesso colore, quello dell'infisso.
+ */
+const coloreEsternoDi = (item) => (item?.bicolore && String(item?.coloreEsterno || '').trim()) || '';
+
 // Quantita' scritta all'italiana: "12,5", "1.250,5", "1.250". Un semplice
 // cambio della virgola trasformava "1.250,5" in NaN, e la voce passava in
 // silenzio a quantita' 1. Stessa regola del campo "prezzo dal totale".
@@ -163,7 +170,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const defaultNewItem = {
     apertura: 'Battente', numAnte: 1, hasTraverso: false, traversoHeight: 1000,
     vetroInferioreId: '', hasSopraluce: false, sopraluceHeight: '', sopraluceDivisioni: 1, handlePosition: 'Centrale',
-    width: '', height: '', quantity: 1, frameColor: '#ffffff', colorName: '',
+    width: '', height: '', quantity: 1, frameColor: '#ffffff', colorName: '', bicolore: false, coloreEsterno: '',
     sistemaCamId: '', complementoAction: 'Molla', complementoCalcType: 'mq', tapparellaAnte: 1,
     tapparelleEscluse: [], tapparelleDescrizione: 'Tapparelle in PVC',
     marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: '',
@@ -638,7 +645,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         customImage: newItem.customImage || null,
         anteAsimmetriche: newItem.anteAsimmetriche || false, anteWidths: newItem.anteWidths || null,
         sistema_cam: sistemaCam,
-        colInt: coloreInfisso(newItem) || specs.colInt || '', colEst: coloreInfisso(newItem) || specs.colEst || '',
+        colInt: coloreInfisso(newItem) || specs.colInt || '',
+        colEst: coloreEsternoDi(newItem) || coloreInfisso(newItem) || specs.colEst || '',
+        bicolore: !!coloreEsternoDi(newItem),
         accessori: newItem.accessoriColore || specs.accessori || '', serrature: specs.serrature || '',
         vetro: (isPersiana || isBlindata || senzaVetro) ? '' : newItem.vetro,
         colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''), colCanalina: (isPersiana || isBlindata) ? '' : (specs.colCanalina || ''),
@@ -719,6 +728,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     sistemaCamId: prev.sistemaCamId || '', calcType: prev.calcType || 'mq',
     basePrice: prev.basePrice, isManualBasePrice: !!prev.isManualBasePrice,
     marca: prev.marca || '', frameColor: prev.frameColor, colorName: prev.colorName || '',
+    bicolore: !!prev.bicolore, coloreEsterno: prev.coloreEsterno || '',
     previewColor: prev.previewColor || null, accessoriColore: prev.accessoriColore || '',
     previewAccessoriColor: prev.previewAccessoriColor || null,
     vetroFinestreId: prev.vetroFinestreId || '', vetroBalconiId: prev.vetroBalconiId || '',
@@ -1015,7 +1025,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
           marca: sistemaCam.marca || '',
           description3: isBlindata ? 'Porta Blindata di Sicurezza' : [sistemaCam.marca, sistemaCam.nome].filter(Boolean).join(' - '),
           colInt: coloreInfisso(item) || specs.colInt || '',
-          colEst: coloreInfisso(item) || specs.colEst || '',
+          colEst: coloreEsternoDi(raw) || coloreInfisso(item) || specs.colEst || '',
           accessori: item.accessoriColore || raw.accessoriColore || specs.accessori || '',
           serrature: specs.serrature || '',
           colRmp: (isPersiana || isBlindata) ? '' : (specs.colRmp || ''),
@@ -1051,7 +1061,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // Il colore scritto a mano: il disegno ne ricava la tinta dal nome,
         // e una tinta scelta col selettore sul pezzo vecchio non vale piu'.
         nuovoRaw = { ...nuovoRaw, frameColor: coloreNuovo, colorName: '', previewColor: null };
-        agg = { ...agg, frameColor: coloreNuovo, colorName: '', previewColor: null, colInt: coloreStampa || agg.colInt, colEst: coloreStampa || agg.colEst };
+        // Sul bicolore il colore nuovo e' quello interno: l'esterno, scritto
+        // apposta, resta il suo.
+        agg = { ...agg, frameColor: coloreNuovo, colorName: '', previewColor: null, colInt: coloreStampa || agg.colInt, colEst: coloreEsternoDi(raw) || coloreStampa || agg.colEst };
       }
 
       const prima = Number(calculateWindowPrice({ ...raw, paneConfigs: ante }, sistemiCam).unitPrice);

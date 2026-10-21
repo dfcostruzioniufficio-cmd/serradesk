@@ -171,7 +171,7 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
 
   const heightSignature = actualItems.map(i => [
     i.id, i.type, i.width, i.height, i.description2, i.description3,
-    i.marca, i.colInt, i.colorName, i.colore, i.vetro, i.hasTraverso,
+    i.marca, i.colInt, i.colEst, i.bicolore, i.colorName, i.colore, i.vetro, i.hasTraverso,
     i.hasSopraluce, i.customDescription, i.quantity, i.unitPrice, i.trasmittanza,
     // Le note allungano la riga dell'articolo: senza di loro qui, cambiandole
     // l'impaginazione resterebbe quella di prima e l'ultima riga sborderebbe.
@@ -533,7 +533,13 @@ export default function QuotePDFTemplate({ quoteData, userSettings, userEmail, i
                 </div>
               )}
               
-              {(item.colorName || item.colInt || item.colore) && (
+              {item.bicolore && item.colEst ? (
+                <div className="flex flex-col bg-slate-50 rounded-md px-2 py-1.5 border border-slate-100">
+                  <span className="text-indigo-400/80 font-bold uppercase tracking-wider text-[6px] mb-[2px]">Colore</span>
+                  <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">Int. {item.colInt || item.colorName || item.colore || 'da definire'}</span>
+                  <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">Est. {item.colEst}</span>
+                </div>
+              ) : (item.colorName || item.colInt || item.colore) && (
                 <div className="flex flex-col bg-slate-50 rounded-md px-2 py-1.5 border border-slate-100">
                   <span className="text-indigo-400/80 font-bold uppercase tracking-wider text-[6px] mb-[2px]">Colore</span>
                   <span className="font-bold text-slate-800 text-[10px] leading-tight break-words pr-2">{item.colInt || item.colorName || item.colore}</span>
