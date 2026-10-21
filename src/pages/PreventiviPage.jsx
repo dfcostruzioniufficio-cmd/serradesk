@@ -625,8 +625,19 @@ export default function PreventiviPage() {
   };
 
   // La stessa tavola in PDF, per chi non ha un programma CAD.
+  // Aperto a tutti gli abbonati il 21/10/2026: stessa regola del PDF del
+  // preventivo (il DXF resta solo per l'amministratore).
   const handleExportAbacoPdf = async () => {
-    if (!puoScaricareDxf) return;
+    if (!userProfile) {
+      toast.info("Per scaricare l'abaco serve un abbonamento attivo.");
+      navigate('/login?mode=signup');
+      return;
+    }
+    if (needsPayment) {
+      toast.info("Serve un abbonamento attivo per scaricare l'abaco.");
+      navigate('/dashboard');
+      return;
+    }
     const { intestazione, firma, nome } = datiAbaco();
     let pdf;
     try {
@@ -737,7 +748,7 @@ export default function PreventiviPage() {
         onCreateVariant={handleCreateVariant}
         onExportPDF={handleExportPDF}
         onExportDXF={puoScaricareDxf ? handleExportDXF : null}
-        onExportAbacoPdf={puoScaricareDxf ? handleExportAbacoPdf : null}
+        onExportAbacoPdf={handleExportAbacoPdf}
         onExportDistinta={handleExportDistinta}
         canAccessCAM={canAccessCAM}
         isSaving={isSaving}
