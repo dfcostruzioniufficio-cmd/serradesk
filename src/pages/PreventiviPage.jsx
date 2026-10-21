@@ -472,8 +472,9 @@ export default function PreventiviPage() {
     p.setEditingOrderId(null);
     p.setEditingOrderStato('Bozza');
     // La copia e' un preventivo nuovo: non eredita gli acconti dell'originale,
-    // e il suo numero lo dara' il database al primo salvataggio.
-    p.setAltriDatiMeta({});
+    // e il suo numero lo dara' il database al primo salvataggio. Tiene invece
+    // la scelta di non stampare l'IVA: persa, al cliente partiva il PDF ivato.
+    p.setAltriDatiMeta((m) => (m?.ivaNascosta ? { ivaNascosta: true } : {}));
     p.setNumeroPreventivo(null);
     
     if (isClientePuntoAlluminio(userEmail) && p.clientName) {
@@ -852,6 +853,7 @@ export default function PreventiviPage() {
               items={p.items}
               sconto={p.sconto}
               iva={p.iva}
+              ivaNascosta={ivaNascosta}
               onApplica={p.setItems}
             />
          </div>

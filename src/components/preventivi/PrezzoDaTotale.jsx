@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calculator } from 'lucide-react';
 import { toast } from 'sonner';
 import { calculateItemMq } from '../../hooks/usePricingEngine';
@@ -32,9 +32,13 @@ const leggiImporto = (valore) => {
   return Number(s) || 0;
 };
 
-export default function PrezzoDaTotale({ items, sconto, iva, onApplica }) {
+export default function PrezzoDaTotale({ items, sconto, iva, ivaNascosta = false, onApplica }) {
   const [totaleDesiderato, setTotaleDesiderato] = useState('');
-  const [ivaInclusa, setIvaInclusa] = useState(true);
+  const [ivaInclusa, setIvaInclusa] = useState(!ivaNascosta);
+  // Col PDF senza IVA il totale che si ha in mente e' quello senza IVA: e'
+  // il numero che il cliente leggera'. Partendo da "IVA inclusa" il PDF
+  // usciva piu' basso di un quinto.
+  useEffect(() => { setIvaInclusa(!ivaNascosta); }, [ivaNascosta]);
 
   const articoli = (items || []).filter(i => i.type !== 'metadata');
   const scalabili = articoli.filter(siScalaSuiMq);

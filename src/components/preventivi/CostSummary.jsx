@@ -54,7 +54,7 @@ export default function CostSummary({
         </div>
         
         <div className="flex justify-between items-end pt-2">
-          <span className="text-gray-800 font-bold">TOTALE:</span>
+          <span className="text-gray-800 font-bold">{ivaNascosta ? 'TOTALE (IVA inclusa):' : 'TOTALE:'}</span>
           <span className="text-2xl font-black text-primary">
             € {formatCurrency(totalePreventivo)}
           </span>
