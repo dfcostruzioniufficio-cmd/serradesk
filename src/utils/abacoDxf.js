@@ -684,7 +684,18 @@ export function costruisciTavola(items, { intestazione = '', firma = true } = {}
 
   const sinistra = d.lim.x0;
   const titolo = testoAscii(intestazione);
-  d.testo('TAVOLA', sinistra, d.lim.y1 + 500, 260, titolo ? `ABACO SERRAMENTI - ${titolo}` : 'ABACO SERRAMENTI');
+  // Il titolo va a capo dentro la larghezza dei disegni (o della legenda, se
+  // e' piu' larga): con un'intestazione lunga e pochi serramenti usciva dal
+  // foglio. Il conto dei caratteri e' largo apposta, perche' le maiuscole nel
+  // PDF occupano piu' della stima usata per impaginare il resto.
+  const H_TITOLO = 260;
+  const spazioTitolo = Math.max(d.lim.x1 - sinistra, 14500);
+  const righeTitolo = aCapo(titolo ? `ABACO SERRAMENTI - ${titolo}` : 'ABACO SERRAMENTI',
+    Math.max(20, Math.floor(spazioTitolo / (H_TITOLO * 0.95))));
+  const yTitolo = d.lim.y1 + 500;
+  righeTitolo.forEach((riga, i) => {
+    d.testo('TAVOLA', sinistra, yTitolo + (righeTitolo.length - 1 - i) * H_TITOLO * 1.6, H_TITOLO, riga);
+  });
 
   const legenda = disegnaLegenda(d, celle, sinistra, d.lim.y0 - 1000);
   const destra = Math.max(d.lim.x1, sinistra + legenda.larga);

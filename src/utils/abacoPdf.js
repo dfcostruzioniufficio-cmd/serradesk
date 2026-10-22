@@ -79,7 +79,17 @@ export async function generaAbacoPdf(items, opzioni = {}) {
       }
     } else if (e.tipo === 'TEXT') {
       doc.setFontSize((e.h * k * PUNTI_PER_MM) / MAIUSCOLE);
-      const w = doc.getTextWidth(e.testo);
+      let w = doc.getTextWidth(e.testo);
+      // Rete di sicurezza: un testo orizzontale che finirebbe oltre il bordo
+      // della tavola si rimpicciolisce quanto basta per starci dentro.
+      if (!e.rotazione) {
+        const partenza = X(e.x) - (e.allinea === 1 ? w / 2 : e.allinea === 2 ? w : 0);
+        const spazio = X(x1) - partenza;
+        if (spazio > 0 && w > spazio) {
+          doc.setFontSize(((e.h * k * PUNTI_PER_MM) / MAIUSCOLE) * (spazio / w));
+          w = doc.getTextWidth(e.testo);
+        }
+      }
       const spostamento = e.allinea === 1 ? w / 2 : e.allinea === 2 ? w : 0;
       // L'allineamento lo si fa a mano: con il testo ruotato jsPDF lo
       // ignora, e la quota verticale finiva tutta sopra la sua linea.
