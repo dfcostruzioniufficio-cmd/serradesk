@@ -99,6 +99,7 @@ export default function LivePreview({ newItem, paneConfigs, profilo = null }) {
             maniglioneAntipanico={newItem.maniglioneAntipanico}
             maniglioneAnte={newItem.maniglioneAnte}
             profilo={profilo}
+            disegnoLibero={newItem.disegnoLibero}
           />
           )
         )}

@@ -1,6 +1,7 @@
 import { mqTapparella } from '../utils/tapparella';
 import { sonoSovrapposte } from '../utils/anteSovrapposte';
 import { ePersiana } from '../utils/persianaEngine';
+import { disegnoDi, metriDelDisegno } from '../utils/disegnoLibero';
 /**
  * usePricingEngine.js
  * Motore di calcolo prezzi estratto da PreventiviPage.
@@ -70,10 +71,18 @@ export function anteApribili(item) {
  * orizzontali e lunghi L.
  */
 export function metriAnteERiporti(item, wM, hM) {
+  // Disegno libero: il perimetro delle ante che si aprono, e i montanti e
+  // traversi del telaio, che pesano come profilo di telaio. Riporti no:
+  // fra due vani c'e' sempre la divisione del telaio.
+  const disegno = disegnoDi(item);
+  if (disegno) {
+    const m = metriDelDisegno(disegno, wM * 1000, hM * 1000);
+    return { anta: m.anta, riporto: 0, divisori: m.divisori };
+  }
   const numAnte = Number(item.numAnte) || 1;
   const sovrapposte = sonoSovrapposte(item);
   const [antaW, antaH, nodo] = sovrapposte ? [wM, hM / numAnte, wM] : [wM / numAnte, hM, hM];
-  return { anta: (antaW + antaH) * 2 * numAnte, riporto: numAnte > 1 ? nodo * (numAnte - 1) : 0 };
+  return { anta: (antaW + antaH) * 2 * numAnte, riporto: numAnte > 1 ? nodo * (numAnte - 1) : 0, divisori: 0 };
 }
 
 /** Minimo fatturabile e maggiorazione per ante, contando solo le apribili. */
@@ -176,12 +185,12 @@ export function calculateWindowPrice(item, sistemiCam) {
       const pesoAnta = Number(sysProfilo.profilo_anta?.peso_kg_ml) || 0;
       const pesoRiporto = Number(sysProfilo.profilo_riporto?.peso_kg_ml) || 0;
 
-      const kgTelaio = (wM + hM) * 2 * pesoTelaio;
+      const metri = metriAnteERiporti(item, wM, hM);
+      const kgTelaio = ((wM + hM) * 2 + metri.divisori) * pesoTelaio;
       let kgAnta = 0;
       let kgRiporto = 0;
 
       if (!isFisso && numAnte > 0) {
-        const metri = metriAnteERiporti(item, wM, hM);
         kgAnta = metri.anta * pesoAnta;
         kgRiporto = metri.riporto * pesoRiporto;
       }
@@ -223,12 +232,12 @@ export function calculateWindowPrice(item, sistemiCam) {
         const pesoAnta = Number(sysProfilo.profilo_anta?.peso_kg_ml) || 0;
         const pesoRiporto = Number(sysProfilo.profilo_riporto?.peso_kg_ml) || 0;
 
-        const kgTelaio = (wM + hM) * 2 * pesoTelaio;
+        const metri = metriAnteERiporti(item, wM, hM);
+        const kgTelaio = ((wM + hM) * 2 + metri.divisori) * pesoTelaio;
         let kgAnta = 0;
         let kgRiporto = 0;
 
         if (!isFisso && numAnte > 0) {
-          const metri = metriAnteERiporti(item, wM, hM);
           kgAnta = metri.anta * pesoAnta;
           kgRiporto = metri.riporto * pesoRiporto;
         }

@@ -1,4 +1,5 @@
 import { sonoSovrapposte } from './anteSovrapposte';
+import { disegnoDi, riquadriVetro } from './disegnoLibero';
 /**
  * Trasmittanza termica del serramento, Uw, secondo UNI EN ISO 10077-1:
  *
@@ -105,7 +106,16 @@ export function calcolaUw(item, sistemiCam) {
 
   // Ogni riquadro di vetro: [larghezza, altezza] in metri.
   const riquadri = [];
-  if (!fisso && sonoSovrapposte(item)) {
+  const disegno = disegnoDi(item);
+  if (disegno) {
+    // Disegno libero: un vetro per vano, con i profili che lo circondano.
+    riquadri.push(...riquadriVetro(disegno, W * 1000, H * 1000, {
+      lato: mm(vista.lato_mm, t.lato) * 1000,
+      fisso: mm(vista.fisso_mm, t.fisso) * 1000,
+      nodo: nodo * 1000,
+      traverso: bt * 1000,
+    }));
+  } else if (!fisso && sonoSovrapposte(item)) {
     // Ante una sopra l'altra: ogni vetro e' a tutta larghezza, e fra un'anta
     // e l'altra c'e' un traverso del telaio con le due ante. Niente sopraluce
     // ne' traversa d'anta.

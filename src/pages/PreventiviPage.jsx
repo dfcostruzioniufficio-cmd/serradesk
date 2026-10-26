@@ -796,6 +796,7 @@ export default function PreventiviPage() {
               applicaVetriAlPreventivo={p.applicaVetriAlPreventivo}
               paneConfigs={p.paneConfigs}
               aggiornaAnte={p.aggiornaAnte}
+              applicaDisegnoLibero={p.applicaDisegnoLibero}
               isCustomerMode={isCustomerMode}
               userEmail={userEmail}
             />

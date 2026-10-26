@@ -8,6 +8,7 @@ import { calcolaUw, formattaUw } from '../utils/trasmittanza';
 import { descriviComposto, moduliValidi } from '../utils/composto';
 import { mqTapparella, spiegaMqTapparella, righeTapparelle, totaleTapparelle, AVVOLGIMENTO_MM } from '../utils/tapparella';
 import { sonoSovrapposte } from '../utils/anteSovrapposte';
+import { anteDelDisegno, descriviDisegno, disegnoDi, vaniTroppoPiccoli, nominaVani, MINIMO_PARTE_MM } from '../utils/disegnoLibero';
 
 /**
  * Il colore scritto a mano nel campo "Colore Infisso".
@@ -176,7 +177,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     marca: '', vetro: '', trasmittanza: '', calcType: 'mq', basePrice: 500.00, accessoriColore: '',
     noteArticolo: '',
     composto: false, moduli: [], accoppiamentoMm: 30,
-    vetroFinestreId: '', vetroBalconiId: '', vetroScelto: false
+    vetroFinestreId: '', vetroBalconiId: '', vetroScelto: false,
+    disegnoLibero: null
   };
 
   const [newItem, setNewItem] = useState(defaultNewItem);
@@ -336,6 +338,38 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       : prev));
   };
 
+  /**
+   * Il disegno libero, dall'editor del modulo. Ogni modifica riscrive anche
+   * le ante come le legge il resto del programma (anteDelDisegno): prezzo
+   * con minimi e maggiorazioni sulle ante che si aprono, descrizione,
+   * tapparelle. Traverso, sopraluce, ante impilate o asimmetriche e composto
+   * li' non ci sono: li fa il disegno. null torna al disegno normale, da 1
+   * anta.
+   */
+  const applicaDisegnoLibero = (disegno) => {
+    const ante = disegno ? anteDelDisegno(disegno) : { numAnte: 1, paneConfigs: [{ handleEdge: 'right' }] };
+    // Cambiando il numero di ante la configurazione si rifarebbe da capo
+    // (vedi l'effetto qui sopra) e i tipi dei vani andrebbero persi.
+    if (ante.numAnte !== Number(newItem.numAnte)) skipPaneResetRef.current = true;
+    paneConfigsRef.current = ante.paneConfigs;
+    setPaneConfigs(ante.paneConfigs);
+    setNewItem((prev) => {
+      const agg = {
+        ...prev,
+        disegnoLibero: disegno || null,
+        numAnte: ante.numAnte,
+        ...(disegno ? {
+          apertura: 'Battente', hasTraverso: false, hasSopraluce: false, anteSovrapposte: false,
+          anteAsimmetriche: false, antaRibalta: false, soloRibalta: false, composto: false,
+          maniglioneAntipanico: false, maniglioneAnte: null,
+        } : {}),
+      };
+      if (itemType !== 'window') return agg;
+      const { unitPrice, basePrice } = calculateWindowPrice({ ...agg, paneConfigs: ante.paneConfigs }, sistemiCam);
+      return { ...agg, basePrice, ...(unitPrice ? { unitPrice } : {}) };
+    });
+  };
+
   const updateItemField = (field, value) => {
     setNewItem(prevItem => {
       let updatedItem = { ...prevItem, [field]: value };
@@ -452,6 +486,15 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // cosa ci sia dentro.
       if (newItem.composto && moduliValidi(newItem.moduli).length < 2) {
         toast.error('Il serramento composto vuole almeno due moduli con larghezza e altezza.');
+        return;
+      }
+      // Un vano di pochi centimetri nel disegno libero non si costruisce:
+      // nasce stringendo il serramento dopo averlo diviso.
+      const piccoli = !newItem.composto && disegnoDi(newItem)
+        ? vaniTroppoPiccoli(newItem.disegnoLibero, Number(newItem.width), Number(newItem.height))
+        : [];
+      if (piccoli.length) {
+        toast.error(`Nel disegno ${nominaVani(piccoli)} ${piccoli.length === 1 ? 'è più piccolo' : 'sono più piccoli'} di ${MINIMO_PARTE_MM} mm: sposta un montante o un traverso.`);
         return;
       }
     } else if (itemType === 'complemento') {
@@ -576,7 +619,14 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       // sono gia' divise dal traverso del telaio, e l'anta 1 e' quella in alto.
       const sovrapposte = sonoSovrapposte(newItem);
       const anteDescritte = senzaAnte ? '' : descriviAnte(paneConfigs, Math.max(1, Number(newItem.numAnte) || 1), newItem.apertura, !sovrapposte && !!newItem.hasTraverso, sovrapposte);
-      let desc2 = newItem.composto
+      // Disegno libero: la descrizione dice vano per vano, coi numeri
+      // scritti nel disegno. Le ante si rileggono dal disegno anche qui, cosi'
+      // l'articolo non puo' uscire con quelle di un serramento precedente.
+      const disegno = !newItem.composto ? disegnoDi(newItem) : null;
+      const anteDisegno = disegno ? anteDelDisegno(disegno) : null;
+      let desc2 = disegno
+        ? descriviDisegno(disegno)
+        : newItem.composto
         ? descriviComposto(newItem.moduli)
         : sovrapposte
           ? `FINESTRA ${anteText} UNA SOPRA L'ALTRA${anteDescritte ? ` (DALL'ALTO): ${anteDescritte}` : ''}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`
@@ -625,13 +675,15 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         // e nel titolo del PDF ci va quello che il serramento e' davvero.
         model: newItem.composto
           ? 'SERRAMENTO COMPOSTO'
+          : disegno ? 'SERRAMENTO SU DISEGNO'
           : [nomeApertura, anteText, sovrapposte ? 'SOVRAPPOSTE' : ''].filter(Boolean).join(' '),
-        apertura: newItem.apertura, numAnte: newItem.numAnte,
+        apertura: newItem.apertura, numAnte: anteDisegno ? anteDisegno.numAnte : newItem.numAnte,
+        disegnoLibero: disegno,
         antaRibalta: hasRibalta, soloRibalta, hasTraverso: sovrapposte ? false : newItem.hasTraverso, traversoHeight: Number(newItem.traversoHeight),
         hasSopraluce: sovrapposte ? false : newItem.hasSopraluce, sopraluceHeight: Number(newItem.sopraluceHeight),
         anteSovrapposte: sovrapposte,
         sopraluceDivisioni: Math.max(1, Math.min(6, Number(newItem.sopraluceDivisioni) || 1)),
-        handlePosition: newItem.handlePosition, paneConfigs: [...paneConfigs],
+        handlePosition: newItem.handlePosition, paneConfigs: anteDisegno ? anteDisegno.paneConfigs : [...paneConfigs],
         // La spunta si vedeva nell'anteprima ma non veniva copiata
         // nell'articolo: nel preventivo e nel PDF tornava la maniglia normale.
         maniglioneAntipanico: !!newItem.maniglioneAntipanico,
@@ -667,7 +719,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         composto: !!newItem.composto,
         moduli: newItem.composto ? (newItem.moduli || []).map((m) => ({ ...m })) : null,
         accoppiamentoMm: Number(newItem.accoppiamentoMm) || 30,
-        rawInput: { ...newItem, itemType: 'window', paneConfigs: [...paneConfigs] }
+        rawInput: { ...newItem, itemType: 'window', paneConfigs: anteDisegno ? anteDisegno.paneConfigs : [...paneConfigs] }
       };
       if (isEditing) newItemsList[targetIndex] = newItemObj;
       else newItemsList.push(newItemObj);
@@ -781,7 +833,8 @@ export function usePreventivo(isRestoring, setIsRestoring) {
   const applicaModello = (props) => {
     // Un modello dice com'e' fatto il serramento: le ante impilate le si
     // sceglie dopo, con la spunta, come per i bottoni rapidi (RIPULITI).
-    updateItemFields({ antaRibalta: false, soloRibalta: false, anteSovrapposte: false });
+    // Anche il disegno libero: un modello e' un serramento fatto in un altro modo.
+    updateItemFields({ antaRibalta: false, soloRibalta: false, anteSovrapposte: false, disegnoLibero: null });
     azzeraTipiAnte();
     // Scegliere "2 ante" su un composto non faceva niente di visibile: il
     // disegno del composto resta nascosto e il prezzo restava d'ingombro.
@@ -1120,7 +1173,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     clientName, setClientName, clientData, setClientData, sconto, setSconto, note, setNote, riferimento, setRiferimento, altriDatiMeta, setAltriDatiMeta, iva, setIva,
     items, setItems, itemType, setItemType, scegliTipo, editingOrderId, setEditingOrderId,
     editingOrderStato, setEditingOrderStato, numeroPreventivo, setNumeroPreventivo,
-    showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte,
+    showConfigurator, setShowConfigurator, showGallery, setShowGallery, paneConfigs, setPaneConfigs, aggiornaAnte, azzeraTipiAnte, applicaDisegnoLibero,
     editingIndex, setEditingIndex, newItem, setNewItem, barLength, setBarLength,
     sistemiCam, archivioVuoto, handleAddItem, handleEditItem, duplicaItem, applicaModello, applicaVetriAlPreventivo, handleCancelEdit, removeItem,
     updateItemField, updateItemFields, defaultNewItem, imponibile, scontoAmount, imponibileScontato,

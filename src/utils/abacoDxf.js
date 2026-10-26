@@ -1,6 +1,7 @@
 import { vistaProfili } from './trasmittanza';
 import { sonoSovrapposte } from './anteSovrapposte';
 import { moduliValidi, larghezzaModuli, ACCOPPIAMENTO_MM } from './composto';
+import { disegnoDi, geometria } from './disegnoLibero';
 
 /**
  * L'abaco del preventivo come disegno DXF, da aprire in AutoCAD, BricsCAD,
@@ -419,6 +420,74 @@ function disegnaFinestra(d, a) {
   return pianta;
 }
 
+/**
+ * Un serramento fatto col disegno libero: telaio, montanti e traversi alle
+ * loro misure, e ogni vano col suo vetro, la sua anta e il suo simbolo
+ * d'apertura. Il disegno a schermo ha la y verso il basso, qui sale: un
+ * vano a y dall'alto sta a H - y - h dal basso.
+ */
+function disegnaDisegnoLibero(d, a, disegno) {
+  const W = Number(a.width);
+  const H = Number(a.height);
+  const vista = vistaProfili(a.profilo);
+  const AT = Math.min(vista.lato * 0.75, vista.nodo / 2);
+  const FT = Math.max(20, vista.lato - AT);
+  const TT = vista.traverso;
+  d.rett('TELAIO', 0, 0, W, H);
+  if (W > 2 * FT && H > 2 * FT) d.rett('TELAIO', FT, FT, W - 2 * FT, H - 2 * FT);
+
+  const { vani, divisioni } = geometria(disegno, W, H);
+  for (const div of divisioni) {
+    const p = div.parte;
+    if (div.tipo === 'montante') {
+      const y0 = H - (p.y + p.h) + (p.y + p.h >= H - 0.5 ? FT : 0);
+      const y1 = H - p.y - (p.y <= 0.5 ? FT : 0);
+      d.rett('TELAIO', div.x - TT / 2, y0, TT, y1 - y0);
+    } else {
+      const x0 = p.x + (p.x <= 0.5 ? FT : 0);
+      const x1 = p.x + p.w - (p.x + p.w >= W - 0.5 ? FT : 0);
+      d.rett('TELAIO', x0, H - div.y - TT / 2, x1 - x0, TT);
+    }
+  }
+
+  const pianta = [];
+  for (const v of vani) {
+    const sx = v.telaio.sinistra ? FT : TT / 2;
+    const dx = v.telaio.destra ? FT : TT / 2;
+    const su = v.telaio.sopra ? FT : TT / 2;
+    const giu = v.telaio.sotto ? FT : TT / 2;
+    const ax = v.x + sx;
+    const ay = H - (v.y + v.h) + giu;
+    const aw = v.w - sx - dx;
+    const ah = v.h - su - giu;
+    if (!(aw > 0 && ah > 0)) continue;
+    const apribile = v.apertura !== 'fissa';
+    const vas = v.apertura === 'vasistas';
+    if (apribile) {
+      d.rett('ANTE', ax, ay, aw, ah);
+      const gx = ax + AT, gy = ay + AT, gw = aw - 2 * AT, gh = ah - 2 * AT;
+      if (gw > 0 && gh > 0) {
+        d.rett('ANTE', gx, gy, gw, gh);
+        simboloApertura(d, gx, gy, gw, gh, { lato: v.lato, battente: !vas, ribalta: vas || v.apertura === 'ribalta' });
+      }
+      if (vas) d.rett('DETTAGLI', ax + aw / 2 - 70, ay + ah - AT / 2 - 12, 140, 24);
+      else d.rett('DETTAGLI', v.lato === 'right' ? ax + aw - AT / 2 - 12 : ax + AT / 2 - 12, ay + ah / 2 - 70, 24, 140);
+    } else {
+      // Un fisso e' vetro nel telaio: si disegna la linea del fermavetro.
+      d.rett('ANTE', ax + 20, ay + 20, aw - 40, ah - 40);
+    }
+    // Il numero del vano, lo stesso della descrizione.
+    if (vani.length > 1) d.testo('CODICI', ax + 60, ay + ah - 150, Math.min(90, aw / 4, ah / 4), String(v.numero));
+    if (v.telaio.sotto) {
+      pianta.push({
+        x0: ax, x1: ax + aw, lato: v.lato,
+        tipo: apribile ? (vas ? 'altro' : 'battente') : 'fisso',
+      });
+    }
+  }
+  return pianta.sort((p, q) => p.x0 - q.x0);
+}
+
 function disegnaPersiana(d, a) {
   const W = Number(a.width);
   const H = Number(a.height);
@@ -554,8 +623,10 @@ function disegnaArticolo(d, item, numero) {
   const moduli = item.composto ? moduliValidi(item.moduli || item.rawInput?.moduli) : [];
   const a = { ...item, profilo: item.sistema_cam };
 
+  const disegno = moduli.length ? null : disegnoDi(item);
   let ante;
-  if (moduli.length) ante = disegnaComposto(d, a, moduli);
+  if (disegno) ante = disegnaDisegnoLibero(d, a, disegno);
+  else if (moduli.length) ante = disegnaComposto(d, a, moduli);
   else if (apertura === 'Persiana' || apertura === 'Persiana Balcone') ante = disegnaPersiana(d, a);
   else if (apertura.toLowerCase() === 'porta blindata') ante = disegnaBlindata(d, a);
   else if (apertura === 'Cassonetto') ante = disegnaSemplice(d, a, 'CASSONETTO');
@@ -573,7 +644,16 @@ function disegnaArticolo(d, item, numero) {
     let x = 0;
     mm.forEach((w) => { quotaOrizzontale(d, x, x + w, -130, Math.round(w)); x += w; });
   }
-  if (item.hasSopraluce && !moduli.length) {
+  if (disegno) {
+    // Le larghezze dei vani in basso e le altezze di quelli sul lato
+    // destro, come nel disegno del PDF.
+    const { vani } = geometria(disegno, W, H);
+    const inBasso = vani.filter((v) => v.telaio.sotto).sort((p, q) => p.x - q.x);
+    const aDestra = vani.filter((v) => v.telaio.destra).sort((p, q) => p.y - q.y);
+    if (inBasso.length > 1) inBasso.forEach((v) => quotaOrizzontale(d, v.x, v.x + v.w, -130, Math.round(v.w)));
+    if (aDestra.length > 1) aDestra.forEach((v) => quotaVerticale(d, H - v.y - v.h, H - v.y, W + 200, Math.round(v.h)));
+  }
+  if (item.hasSopraluce && !moduli.length && !disegno) {
     const sH = Math.min(Number(item.sopraluceHeight) || 400, H * 0.7);
     quotaVerticale(d, H - sH, H, W + 200, Math.round(sH));
   }

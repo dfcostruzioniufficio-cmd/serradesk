@@ -9,6 +9,7 @@
 
 import { ePersiana, sistemaPersiana, calcolaPersiana, datiMancantiPersiana, ferramentaPersiana } from './persianaEngine.js';
 import { sonoSovrapposte } from './anteSovrapposte.js';
+import { disegnoDi } from './disegnoLibero.js';
 
 const KERF     = 4;
 const END_TRIM = 20;
@@ -235,6 +236,20 @@ export function runCamEngine(items, barLength = 6500) {
         apertura: 'Serramento composto',
         descrizione: item.model || 'Serramento composto',
         motivo: 'Un composto va tagliato modulo per modulo, piu\' il profilo di accoppiamento.',
+      });
+      continue;
+    }
+
+    // Il disegno libero ha montanti e traversi del telaio messi dove si
+    // vuole: i tagli dipendono dai nodi fra telaio, divisioni e ante, che
+    // il motore oggi non conosce. Meglio dirlo che tagliarlo come una
+    // finestra a ante affiancate che non e'.
+    if (disegnoDi(item)) {
+      apertureNonSupportate.push({
+        itemId: item.id,
+        apertura: 'Disegno libero',
+        descrizione: item.model || 'Serramento su disegno',
+        motivo: 'Il disegno libero non e\' ancora nella distinta: montanti e traversi a misura vanno tagliati a mano.',
       });
       continue;
     }

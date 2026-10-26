@@ -1,3 +1,5 @@
+import { disegnoDi, vaniInBasso } from './disegnoLibero';
+
 /**
  * Metri quadri fatturati di una tapparella.
  *
@@ -69,7 +71,10 @@ export function righeTapparelle(items = []) {
     .map((item, indice) => ({ item, indice }))
     .filter(({ item }) => copribileDaTapparella(item))
     .map(({ item, indice }) => {
-      const numAnte = Math.max(1, Number(item.numAnte) || 1);
+      // Col disegno libero le "ante" sono tutti i vani, anche il sopraluce:
+      // per il minimo della tapparella contano quelli affiancati in basso.
+      const disegno = disegnoDi(item);
+      const numAnte = disegno ? vaniInBasso(disegno) : Math.max(1, Number(item.numAnte) || 1);
       const quantita = Math.max(1, Number(item.quantity) || 1);
       const calcolo = mqTapparella({ width: item.width, height: item.height, numAnte });
       // Se sul serramento l'utente ha forzato la quadratura (per esempio la

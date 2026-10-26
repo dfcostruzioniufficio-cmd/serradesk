@@ -12,6 +12,8 @@ import WindowConfigurator from '../WindowConfigurator';
 import { moduloVuoto, larghezzaModuli, superficieModuli, moduliValidi } from '../../utils/composto';
 import { ALTEZZA_BALCONE_MM, SENZA_VETRO } from '../../hooks/usePreventivo';
 import { sonoSovrapposte } from '../../utils/anteSovrapposte';
+import { vanoNuovo, disegnoValido } from '../../utils/disegnoLibero';
+import DisegnoLiberoEditor from './DisegnoLiberoEditor';
 
 /**
  * I serramenti che si fanno di piu', a un clic. Dicono solo che cosa e' il
@@ -53,6 +55,7 @@ export default function ItemConfigurator({
   applicaVetriAlPreventivo,
   paneConfigs = [],
   aggiornaAnte,
+  applicaDisegnoLibero,
   isCustomerMode,
   userEmail
 }) {
@@ -173,7 +176,41 @@ export default function ItemConfigurator({
   const coloreScritto = /^#|^[0-9a-fA-F]{6}$/.test(String(newItem.frameColor || '').trim()) ? '' : String(newItem.frameColor || '').trim();
   const conVetro = !!newItem.sistemaCamId && !SENZA_VETRO.includes(newItem.apertura);
   const balcone = Number(newItem.height) >= ALTEZZA_BALCONE_MM;
-  const modelloAttivo = (m) => !newItem.composto
+  // Il disegno libero e' acceso: traverso, sopraluce, ante impilate o
+  // asimmetriche, composto, numero di ante e apertura li fa lui, e i loro
+  // comandi spariscono o si fermano.
+  const conDisegnoLibero = disegnoValido(newItem.disegnoLibero) && !newItem.composto;
+
+  /**
+   * Si passa al disegno libero partendo da quello che c'e' gia': le ante
+   * diventano vani divisi da montanti, alla stessa larghezza e con la loro
+   * apertura; il sopraluce diventa un vano fisso sopra un traverso.
+   */
+  const avviaDisegnoLibero = () => {
+    const n = Math.max(1, Math.min(6, Number(newItem.numAnte) || 1));
+    const W = Number(newItem.width) || 1000;
+    const H = Number(newItem.height) || 1000;
+    const globale = newItem.soloRibalta ? 'vasistas' : newItem.antaRibalta ? 'ribalta' : 'battente';
+    const vano = (i) => {
+      const c = paneConfigs?.[i] || {};
+      const apertura = newItem.apertura === 'Fisso' || c.tipo === 'fissa' ? 'fissa'
+        : ['battente', 'ribalta', 'vasistas'].includes(c.tipo) ? c.tipo : globale;
+      const lato = c.handleEdge === 'left' || c.handleEdge === 'right' ? c.handleEdge : (n > 1 && i === n - 1 ? 'left' : 'right');
+      return vanoNuovo(apertura, lato);
+    };
+    const larghezze = newItem.anteAsimmetriche && Array.isArray(newItem.anteWidths) && newItem.anteWidths.length === n
+      && newItem.anteWidths.every((w) => Number(w) > 0)
+      ? newItem.anteWidths.map(Number)
+      : Array(n).fill(W / n);
+    const ante = (i) => (i === n - 1 ? vano(i) : { tipo: 'montante', sinistra: Math.round(larghezze[i]), figli: [vano(i), ante(i + 1)] });
+    let disegno = ante(0);
+    if (newItem.hasSopraluce && !sonoSovrapposte(newItem) && Number(newItem.sopraluceHeight) > 0) {
+      disegno = { tipo: 'traverso', sotto: Math.round(H - Number(newItem.sopraluceHeight)), figli: [vanoNuovo('fissa'), disegno] };
+    }
+    applicaDisegnoLibero(disegno);
+  };
+
+  const modelloAttivo = (m) => !newItem.composto && !conDisegnoLibero
     && m.props.apertura === newItem.apertura
     && Number(m.props.numAnte) === Number(newItem.numAnte)
     && !!m.props.hasTraverso === !!newItem.hasTraverso;
@@ -433,7 +470,9 @@ export default function ItemConfigurator({
                 <select
                   value={newItem.apertura}
                   onChange={e => updateItemField('apertura', e.target.value)}
-                  className="mt-1 flex h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium hover:border-blue-300 transition-colors"
+                  disabled={conDisegnoLibero}
+                  title={conDisegnoLibero ? "Col disegno libero l'apertura si sceglie vano per vano" : undefined}
+                  className="mt-1 flex h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium hover:border-blue-300 transition-colors disabled:opacity-60"
                 >
                   <optgroup label="Finestre">
                     <option value="Battente">Battente</option>
@@ -454,7 +493,7 @@ export default function ItemConfigurator({
               </div>
               <div className="w-24">
                 <Label className="text-xs font-semibold text-gray-600">Ante</Label>
-                <Input type="number" min="1" max="6" value={newItem.numAnte} onChange={e => updateItemField('numAnte', parseInt(e.target.value) || 1)} className="mt-1 h-10 rounded-xl" />
+                <Input type="number" min="1" max="6" value={newItem.numAnte} disabled={conDisegnoLibero} title={conDisegnoLibero ? 'Col disegno libero i vani si fanno nel disegno' : undefined} onChange={e => updateItemField('numAnte', parseInt(e.target.value) || 1)} className="mt-1 h-10 rounded-xl" />
               </div>
             </div>
           </section>
@@ -526,7 +565,27 @@ export default function ItemConfigurator({
 
           {/* ── Disegno: ante, maniglie, traverso, sopraluce, vetro di questo pezzo ── */}
           <section id="tour-disegno" className="rounded-xl border border-gray-100 bg-gray-50/40 p-4 space-y-4">
-            {!newItem.composto && CON_DISEGNO.includes(newItem.apertura) && aggiornaAnte && (
+            {conDisegnoLibero && applicaDisegnoLibero && (
+              <DisegnoLiberoEditor
+                disegno={newItem.disegnoLibero}
+                width={newItem.width}
+                height={newItem.height}
+                frameColor={newItem.previewColor || newItem.frameColor}
+                accessoriColore={newItem.previewAccessoriColor || newItem.accessoriColore}
+                profilo={sistemiCam.find((s) => s.id === newItem.sistemaCamId) || null}
+                onChange={applicaDisegnoLibero}
+                onEsci={() => applicaDisegnoLibero(null)}
+              />
+            )}
+            {!conDisegnoLibero && !newItem.composto && applicaDisegnoLibero && ['Battente', 'Fisso'].includes(newItem.apertura) && (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-blue-200 bg-white px-3 py-2">
+                <span className="text-sm text-gray-600">Fissi laterali, sopraluce a misura, vasistas solo da un lato?</span>
+                <button type="button" onClick={avviaDisegnoLibero} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-blue-700">
+                  Disegno libero
+                </button>
+              </div>
+            )}
+            {!conDisegnoLibero && !newItem.composto && CON_DISEGNO.includes(newItem.apertura) && aggiornaAnte && (
               <WindowConfigurator
                 inline
                 numAnte={newItem.numAnte}
@@ -544,6 +603,7 @@ export default function ItemConfigurator({
               />
             )}
 
+            {!conDisegnoLibero && (
             <div className="flex flex-wrap gap-3">
               {/* Il maniglione delle porte blindate: il loro disegno non ha
                   ante da toccare, quindi resta la spunta. Sulle altre aperture
@@ -596,8 +656,9 @@ export default function ItemConfigurator({
                 </div>
               )}
             </div>
+            )}
 
-            {!SENZA_TRAVERSO.includes(newItem.apertura) && (newItem.hasTraverso || newItem.hasSopraluce) && (
+            {!conDisegnoLibero && !SENZA_TRAVERSO.includes(newItem.apertura) && (newItem.hasTraverso || newItem.hasSopraluce) && (
               <div className="flex flex-wrap gap-4">
                 {newItem.hasTraverso && (
                   <div className="flex flex-wrap items-center gap-3 bg-white p-2 px-3 rounded-lg border border-gray-200 shadow-sm">
@@ -732,6 +793,7 @@ export default function ItemConfigurator({
                   )}
                 </div>
 
+                {!conDisegnoLibero && (
                 <div>
                   <label className="inline-flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
                     <input
@@ -770,7 +832,9 @@ export default function ItemConfigurator({
                     </div>
                   )}
                 </div>
+                )}
 
+                {!conDisegnoLibero && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
@@ -881,6 +945,7 @@ export default function ItemConfigurator({
                     );
                   })()}
                 </div>
+                )}
 
                 {isCustomImageEnabled && (
                   <div className="flex flex-col gap-1.5 bg-white p-3 rounded-lg border border-purple-200 shadow-sm">

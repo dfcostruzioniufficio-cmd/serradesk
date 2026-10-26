@@ -3,6 +3,8 @@ import { getFrameColorHex, getAccessoriHex } from '../utils/colors';
 import { dimensioniDisegno } from '../lib/scalaDisegno';
 import { vistaProfili } from '../utils/trasmittanza';
 import { sonoSovrapposte } from '../utils/anteSovrapposte';
+import { disegnoValido } from '../utils/disegnoLibero';
+import DisegnoLiberoPreview from './DisegnoLiberoPreview';
 
 /**
  * WindowPreview — Finestra PVC iper-realistica con:
@@ -42,9 +44,24 @@ export default function WindowPreview({
   maxQuoteHeight = null,
   // Il sistema dell'archivio: da qui le larghezze a vista dei profili.
   profilo = null,
+  // Il disegno libero (utils/disegnoLibero): se c'e', comanda lui e ante,
+  // traverso e sopraluce qui sopra non contano.
+  disegnoLibero = null,
   isExporting = false
 }) {
-  const uid = React.useId().replace(/:/g, ''); 
+  const uid = React.useId().replace(/:/g, '');
+  // Dopo useId e non prima: un articolo che passa al disegno libero e
+  // torna indietro farebbe cambiare il numero di hook fra un disegno e
+  // l'altro, e React si fermerebbe sulla schermata rossa.
+  if (disegnoValido(disegnoLibero)) {
+    return (
+      <DisegnoLiberoPreview
+        disegno={disegnoLibero} width={width} height={height}
+        frameColor={frameColor} accessoriColore={accessoriColore} profilo={profilo}
+        maxQuoteWidth={maxQuoteWidth} maxQuoteHeight={maxQuoteHeight} isExporting={isExporting}
+      />
+    );
+  }
   const frameHex = getFrameColorHex(frameColor); 
   const anteCount = Math.max(1, Math.min(6, Number(numAnte)));
   const ante = Array.from({ length: anteCount });
