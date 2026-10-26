@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from 'sonner';
 import { calcolaUw, formattaUw } from '../../utils/trasmittanza';
 import { mqTapparella, spiegaMqTapparella } from '../../utils/tapparella';
 import { Button } from '@/components/ui/button';
@@ -208,6 +209,11 @@ export default function ItemConfigurator({
       disegno = { tipo: 'traverso', sotto: Math.round(H - Number(newItem.sopraluceHeight)), figli: [vanoNuovo('fissa'), disegno] };
     }
     applicaDisegnoLibero(disegno);
+    // Il traverso delle ante nel disegno libero non c'e': si rifa' con un
+    // traverso del telaio. Detto subito, perche' cambia vetro e prezzo.
+    if (newItem.hasTraverso && !sonoSovrapposte(newItem)) {
+      toast.info("Il traverso delle ante non passa nel disegno libero: aggiungilo con '+ Traverso' sul vano.");
+    }
   };
 
   const modelloAttivo = (m) => !newItem.composto && !conDisegnoLibero

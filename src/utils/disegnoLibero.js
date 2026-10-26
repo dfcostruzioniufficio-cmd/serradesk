@@ -73,7 +73,9 @@ export function disegnoValido(nodo) {
  * con lo stesso nome.
  */
 export function disegnoDi(item) {
-  const d = item?.disegnoLibero ?? item?.rawInput?.disegnoLibero;
+  // Il campo dell'articolo, se c'e' (anche null), comanda su rawInput:
+  // un articolo che il disegno l'ha tolto non deve riprenderlo da li'.
+  const d = item && item.disegnoLibero !== undefined ? item.disegnoLibero : item?.rawInput?.disegnoLibero;
   return disegnoValido(d) ? d : null;
 }
 

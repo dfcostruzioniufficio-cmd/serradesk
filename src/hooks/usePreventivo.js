@@ -377,7 +377,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       if (field === 'sistemaCamId' && value) {
         const s = sistemiCam.find(sys => sys.id === value);
         if (s) {
-          updatedItem.apertura = aperturaDelProfilo(s);
+          // Col disegno libero l'apertura la fanno i vani: un profilo da fisso
+          // o da blindata la cambierebbe sotto il disegno, e il prezzo
+          // perderebbe minimi e ante apribili senza che nessuno lo veda.
+          if (!(disegnoDi(prevItem) && !prevItem.composto)) updatedItem.apertura = aperturaDelProfilo(s);
           updatedItem.marca = s.marca || '';
           updatedItem.vetro = s.specs?.vetro || '';
           updatedItem.accessoriColore = s.specs?.accessori || '';
