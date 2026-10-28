@@ -25,7 +25,6 @@ const PaywallPage = lazy(caricaPagina(() => import('./pages/PaywallPage')));
 const GuidaPage = lazy(caricaPagina(() => import('./pages/GuidaPage')));
 const ArticlePage = lazy(caricaPagina(() => import('./pages/ArticlePage')));
 const DistintaPage = lazy(caricaPagina(() => import('./pages/DistintaPage')));
-const SchedaRilievoPage = lazy(caricaPagina(() => import('./pages/SchedaRilievoPage')));
 const TerminiPage = lazy(caricaPagina(() => import('./pages/TerminiPage')));
 const PrivacyPage = lazy(caricaPagina(() => import('./pages/PrivacyPage')));
 const OnboardingPage = lazy(caricaPagina(() => import('./pages/OnboardingPage')));
@@ -133,7 +132,7 @@ function App() {
           <Route path="/rubrica"    element={session ? <ProtectedRoute><AppShell><RubricaPage /></AppShell></ProtectedRoute>    : <Navigate to="/login" />} />
           <Route path="/ordini"     element={session ? <ProtectedRoute><AppShell><OrdiniPage /></AppShell></ProtectedRoute>     : <Navigate to="/login" />} />
           <Route path="/distinta"   element={session ? <ProtectedRoute><AppShell><DistintaPage /></AppShell></ProtectedRoute>   : <Navigate to="/login" />} />
-          <Route path="/scheda-rilievo" element={session ? <ProtectedRoute><AppShell><SchedaRilievoPage /></AppShell></ProtectedRoute> : <Navigate to="/login" />} />
+          <Route path="/scheda-rilievo" element={<Navigate to="/preventivi" replace />} />
           <Route path="/settings"   element={session ? <ProtectedRoute><AppShell><SettingsPage /></AppShell></ProtectedRoute>   : <Navigate to="/login" />} />
           <Route path="/guida"      element={<GuidaPage />} />
           <Route path="/guida/:slug" element={<ArticlePage />} />

@@ -13,7 +13,6 @@ import {
   LayoutDashboard,
   Users,
   Save,
-  ClipboardList,
   Layers
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
@@ -25,7 +24,6 @@ import { useIsMobile } from '../hooks/use-mobile';
 const BASE_NAV = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Nuovo Preventivo', path: '/preventivi', icon: FilePlus2 },
-  { name: 'Scheda Rilievo', path: '/scheda-rilievo', icon: ClipboardList },
   { name: 'Rubrica Clienti', path: '/rubrica', icon: Users },
   { name: 'Archivio Ordini', path: '/ordini', icon: FolderOpen },
   // Layers e non Settings: l'ingranaggio e' gia' quello di Impostazioni, e

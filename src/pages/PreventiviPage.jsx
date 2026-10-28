@@ -326,29 +326,53 @@ export default function PreventiviPage() {
     if (data) setSavedClients(data);
   };
 
-  const handleSaveClient = async () => {
+  // nome e dati si possono passare gia' presi: la proposta dopo il salvataggio
+  // resta a schermo qualche secondo, e intanto il nome nel campo puo' cambiare.
+  const handleSaveClient = async (nome = p.clientName, dati = p.clientData) => {
     const user = session?.user;
-    if (!user || !p.clientName.trim()) return;
+    if (!user || !String(nome || '').trim()) return false;
 
     const clientPayload = {
       user_id: user.id,
-      name: p.clientName.trim(),
-      vat: p.clientData.vat || '',
-      phone: p.clientData.phone || '',
-      address: p.clientData.address || '',
-      email: p.clientData.email || ''
+      name: nome.trim(),
+      vat: dati?.vat || '',
+      phone: dati?.phone || '',
+      address: dati?.address || '',
+      email: dati?.email || ''
     };
 
-    const existing = savedClients.find(c => c.name.toLowerCase() === p.clientName.trim().toLowerCase());
+    const existing = savedClients.find(c => c.name.toLowerCase() === nome.trim().toLowerCase());
 
-    if (existing) {
-      await supabase.from('clienti').update(clientPayload).eq('id', existing.id);
-    } else {
-      await supabase.from('clienti').insert([clientPayload]);
-    }
-    
+    const { error } = existing
+      ? await supabase.from('clienti').update(clientPayload).eq('id', existing.id)
+      : await supabase.from('clienti').insert([clientPayload]);
+
     await fetchClients();
     setIsCrmOpen(false);
+    return !error;
+  };
+
+  // La rubrica non la apriva nessuno: dopo il salvataggio si propone di
+  // metterci il cliente con un tocco, anche col solo nome. Una volta per
+  // nome a sessione, e mai per chi e' gia' in rubrica.
+  const rubricaProposta = useRef(new Set());
+  const proponiRubrica = () => {
+    const nome = String(p.clientName || '').trim();
+    const chiave = nome.toLowerCase();
+    if (!nome || / - Variante [A-Z]$/.test(nome)) return;
+    if (rubricaProposta.current.has(chiave) || savedClients.some(c => String(c.name || '').trim().toLowerCase() === chiave)) return;
+    rubricaProposta.current.add(chiave);
+    const dati = { ...p.clientData };
+    toast(`Vuoi salvare "${nome}" in rubrica?`, {
+      duration: 12000,
+      action: {
+        label: 'Salva cliente',
+        onClick: async () => {
+          if (await handleSaveClient(nome, dati)) toast.success(`${nome} è in rubrica.`);
+          else toast.error('Non sono riuscito a salvare il cliente.');
+        },
+      },
+    });
   };
 
   const handleDeleteClient = async (name) => {
@@ -437,7 +461,10 @@ export default function PreventiviPage() {
       if (!silent) toast.error('Errore durante il salvataggio.');
       return false;
     } else {
-      if (!silent) toast.success('Preventivo salvato.');
+      if (!silent) {
+        toast.success('Preventivo salvato.');
+        proponiRubrica();
+      }
       // L'id e non solo "fatto": chi salva e cambia subito pagina deve poterlo
       // scrivere nella bozza, che lo ritrova al ritorno (vedi handleExportPDF).
       return idSalvato || true;
@@ -543,6 +570,7 @@ export default function PreventiviPage() {
     const isSaved = await handleSaveOrder(true);
     if (isSaved) {
       toast.success("Preventivo salvato in Archivio. Sto generando il PDF...");
+      proponiRubrica();
     } else {
       toast.warning("Non è stato possibile salvare nel cloud. Genero comunque il PDF.");
     }
@@ -949,7 +977,7 @@ export default function PreventiviPage() {
         setClientName={p.setClientName}
         setClientData={p.setClientData}
         savedClients={savedClients}
-        onSaveClient={handleSaveClient}
+        onSaveClient={() => handleSaveClient()}
         onSelectClient={handleSelectClientFromCRM}
         onDeleteClient={handleDeleteClient}
       />
