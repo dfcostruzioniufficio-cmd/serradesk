@@ -601,7 +601,7 @@ function disegnaPianta(d, W, ante) {
 }
 
 // Come titoloArticolo del PDF: il cassonetto non ha ante.
-function titoloArticolo(item) {
+export function titoloArticolo(item) {
   const t = (item.description2 || `${item.apertura || ''} ${item.numAnte ? item.numAnte + ' ante' : ''}`.trim())
     .replace(/^.*?\d+ ANT[AE]: (?=ANT[AE] \d)/, '');
   return item.apertura === 'Cassonetto' ? t.replace(/\s+\d+\s+ANT[AE]\b/i, '') : t;

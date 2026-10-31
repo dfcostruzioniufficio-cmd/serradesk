@@ -7,6 +7,7 @@ import { esportaPdfPreventivo, nomeFilePdf } from '../lib/esportaPdfPreventivo';
 import { ivaDelPreventivo } from '../hooks/usePricingEngine';
 import { generaAbacoDxf, nomeFileAbaco } from '../utils/abacoDxf';
 import { generaAbacoPdf } from '../utils/abacoPdf';
+import { generaSchedaTrasmittanzaPdf, nomeFileTrasmittanza } from '../utils/schedaTrasmittanzaPdf';
 import { usePreventivo } from '../hooks/usePreventivo';
 
 import QuoteToolbar from '../components/preventivi/QuoteToolbar';
@@ -682,6 +683,36 @@ export default function PreventiviPage() {
     scaricaFile(pdf, nome.replace(/\.dxf$/, '.pdf'));
   };
 
+  // La scheda della trasmittanza, a parte come l'abaco: serve al tecnico o
+  // al CAF, non al cliente privato. Stessa regola dell'abaco.
+  const handleExportTrasmittanza = async () => {
+    if (!userProfile) {
+      toast.info('Per scaricare la scheda serve un abbonamento attivo.');
+      navigate('/login?mode=signup');
+      return;
+    }
+    if (needsPayment) {
+      toast.info('Serve un abbonamento attivo per scaricare la scheda.');
+      navigate('/dashboard');
+      return;
+    }
+    const { intestazione, firma } = datiAbaco();
+    const numero = p.numeroPreventivo?.numero ? `${p.numeroPreventivo.numero}/${p.numeroPreventivo.anno}` : '';
+    let pdf;
+    try {
+      pdf = await generaSchedaTrasmittanzaPdf(p.items, p.sistemiCam, { intestazione, firma });
+    } catch (err) {
+      console.error('Errore scheda trasmittanza:', err);
+      toast.error('Non sono riuscito a creare la scheda della trasmittanza.');
+      return;
+    }
+    if (!pdf) {
+      toast.info('Nel preventivo non ci sono serramenti di cui calcolare la trasmittanza.');
+      return;
+    }
+    scaricaFile(pdf, nomeFileTrasmittanza(p.clientName, numero || p.riferimento));
+  };
+
   const handleExportDistinta = () => {
     if (!userProfile) {
       toast.info("La distinta di taglio richiede un abbonamento attivo.");
@@ -777,6 +808,7 @@ export default function PreventiviPage() {
         onExportPDF={handleExportPDF}
         onExportDXF={puoScaricareDxf ? handleExportDXF : null}
         onExportAbacoPdf={handleExportAbacoPdf}
+        onExportTrasmittanza={handleExportTrasmittanza}
         onExportDistinta={handleExportDistinta}
         canAccessCAM={canAccessCAM}
         isSaving={isSaving}

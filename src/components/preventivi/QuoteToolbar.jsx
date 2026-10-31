@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Save, Plus, Download, Lock, MoreVertical, HelpCircle, PenTool, LayoutGrid } from 'lucide-react';
+import { Trash2, Save, Plus, Download, Lock, MoreVertical, HelpCircle, PenTool, LayoutGrid, Thermometer } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function QuoteToolbar({
@@ -14,6 +14,7 @@ export default function QuoteToolbar({
   onExportPDF,
   onExportDXF,
   onExportAbacoPdf,
+  onExportTrasmittanza,
   onExportDistinta,
   canAccessCAM,
   isSaving,
@@ -96,6 +97,15 @@ export default function QuoteToolbar({
               className="text-slate-700 focus:bg-slate-50 p-3 rounded-lg cursor-pointer flex items-center gap-2 mt-1"
             >
               <LayoutGrid size={16} /> Abaco in PDF (tavola)
+            </DropdownMenuItem>
+            )}
+            {onExportTrasmittanza && (
+            <DropdownMenuItem
+              onClick={onExportTrasmittanza}
+              disabled={items.length === 0}
+              className="text-slate-700 focus:bg-slate-50 p-3 rounded-lg cursor-pointer flex items-center gap-2 mt-1"
+            >
+              <Thermometer size={16} /> Scheda trasmittanza (PDF)
             </DropdownMenuItem>
             )}
 

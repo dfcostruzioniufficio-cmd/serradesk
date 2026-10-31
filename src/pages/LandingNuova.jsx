@@ -769,7 +769,7 @@ const PUNTI = [
   { icon: FileText, titolo: 'PDF con il tuo logo', testo: 'Numero progressivo, riferimento del cantiere, note per articolo. Pronto da mandare.' },
   { icon: Archive, titolo: 'Archivio dei preventivi', testo: 'Cerca per cliente, riferimento o numero. Riscarichi il PDF senza riaprire niente.' },
   { icon: Smartphone, titolo: 'Dal telefono, in cantiere', testo: 'Funziona nel browser, su computer e cellulare. Niente da installare.' },
-  { icon: Thermometer, titolo: 'Trasmittanza Uw', testo: 'Calcolata per ogni serramento con la formula della UNI EN ISO 10077-1. È un valore indicativo.' },
+  { icon: Thermometer, titolo: 'Scheda della trasmittanza', testo: 'La Uw di ogni serramento, calcolata con la UNI EN ISO 10077-1, in un PDF a parte da dare al tecnico. Non è un certificato e non sostituisce quelli del produttore.' },
 ];
 
 export default function LandingNuova({ anteprima = false }) {
