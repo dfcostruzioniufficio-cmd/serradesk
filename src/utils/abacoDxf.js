@@ -728,6 +728,13 @@ function disegnaCartiglio(d, xDestra, yBasso, intestazione, firma) {
  * cornice, in millimetri. La stessa tavola diventa il DXF qui sotto e il PDF
  * (abacoPdf.js). Null se non c'e' niente da disegnare.
  */
+/** Il disegno di un solo serramento (prospetto, quote, pianta, sigla), come nell'abaco. */
+export function disegnoArticolo(item, numero = '') {
+  const c = creaDisegno();
+  disegnaArticolo(c, item, numero);
+  return c;
+}
+
 export function costruisciTavola(items, { intestazione = '', firma = true } = {}) {
   const articoli = articoliDisegnabili(items);
   if (!articoli.length) return null;

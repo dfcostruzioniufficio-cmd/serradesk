@@ -696,11 +696,13 @@ export default function PreventiviPage() {
       navigate('/dashboard');
       return;
     }
-    const { intestazione, firma } = datiAbaco();
+    const { firma } = datiAbaco();
     const numero = p.numeroPreventivo?.numero ? `${p.numeroPreventivo.numero}/${p.numeroPreventivo.anno}` : '';
     let pdf;
     try {
-      pdf = await generaSchedaTrasmittanzaPdf(p.items, p.sistemiCam, { intestazione, firma });
+      pdf = await generaSchedaTrasmittanzaPdf(p.items, p.sistemiCam, {
+        azienda: userSettings?.company_name, cliente: p.clientName, numero, riferimento: p.riferimento, firma,
+      });
     } catch (err) {
       console.error('Errore scheda trasmittanza:', err);
       toast.error('Non sono riuscito a creare la scheda della trasmittanza.');

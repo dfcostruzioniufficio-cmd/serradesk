@@ -1,4 +1,5 @@
-import { articoliDisegnabili, titoloArticolo, nomeFileAbaco } from './abacoDxf';
+import { articoliDisegnabili, titoloArticolo, nomeFileAbaco, disegnoArticolo } from './abacoDxf';
+import { disegnaEntita } from './abacoPdf';
 import { calcolaUw, formattaUw } from './trasmittanza';
 
 /**
@@ -9,14 +10,16 @@ import { calcolaUw, formattaUw } from './trasmittanza';
  *
  * Non e' un certificato e lo dice in alto e in fondo: un valore calcolato
  * scambiato per certificato puo' finire su una pratica di detrazione. I
- * certificati di trasmittanza li rilasciano solo i produttori di infissi.
+ * dati di partenza vengono dai certificati e dalle prove dei produttori di
+ * profili e vetri. Non si scrive "produttori di infissi": chi usa SerraDesk
+ * l'infisso lo fa (31/10/2026).
  *
  * Le posizioni sono numerate come nell'abaco, cosi' le due tavole si
  * leggono insieme.
  */
 
 const AVVISO = 'Documento non certificativo. I valori sono calcolati secondo la norma UNI EN ISO 10077-1 '
-  + 'e non sostituiscono in alcun modo i certificati di trasmittanza, che rilasciano solo i produttori di infissi.';
+  + 'e non sostituiscono in alcun modo i certificati e i rapporti di prova dei produttori di profili e vetri.';
 
 const NUM = (v, cifre = 2) => (v == null ? '' : Number(v).toFixed(cifre).replace('.', ','));
 
@@ -52,6 +55,7 @@ export function righeTrasmittanza(items, sistemiCam) {
         quantita: Number(item.quantity) || 1,
         profilo: pulito(sys?.nome || item.sistema_cam?.nome || ''),
         vetro: pulito(item.vetro),
+        item,
       };
       // I composti mettono insieme moduli diversi: il calcolo per finestra
       // singola li tratterebbe come un serramento solo.
@@ -70,164 +74,281 @@ export function righeTrasmittanza(items, sistemiCam) {
     .filter(Boolean);
 }
 
+// Colori della scheda. Il blu e' quello di SerraDesk; la scala va dal verde
+// (isola di piu') al rosso (isola di meno), senza lettere di classe: una
+// "classe A" farebbe pensare a un'etichetta energetica ufficiale.
+const NOTTE = [15, 23, 42];
+const BLU = [37, 99, 235];
+const TESTO = [30, 41, 59];
+const TENUE = [100, 116, 139];
+const BORDO = [226, 232, 240];
+const FONDO = [248, 250, 252];
+const VETRO = [147, 197, 253];
+const TELAIO = [148, 163, 184];
+const ROSSO = [185, 28, 28];
+const AMBRA = [180, 83, 9];
+const SCALA = [[16, 163, 127], [234, 179, 8], [220, 38, 38]];
+const SCALA_DA = 0.6;
+const SCALA_A = 3.4;
+
+// Del disegno dell'abaco servono il serramento e le quote: sigla e
+// descrizione sono gia' scritte nella scheda, e la pianta (sotto i -400 mm,
+// dove scende anche un pezzo dei DETTAGLI) qui non dice niente.
+const LAYER_DISEGNO = ['TELAIO', 'ANTE', 'APERTURA', 'DETTAGLI', 'QUOTE'];
+const SOPRA_PIANTA = -400;
+const cimaEntita = (e) => (e.tipo === 'LINE' ? Math.max(e.y1, e.y2) : e.tipo === 'ARC' ? e.y + e.r : e.y);
+
+const mescola = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+const coloreScala = (t) => (t <= 0.5 ? mescola(SCALA[0], SCALA[1], t * 2) : mescola(SCALA[1], SCALA[2], (t - 0.5) * 2));
+const posizioneScala = (uw) => Math.min(1, Math.max(0, (uw - SCALA_DA) / (SCALA_A - SCALA_DA)));
+
+/** Il disegno di un serramento dentro un riquadro della pagina. */
+function disegnaSerramento(doc, item, numero, box) {
+  const d = disegnoArticolo(item, numero);
+  const entita = d.entita.filter((e) => LAYER_DISEGNO.includes(e.layer) && cimaEntita(e) > SOPRA_PIANTA);
+  if (!entita.length) return;
+  const lim = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  const allarga = (x, y) => {
+    lim.x0 = Math.min(lim.x0, x); lim.y0 = Math.min(lim.y0, y);
+    lim.x1 = Math.max(lim.x1, x); lim.y1 = Math.max(lim.y1, y);
+  };
+  entita.forEach((e) => {
+    if (e.tipo === 'LINE') { allarga(e.x1, e.y1); allarga(e.x2, e.y2); }
+    else if (e.tipo === 'ARC') { allarga(e.x - e.r, e.y - e.r); allarga(e.x + e.r, e.y + e.r); }
+    else if (e.tipo === 'TEXT') { allarga(e.x - e.h, e.y - e.h); allarga(e.x + e.h, e.y + e.h); }
+  });
+  const largo = lim.x1 - lim.x0;
+  const alto = lim.y1 - lim.y0;
+  if (!(largo > 0 && alto > 0)) return;
+  const k = Math.min(box.w / largo, box.h / alto);
+  const ox = box.x + (box.w - largo * k) / 2;
+  const oy = box.y + (box.h - alto * k) / 2;
+  disegnaEntita(doc, entita, {
+    X: (x) => ox + (x - lim.x0) * k,
+    Y: (y) => oy + (lim.y1 - y) * k,
+    k,
+    xMax: lim.x1 + largo,
+  });
+  doc.setLineDashPattern([], 0);
+}
+
 /** Il PDF della scheda come Blob, o null se non c'e' nessun serramento. */
-export async function generaSchedaTrasmittanzaPdf(items, sistemiCam, { intestazione = '', firma = true } = {}) {
+export async function generaSchedaTrasmittanzaPdf(items, sistemiCam, {
+  azienda = '', cliente = '', numero = '', riferimento = '', firma = true,
+} = {}) {
   const righe = righeTrasmittanza(items, sistemiCam);
   if (!righe.length) return null;
   const { jsPDF } = await import('jspdf');
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const m = 12;
+  const m = 14;
   const larga = pw - 2 * m;
+  const fondoUtile = ph - 16;
+  const oggi = new Date().toLocaleDateString('it-IT');
+  const nomeCliente = pulito(cliente).trim();
 
-  const colonne = [
-    { titolo: 'POS.', largo: 13 },
-    { titolo: 'SERRAMENTO', largo: 0 },
-    { titolo: 'L x H mm', largo: 26 },
-    { titolo: "Q.TA'", largo: 13 },
-    { titolo: 'Ug', largo: 15, destra: true },
-    { titolo: 'Uf', largo: 15, destra: true },
-    { titolo: 'Psi g', largo: 15, destra: true },
-    { titolo: 'Uw W/m²K', largo: 24, destra: true },
-  ];
-  colonne[1].largo = larga - colonne.reduce((s, c) => s + c.largo, 0);
+  const colore = (fn, c) => fn.call(doc, ...c);
+  const testo = (t, x, y, { size = 9, stile = 'normal', c = TESTO, ...opz } = {}) => {
+    doc.setFont('helvetica', stile);
+    doc.setFontSize(size);
+    colore(doc.setTextColor, c);
+    doc.text(t, x, y, opz);
+  };
 
-  const scriviAvviso = (y) => {
+  const avviso = (y) => {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    const testo = doc.splitTextToSize(AVVISO, larga - 6);
-    const h = testo.length * 4 + 4;
-    doc.setDrawColor(200, 35, 35);
+    doc.setFontSize(8);
+    const t = doc.splitTextToSize(AVVISO, larga - 12);
+    const h = t.length * 3.6 + 6;
+    colore(doc.setFillColor, [254, 242, 242]);
+    colore(doc.setDrawColor, [252, 165, 165]);
     doc.setLineWidth(0.3);
-    doc.rect(m, y, larga, h);
-    doc.setTextColor(150, 20, 20);
-    doc.text(testo, m + 3, y + 5);
+    doc.roundedRect(m, y, larga, h, 2, 2, 'FD');
+    colore(doc.setFillColor, ROSSO);
+    doc.rect(m, y + 1.5, 1.2, h - 3, 'F');
+    testo(t, m + 6, y + 5, { size: 8, stile: 'bold', c: ROSSO });
     return y + h;
   };
 
+  // Prima pagina: la fascia con il cliente, poi i numeri del lavoro.
+  colore(doc.setFillColor, NOTTE);
+  doc.rect(0, 0, pw, 50, 'F');
+  colore(doc.setFillColor, BLU);
+  doc.rect(0, 50, pw, 1.2, 'F');
+  testo('SCHEDA DELLA TRASMITTANZA TERMICA', m, 15, { size: 8, stile: 'bold', c: [147, 197, 253], charSpace: 0.8 });
+  const titolo = doc.splitTextToSize(nomeCliente || 'Serramenti', larga);
+  testo(titolo[0], m, 28, { size: 22, stile: 'bold', c: [255, 255, 255] });
+  const sotto = [pulito(riferimento), numero && `Preventivo ${numero}`].filter((t) => String(t).trim()).join('  ·  ');
+  if (sotto) testo(doc.splitTextToSize(sotto, larga)[0], m, 36, { size: 10, c: [203, 213, 225] });
+  if (azienda) testo(doc.splitTextToSize(pulito(azienda), larga)[0], m, 44, { size: 8.5, stile: 'bold', c: [148, 163, 184] });
+  testo(oggi, pw - m, 44, { size: 8.5, c: [148, 163, 184], align: 'right' });
+
+  const calcolate = righe.filter((r) => r.uw != null);
+  const pezzi = righe.reduce((s, r) => s + r.quantita, 0);
+  const superficie = righe.reduce((s, r) => s + (Number(r.item.width) * Number(r.item.height) * r.quantita) / 1e6, 0);
+  const uwMin = calcolate.length ? Math.min(...calcolate.map((r) => r.uw)) : null;
+  const uwMax = calcolate.length ? Math.max(...calcolate.map((r) => r.uw)) : null;
+  const tessere = [
+    { etichetta: 'SERRAMENTI', valore: String(pezzi), nota: `${righe.length} ${righe.length === 1 ? 'posizione' : 'posizioni'}` },
+    { etichetta: 'SUPERFICIE', valore: `${NUM(superficie)} m²`, nota: 'somma dei serramenti' },
+    {
+      etichetta: 'TRASMITTANZA Uw',
+      valore: uwMin == null ? '-' : uwMin === uwMax ? NUM(uwMin) : `${NUM(uwMin)} - ${NUM(uwMax)}`,
+      nota: uwMin == null ? 'nessun serramento calcolato' : 'W/m²K, dal più al meno isolante',
+    },
+  ];
+  const gap = 4;
+  const lt = (larga - 2 * gap) / 3;
+  tessere.forEach((t, i) => {
+    const x = m + i * (lt + gap);
+    colore(doc.setFillColor, FONDO);
+    colore(doc.setDrawColor, BORDO);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, 58, lt, 24, 2, 2, 'FD');
+    testo(t.etichetta, x + 4, 64, { size: 6.5, stile: 'bold', c: TENUE, charSpace: 0.5 });
+    testo(t.valore, x + 4, 74, { size: 16, stile: 'bold', c: NOTTE });
+    testo(t.nota, x + 4, 79, { size: 6.5, c: TENUE });
+  });
+  let y = avviso(87) + 6;
+
   const intestaPagina = () => {
-    doc.setTextColor(20, 20, 20);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('Scheda della trasmittanza termica dei serramenti', m, m + 4);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    const sotto = doc.splitTextToSize(pulito(intestazione), larga);
-    if (sotto.length) doc.text(sotto, m, m + 10);
-    let y = m + 10 + sotto.length * 4;
-    y = scriviAvviso(y + 1) + 5;
-    // Intestazione della tabella.
-    doc.setFillColor(238, 240, 244);
-    doc.rect(m, y, larga, 7, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(60, 60, 60);
-    let x = m;
-    colonne.forEach((c) => {
-      doc.text(c.titolo, c.destra ? x + c.largo - 2 : x + 2, y + 4.7, { align: c.destra ? 'right' : 'left' });
-      x += c.largo;
-    });
-    return y + 7;
+    colore(doc.setFillColor, NOTTE);
+    doc.rect(0, 0, pw, 12, 'F');
+    testo('SCHEDA DELLA TRASMITTANZA TERMICA', m, 7.8, { size: 7, stile: 'bold', c: [147, 197, 253], charSpace: 0.6 });
+    if (nomeCliente) testo(doc.splitTextToSize(nomeCliente, larga / 2)[0], pw - m, 7.8, { size: 8, stile: 'bold', c: [255, 255, 255], align: 'right' });
+    return 20;
   };
 
-  let y = intestaPagina();
-  const fondoUtile = ph - m - 8;
-  let indicative = false;
+  const xd = m + 4;
+  const ld = 62;
+  const xr = m + ld + 10;
+  const lr = larga - ld - 14;
 
   righe.forEach((r) => {
-    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    const tit = doc.splitTextToSize(String(r.titolo || 'Serramento'), lr - 18).slice(0, 2);
     doc.setFont('helvetica', 'normal');
-    const dettagli = [r.profilo && `Profilo: ${r.profilo}`, r.vetro && `Vetro: ${r.vetro}`].filter(Boolean).join(' - ');
-    const larghezzaTesto = colonne[1].largo - 4;
-    const titolo = doc.splitTextToSize(String(r.titolo || ''), larghezzaTesto);
-    const sotto = dettagli ? doc.splitTextToSize(dettagli, larghezzaTesto) : [];
-    const testoNota = r.uw == null
-      ? `Uw non calcolata: ${r.motivo}.`
-      : [
-        r.stimata && 'Valore indicativo: larghezze a vista dei profili non indicate in archivio, usati i valori tipici del materiale.',
-        r.nelPreventivo && `Nel preventivo è indicata ${r.nelPreventivo}: i dati dell'archivio sono cambiati dopo l'inserimento dell'articolo.`,
-      ].filter(Boolean).join(' ');
-    const nota = testoNota ? doc.splitTextToSize(testoNota, larghezzaTesto) : [];
-    const h = 3 + (titolo.length + sotto.length + nota.length) * 3.8 + 2;
+    doc.setFontSize(8);
+    const det = doc.splitTextToSize([r.profilo, r.vetro].filter(Boolean).join('  ·  '), lr).slice(0, 2);
+    const testoNota = r.uw == null ? '' : [
+      r.stimata && '* Valore indicativo: larghezze a vista dei profili non indicate in archivio, usati i valori tipici del materiale.',
+      r.nelPreventivo && `Nel preventivo è indicata ${r.nelPreventivo}: i dati dell'archivio sono cambiati dopo l'inserimento dell'articolo.`,
+    ].filter(Boolean).join(' ');
+    doc.setFontSize(7);
+    const nota = testoNota ? doc.splitTextToSize(testoNota, lr) : [];
+    // Le stesse misure usate qui sotto per scrivere, piu' il margine.
+    const testa = 9 + tit.length * 4.6 + det.length * 3.6 + 6;
+    const corpo = r.uw == null ? 15 : 47;
+    const h = Math.max(70, testa + corpo + (nota.length ? 6 + nota.length * 3.2 : 0) + 6);
 
     if (y + h > fondoUtile) {
       doc.addPage();
       y = intestaPagina();
     }
 
-    doc.setTextColor(20, 20, 20);
-    let x = m;
-    const yt = y + 4.5;
-    doc.setFont('helvetica', 'bold');
-    doc.text(String(r.numero), x + 2, yt);
-    x += colonne[0].largo;
-    doc.text(titolo, x + 2, yt);
-    doc.setFont('helvetica', 'normal');
-    let yRiga = yt + titolo.length * 3.8;
-    if (sotto.length) {
-      doc.setTextColor(80, 80, 80);
-      doc.text(sotto, x + 2, yRiga);
-      yRiga += sotto.length * 3.8;
-    }
-    if (nota.length) {
-      doc.setTextColor(r.uw == null ? 150 : 120, r.uw == null ? 20 : 90, 20);
-      doc.setFont('helvetica', 'italic');
-      doc.text(nota, x + 2, yRiga);
-      doc.setFont('helvetica', 'normal');
-    }
-    doc.setTextColor(20, 20, 20);
-    x += colonne[1].largo;
-    doc.text(r.misure, x + 2, yt);
-    x += colonne[2].largo;
-    doc.text(String(r.quantita), x + 2, yt);
-    x += colonne[3].largo;
-    const valori = [NUM(r.ug), NUM(r.uf), NUM(r.psi, 3)];
-    valori.forEach((v, k) => {
-      doc.text(v || '-', x + colonne[4 + k].largo - 2, yt, { align: 'right' });
-      x += colonne[4 + k].largo;
-    });
-    doc.setFont('helvetica', 'bold');
-    doc.text(r.uw == null ? '-' : `${formattaUw(r.uw).replace(' W/m²K', '')}${r.stimata ? ' *' : ''}`, x + colonne[7].largo - 2, yt, { align: 'right' });
-    if (r.stimata) indicative = true;
+    // La scheda del serramento.
+    colore(doc.setFillColor, [255, 255, 255]);
+    colore(doc.setDrawColor, BORDO);
+    doc.setLineWidth(0.35);
+    doc.roundedRect(m, y, larga, h, 3, 3, 'FD');
+    colore(doc.setFillColor, FONDO);
+    doc.roundedRect(xd, y + 4, ld, h - 8, 2, 2, 'F');
+    disegnaSerramento(doc, r.item, '', { x: xd + 4, y: y + 7, w: ld - 8, h: h - 14 });
 
-    y += h;
-    doc.setDrawColor(215, 218, 224);
-    doc.setLineWidth(0.15);
-    doc.line(m, y, m + larga, y);
+    let yy = y + 9;
+    colore(doc.setFillColor, BLU);
+    doc.roundedRect(xr, yy - 4, 14, 5.6, 1.2, 1.2, 'F');
+    testo(`POS. ${r.numero}`, xr + 7, yy, { size: 6.5, stile: 'bold', c: [255, 255, 255], align: 'center' });
+    testo(tit, xr + 17, yy, { size: 10.5, stile: 'bold', c: NOTTE });
+    yy += tit.length * 4.6;
+    if (det.length) { testo(det, xr, yy, { size: 8, c: TENUE }); yy += det.length * 3.6; }
+    testo(`${r.quantita} ${r.quantita === 1 ? 'pezzo' : 'pezzi'}  ·  L ${r.misure.replace(' x ', ' × H ')} mm`, xr, yy, { size: 8, c: TENUE });
+    yy += 6;
+
+    if (r.uw == null) {
+      colore(doc.setFillColor, [254, 242, 242]);
+      doc.roundedRect(xr, yy + 1, lr, 12, 2, 2, 'F');
+      doc.setFontSize(8);
+      testo(doc.splitTextToSize(`Uw non calcolata: ${r.motivo}.`, lr - 8), xr + 4, yy + 6, { size: 8, stile: 'italic', c: ROSSO });
+      y += h + 5;
+      return;
+    }
+
+    // La Uw in grande.
+    const valore = `${NUM(r.uw)}${r.stimata ? '*' : ''}`;
+    testo(valore, xr, yy + 11, { size: 30, stile: 'bold', c: NOTTE });
+    doc.setFontSize(30);
+    doc.setFont('helvetica', 'bold');
+    const lv = doc.getTextWidth(valore);
+    testo('W/m²K', xr + lv + 2, yy + 11, { size: 9, stile: 'bold', c: TENUE });
+    testo('Uw', xr + lv + 2, yy + 5.5, { size: 9, stile: 'bold', c: BLU });
+
+    // La scala: dove sta questo serramento.
+    const ys = yy + 18;
+    const passi = 80;
+    for (let i = 0; i < passi; i++) {
+      colore(doc.setFillColor, coloreScala(i / (passi - 1)));
+      doc.rect(xr + (lr * i) / passi, ys, lr / passi + 0.15, 3, 'F');
+    }
+    const px = xr + lr * posizioneScala(r.uw);
+    colore(doc.setFillColor, NOTTE);
+    doc.triangle(px - 1.8, ys - 2.6, px + 1.8, ys - 2.6, px, ys - 0.2, 'F');
+    colore(doc.setDrawColor, NOTTE);
+    doc.setLineWidth(0.5);
+    doc.line(px, ys - 0.2, px, ys + 3.6);
+    testo('isola di più', xr, ys + 7, { size: 6.5, c: TENUE });
+    testo('isola di meno', xr + lr, ys + 7, { size: 6.5, c: TENUE, align: 'right' });
+    [1, 1.5, 2, 2.5].forEach((v) => {
+      testo(NUM(v, 1), xr + lr * posizioneScala(v), ys + 7, { size: 6, c: [148, 163, 184], align: 'center' });
+    });
+
+    // Quanto e' vetro e quanto telaio.
+    const yc = ys + 14;
+    const area = r.ag + r.af;
+    const quotaVetro = area > 0 ? r.ag / area : 0;
+    colore(doc.setFillColor, VETRO);
+    doc.rect(xr, yc, lr * quotaVetro, 3, 'F');
+    colore(doc.setFillColor, TELAIO);
+    doc.rect(xr + lr * quotaVetro, yc, lr * (1 - quotaVetro), 3, 'F');
+    testo(`Vetro ${Math.round(quotaVetro * 100)}%  ·  ${NUM(r.ag)} m²  ·  Ug ${NUM(r.ug)}`, xr, yc + 7, { size: 7, stile: 'bold', c: [29, 78, 216] });
+    testo(`Telaio ${100 - Math.round(quotaVetro * 100)}%  ·  ${NUM(r.af)} m²  ·  Uf ${NUM(r.uf)}`, xr + lr, yc + 7, { size: 7, stile: 'bold', c: [71, 85, 105], align: 'right' });
+
+    // Il conto, con i numeri di questo serramento.
+    const yf = yc + 14;
+    colore(doc.setFillColor, FONDO);
+    doc.roundedRect(xr, yf - 4, lr, 8, 1.5, 1.5, 'F');
+    const conto = `Uw = (${NUM(r.ag, 3)} × ${NUM(r.ug)} + ${NUM(r.af, 3)} × ${NUM(r.uf)} + ${NUM(r.lg)} × ${NUM(r.psi, 3)}) / ${NUM(area, 3)} = ${NUM(r.uw)}`;
+    testo(conto, xr + 3, yf + 1, { size: 7.5, c: TESTO });
+
+    if (nota.length) testo(nota, xr, yf + 9, { size: 7, stile: 'italic', c: AMBRA });
+    y += h + 5;
   });
 
-  // Come si calcola, e di nuovo l'avviso: deve restare attaccato ai numeri
-  // anche se qualcuno stampa solo l'ultima pagina.
-  const note = [
-    'Uw = (Ag x Ug + Af x Uf + lg x Psi g) / (Ag + Af), secondo UNI EN ISO 10077-1. Ag e Af sono le superfici di vetro e telaio a vista, lg il perimetro visibile dei vetri.',
+  // In fondo: come si legge il conto, e di nuovo l'avviso.
+  const spiegazione = [
+    'Uw = (Ag × Ug + Af × Uf + lg × Psi g) / (Ag + Af), secondo UNI EN ISO 10077-1. Ag e Af: superfici di vetro e telaio a vista. lg: perimetro visibile dei vetri.',
     'Ug: trasmittanza del vetro. Uf: trasmittanza del telaio, dalla scheda del profilo. Psi g: ponte termico del bordo vetro; se non indicato nel profilo, valore tabellare della norma.',
-    indicative ? '* Valore indicativo: mancano le larghezze a vista dei profili, sono stati usati valori tipici del materiale.' : '',
-  ].filter(Boolean);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  const righeNote = note.flatMap((n) => doc.splitTextToSize(n, larga));
-  const altezzaChiusura = righeNote.length * 3.4 + 22;
-  if (y + altezzaChiusura > ph - m) {
+  ];
+  doc.setFontSize(7);
+  const righeSpiegazione = spiegazione.flatMap((t) => doc.splitTextToSize(t, larga));
+  if (y + righeSpiegazione.length * 3.2 + 26 > fondoUtile) {
     doc.addPage();
-    y = m;
+    y = intestaPagina();
   }
-  y += 6;
-  doc.setTextColor(80, 80, 80);
-  doc.text(righeNote, m, y);
-  y += righeNote.length * 3.4 + 2;
-  scriviAvviso(y);
+  testo(righeSpiegazione, m, y + 3, { size: 7, c: TENUE });
+  avviso(y + righeSpiegazione.length * 3.2 + 6);
 
   const totale = doc.getNumberOfPages();
-  const oggi = new Date().toLocaleDateString('it-IT');
   for (let p = 1; p <= totale; p++) {
     doc.setPage(p);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(140, 140, 140);
-    doc.text(`Calcolo del ${oggi}${firma ? ' - creato con SerraDesk' : ''}`, m, ph - 6);
-    doc.text(`Pagina ${p} di ${totale}`, pw - m, ph - 6, { align: 'right' });
+    colore(doc.setDrawColor, BORDO);
+    doc.setLineWidth(0.3);
+    doc.line(m, ph - 11, pw - m, ph - 11);
+    testo(`Documento non certificativo  ·  calcolo del ${oggi}${firma ? '  ·  creato con SerraDesk' : ''}`, m, ph - 6.5, { size: 6.5, c: TENUE });
+    testo(`${p} / ${totale}`, pw - m, ph - 6.5, { size: 6.5, stile: 'bold', c: TENUE, align: 'right' });
   }
   return doc.output('blob');
 }

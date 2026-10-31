@@ -47,6 +47,17 @@ export async function generaAbacoPdf(items, opzioni = {}) {
   const X = (x) => ox + (x - x0) * k;
   const Y = (y) => oy + (y1 - y) * k;
 
+  disegnaEntita(doc, d.entita, { X, Y, k, xMax: x1 });
+  return doc.output('blob');
+}
+
+/**
+ * Le entita' di un disegno dell'abaco su una pagina jsPDF. X e Y portano le
+ * coordinate del disegno (mm veri, y che sale) sulla pagina, k e' la scala;
+ * i testi orizzontali non passano oltre xMax. Lo usa anche la scheda della
+ * trasmittanza per il disegno di ogni serramento.
+ */
+export function disegnaEntita(doc, entita, { X, Y, k, xMax }) {
   doc.setFont('helvetica', 'normal');
   let ultimo = null;
   const stile = (layer) => {
@@ -59,7 +70,7 @@ export async function generaAbacoPdf(items, opzioni = {}) {
     doc.setLineDashPattern(s.tratteggio || [], 0);
   };
 
-  for (const e of d.entita) {
+  for (const e of entita) {
     stile(e.layer);
     if (e.tipo === 'LINE') {
       doc.line(X(e.x1), Y(e.y1), X(e.x2), Y(e.y2));
@@ -84,7 +95,7 @@ export async function generaAbacoPdf(items, opzioni = {}) {
       // della tavola si rimpicciolisce quanto basta per starci dentro.
       if (!e.rotazione) {
         const partenza = X(e.x) - (e.allinea === 1 ? w / 2 : e.allinea === 2 ? w : 0);
-        const spazio = X(x1) - partenza;
+        const spazio = X(xMax) - partenza;
         if (spazio > 0 && w > spazio) {
           doc.setFontSize(((e.h * k * PUNTI_PER_MM) / MAIUSCOLE) * (spazio / w));
           w = doc.getTextWidth(e.testo);
@@ -97,5 +108,4 @@ export async function generaAbacoPdf(items, opzioni = {}) {
       else doc.text(e.testo, X(e.x) - spostamento, Y(e.y));
     }
   }
-  return doc.output('blob');
 }
