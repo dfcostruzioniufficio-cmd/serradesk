@@ -20,6 +20,13 @@ const AVVISO = 'Documento non certificativo. I valori sono calcolati secondo la 
 
 const NUM = (v, cifre = 2) => (v == null ? '' : Number(v).toFixed(cifre).replace('.', ','));
 
+// I caratteri standard di jsPDF arrivano fino al Latin-1: un "≥" o
+// un'emoji nel nome di un vetro rovinava tutta la riga. Le accentate restano.
+const pulito = (s) => String(s ?? '')
+  .replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/[–—]/g, '-')
+  .replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/€/g, 'EUR')
+  .replace(/[^\x20-\x7e\xa0-\xff]/g, '');
+
 /** L'articolo come lo legge il calcolo: il modulo salvato, se c'e'. */
 function perIlCalcolo(item) {
   const raw = item.rawInput || {};
@@ -40,11 +47,11 @@ export function righeTrasmittanza(items, sistemiCam) {
       const sys = (sistemiCam || []).find((s) => s.id === perIlCalcolo(item).sistemaCamId);
       const base = {
         numero,
-        titolo: titoloArticolo(item),
+        titolo: pulito(titoloArticolo(item)),
         misure: `${Math.round(Number(item.width))} x ${Math.round(Number(item.height))}`,
         quantita: Number(item.quantity) || 1,
-        profilo: sys?.nome || item.sistema_cam?.nome || '',
-        vetro: item.vetro || '',
+        profilo: pulito(sys?.nome || item.sistema_cam?.nome || ''),
+        vetro: pulito(item.vetro),
       };
       // I composti mettono insieme moduli diversi: il calcolo per finestra
       // singola li tratterebbe come un serramento solo.
@@ -54,8 +61,10 @@ export function righeTrasmittanza(items, sistemiCam) {
       // La Uw del preventivo e' quella del giorno in cui l'articolo e' stato
       // inserito: se poi e' cambiato l'archivio, i due documenti direbbero
       // due numeri diversi senza spiegare perche'.
+      // Prima di settembre 2026 qui c'era la Uf del profilo, senza unita':
+      // non e' una Uw, e confrontarla direbbe che l'archivio e' cambiato.
       const nelPreventivo = String(item.trasmittanza || '').trim();
-      const diversa = nelPreventivo && t.uw != null && nelPreventivo !== formattaUw(t.uw);
+      const diversa = nelPreventivo.includes('W/m²K') && t.uw != null && nelPreventivo !== formattaUw(t.uw);
       return { ...base, ...t, nelPreventivo: diversa ? nelPreventivo : '' };
     })
     .filter(Boolean);
@@ -105,7 +114,7 @@ export async function generaSchedaTrasmittanzaPdf(items, sistemiCam, { intestazi
     doc.text('Scheda della trasmittanza termica dei serramenti', m, m + 4);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const sotto = doc.splitTextToSize(intestazione || '', larga);
+    const sotto = doc.splitTextToSize(pulito(intestazione), larga);
     if (sotto.length) doc.text(sotto, m, m + 10);
     let y = m + 10 + sotto.length * 4;
     y = scriviAvviso(y + 1) + 5;
