@@ -24,6 +24,9 @@ const AVVISO = 'Valori calcolati secondo la norma UNI EN ISO 10077-1. '
   + 'Non sostituiscono i certificati e i rapporti di prova dei produttori di profili e vetri.';
 
 const NUM = (v, cifre = 2) => (v == null ? '' : Number(v).toFixed(cifre).replace('.', ','));
+// Ug, Uf e Psi come sono in archivio (fino a 3 decimali, almeno 2): con
+// 0,855 scritto 0,86 il conto rifatto a mano non tornava.
+const DATO = (v) => (v == null ? '' : NUM(v, Math.min(3, Math.max(2, (String(v).split('.')[1] || '').length))));
 
 // I caratteri standard di jsPDF arrivano fino al Latin-1: un "≥" o
 // un'emoji nel nome di un vetro rovinava tutta la riga. Le accentate restano.
@@ -302,14 +305,14 @@ export async function generaSchedaTrasmittanzaPdf(items, sistemiCam, {
     doc.rect(xr, yc, lr * quotaVetro, 3, 'F');
     colore(doc.setFillColor, TELAIO);
     doc.rect(xr + lr * quotaVetro, yc, lr * (1 - quotaVetro), 3, 'F');
-    testo(`Vetro ${Math.round(quotaVetro * 100)}%  ·  ${NUM(r.ag)} m²  ·  Ug ${NUM(r.ug)}`, xr, yc + 7, { size: 7, stile: 'bold', c: [29, 78, 216] });
-    testo(`Telaio ${100 - Math.round(quotaVetro * 100)}%  ·  ${NUM(r.af)} m²  ·  Uf ${NUM(r.uf)}`, xr + lr, yc + 7, { size: 7, stile: 'bold', c: [71, 85, 105], align: 'right' });
+    testo(`Vetro ${Math.round(quotaVetro * 100)}%  ·  ${NUM(r.ag)} m²  ·  Ug ${DATO(r.ug)}`, xr, yc + 7, { size: 7, stile: 'bold', c: [29, 78, 216] });
+    testo(`Telaio ${100 - Math.round(quotaVetro * 100)}%  ·  ${NUM(r.af)} m²  ·  Uf ${DATO(r.uf)}`, xr + lr, yc + 7, { size: 7, stile: 'bold', c: [71, 85, 105], align: 'right' });
 
     // Il conto, con i numeri di questo serramento.
     const yf = yc + 14;
     colore(doc.setFillColor, FONDO);
     doc.roundedRect(xr, yf - 4, lr, 8, 1.5, 1.5, 'F');
-    const conto = `Uw = (${NUM(r.ag, 3)} × ${NUM(r.ug)} + ${NUM(r.af, 3)} × ${NUM(r.uf)} + ${NUM(r.lg)} × ${NUM(r.psi, 3)}) / ${NUM(area, 3)} = ${NUM(r.uw)}`;
+    const conto = `Uw = (${NUM(r.ag, 3)} × ${DATO(r.ug)} + ${NUM(r.af, 3)} × ${DATO(r.uf)} + ${NUM(r.lg)} × ${DATO(r.psi)}) / ${NUM(area, 3)} = ${NUM(r.uw)}`;
     testo(conto, xr + 3, yf + 1, { size: 7.5, c: TESTO });
 
     if (nota.length) testo(nota, xr, yf + 9, { size: 7, stile: 'italic', c: AMBRA });
