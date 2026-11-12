@@ -29,11 +29,19 @@ const caricaOrdiniPerVoci = (utente) => {
   if (!ordiniPerVoci || lettiPer !== utente || Date.now() - lettiAlle > 5 * 60 * 1000) {
     lettiAlle = Date.now();
     lettiPer = utente;
-    ordiniPerVoci = supabase
-      .from('ordini')
-      .select('items, created_at')
-      .order('created_at', { ascending: false })
-      .limit(80)
+    // Filtro esplicito sull'utente, oltre alle regole del database: anche un
+    // account con permessi piu' larghi vede solo le voci dei suoi preventivi.
+    ordiniPerVoci = supabase.auth.getSession()
+      .then(({ data }) => {
+        const id = data?.session?.user?.id;
+        if (!id) return { data: [] };
+        return supabase
+          .from('ordini')
+          .select('items, created_at')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+          .limit(80);
+      })
       .then(({ data, error }) => {
         if (error) { ordiniPerVoci = null; return []; }
         return data || [];
