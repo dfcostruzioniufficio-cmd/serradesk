@@ -15,6 +15,126 @@ import { ALTEZZA_BALCONE_MM, SENZA_VETRO } from '../../hooks/usePreventivo';
 import { sonoSovrapposte } from '../../utils/anteSovrapposte';
 import { vanoNuovo, disegnoValido } from '../../utils/disegnoLibero';
 import DisegnoLiberoEditor from './DisegnoLiberoEditor';
+import { supabase } from '../../lib/supabaseClient';
+import { raccogliVociLibere, filtraVoci } from '../../utils/vociLibere';
+
+// I preventivi salvati servono solo a proporre le voci libere gia' usate: si
+// rileggono al massimo ogni 5 minuti, non a ogni cambio di scheda.
+// Legati all'account: se nella stessa pagina entra un altro utente, si
+// rileggono da capo.
+let ordiniPerVoci = null;
+let lettiAlle = 0;
+let lettiPer = null;
+const caricaOrdiniPerVoci = (utente) => {
+  if (!ordiniPerVoci || lettiPer !== utente || Date.now() - lettiAlle > 5 * 60 * 1000) {
+    lettiAlle = Date.now();
+    lettiPer = utente;
+    ordiniPerVoci = supabase
+      .from('ordini')
+      .select('items, created_at')
+      .order('created_at', { ascending: false })
+      .limit(80)
+      .then(({ data, error }) => {
+        if (error) { ordiniPerVoci = null; return []; }
+        return data || [];
+      }, () => { ordiniPerVoci = null; return []; });
+  }
+  return ordiniPerVoci;
+};
+
+const euro = (n) => Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Descrizione della voce libera, con le voci gia' scritte nei preventivi
+ * passati: un tocco riempie descrizione, prezzo e unita' dell'ultima volta.
+ * Mai in modalita' cliente: mostrerebbe i prezzi di altri preventivi.
+ */
+function DescrizioneVoceLibera({ newItem, items, updateItemField, updateItemFields, isCustomerMode, utente }) {
+  const [ordini, setOrdini] = React.useState([]);
+  const [aperto, setAperto] = React.useState(false);
+  const [evidenziata, setEvidenziata] = React.useState(-1);
+
+  React.useEffect(() => {
+    if (isCustomerMode || !utente) { setOrdini([]); return undefined; }
+    let vivo = true;
+    caricaOrdiniPerVoci(utente).then((o) => { if (vivo) setOrdini(o); });
+    return () => { vivo = false; };
+  }, [isCustomerMode, utente]);
+
+  const voci = React.useMemo(() => raccogliVociLibere(ordini, items), [ordini, items]);
+  const proposte = isCustomerMode ? [] : filtraVoci(voci, newItem.customDescription);
+  const mostra = aperto && proposte.length > 0;
+
+  const scegli = (v) => {
+    const patch = {
+      customDescription: v.testo,
+      unitPrice: String(v.prezzo),
+      unitaVoce: ['pz', 'm²', 'ml'].includes(v.unita) ? v.unita : 'pz',
+    };
+    if (updateItemFields) updateItemFields(patch);
+    else Object.entries(patch).forEach(([k, val]) => updateItemField(k, val));
+    setAperto(false);
+    setEvidenziata(-1);
+  };
+
+  const tasti = (e) => {
+    if (!mostra) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setEvidenziata((i) => Math.min(i + 1, proposte.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setEvidenziata((i) => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter' && evidenziata >= 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      scegli(proposte[evidenziata]);
+    } else if (e.key === 'Escape') {
+      setAperto(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        type="text"
+        value={newItem.customDescription || ''}
+        onChange={e => { updateItemField('customDescription', e.target.value); setAperto(true); setEvidenziata(-1); }}
+        onFocus={() => setAperto(true)}
+        onBlur={() => setAperto(false)}
+        onKeyDown={tasti}
+        className="mt-1.5 h-11 rounded-xl"
+        placeholder="Es. Posa in opera, Trasporto..."
+        autoComplete="off"
+        role="combobox"
+        aria-expanded={mostra}
+        aria-controls="voci-libere-usate"
+        aria-autocomplete="list"
+      />
+      {mostra && (
+        <div id="voci-libere-usate" role="listbox" className="absolute z-30 left-0 mt-1 min-w-full w-[28rem] max-w-[calc(100vw-3rem)] rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+          <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Già usate nei tuoi preventivi</p>
+          {proposte.map((v, i) => (
+            <button
+              key={v.testo}
+              type="button"
+              role="option"
+              aria-selected={i === evidenziata}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => scegli(v)}
+              className={`w-full flex items-baseline justify-between gap-3 px-3 py-2 text-left text-sm ${i === evidenziata ? 'bg-emerald-50' : 'hover:bg-gray-50'}`}
+            >
+              <span className="text-gray-800 min-w-0 line-clamp-2">{v.testo}</span>
+              <span className="shrink-0 font-semibold text-emerald-700 tabular-nums">
+                {euro(v.prezzo)} €{v.unita && v.unita !== 'pz' ? `/${v.unita}` : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * I serramenti che si fanno di piu', a un clic. Dicono solo che cosa e' il
@@ -1070,7 +1190,14 @@ export default function ItemConfigurator({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-emerald-50/30 p-5 rounded-xl border border-emerald-100">
           <div className="col-span-1 md:col-span-2">
             <Label className="font-semibold text-gray-700">Descrizione Libera</Label>
-            <Input type="text" value={newItem.customDescription} onChange={e => updateItemField('customDescription', e.target.value)} className="mt-1.5 h-11 rounded-xl" placeholder="Es. Posa in opera, Trasporto..." />
+            <DescrizioneVoceLibera
+              newItem={newItem}
+              items={items}
+              updateItemField={updateItemField}
+              updateItemFields={updateItemFields}
+              isCustomerMode={isCustomerMode}
+              utente={userEmail}
+            />
           </div>
           <div className="col-span-1 md:col-span-1">
             <Label className="font-semibold text-gray-700">Prezzo Unitario (€)</Label>

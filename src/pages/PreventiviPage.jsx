@@ -31,8 +31,10 @@ import { isClientePuntoAlluminio } from '../lib/personalizzazioni';
 
 export default function PreventiviPage() {
   const navigate = useNavigate();
-  const { userProfile, userSettings, settingsLoadFailed, session, isTrialExpired, needsPayment } = useUser();
-  const isTrialAccount = userProfile?.plan === 'trial' && !isTrialExpired;
+  const { userProfile, userSettings, settingsLoadFailed, session, needsPayment } = useUser();
+  // La prova vale solo finche' non scade: isTrialExpired non esisteva nel
+  // contesto, quindi una prova scaduta continuava a vedere l'archivio profili.
+  const isTrialAccount = userProfile?.plan === 'trial' && !needsPayment;
   const canAccessCAM = userProfile?.plan === 'pro' || userProfile?.plan === 'business' || userProfile?.role === 'admin' || isTrialAccount;
 
   const [isRestoring, setIsRestoring] = useState(true);

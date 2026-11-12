@@ -829,7 +829,7 @@ export default function LandingNuova({ anteprima = false }) {
             <a href="#prezzi" className="hidden md:inline text-sm" style={{ color: C.tenue }}>Prezzi</a>
             <Link to="/guida" className="hidden md:inline text-sm" style={{ color: C.tenue }}>Guide</Link>
             <Link to="/login" className="text-sm px-2" style={{ color: C.tenue }}>Accedi</Link>
-            <Link to="/preventivi" className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: GRAD }}>Prova gratis</Link>
+            <Link to="/preventivi" className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: GRAD }}>Provalo</Link>
           </div>
         </div>
       </nav>
@@ -863,7 +863,7 @@ export default function LandingNuova({ anteprima = false }) {
               Guarda come funziona
             </a>
           </Compare>
-          <p className="text-sm mt-6" style={{ color: C.tenue }}>Nessuna carta per provare · funziona nel browser, anche dal telefono</p>
+          <p className="text-sm mt-6" style={{ color: C.tenue }}>Il configuratore si usa senza iscriversi · funziona nel browser, anche dal telefono</p>
           </div>
           <Compare ritardo={250}>
             <Telefono />
@@ -908,7 +908,7 @@ export default function LandingNuova({ anteprima = false }) {
           <Compare className="text-center">
             <h2 className="font-display font-bold text-4xl md:text-5xl">Sblocca tutte le funzioni.</h2>
             <p className="text-lg mt-4 max-w-xl mx-auto" style={{ color: L.tenue }}>
-              Il configuratore è gratis. Abbonati per il tuo logo sui documenti, l'archivio clienti e la distinta di taglio.
+              Il configuratore lo provi senza iscriverti. Con l'abbonamento salvi i preventivi, scarichi il PDF col tuo logo e tieni l'archivio clienti.
             </p>
           </Compare>
           <div className="flex justify-center mt-10">

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Download, RefreshCw, FileText, Lock, ChevronDown } from 'lucide-react';
 
 export default function DistintaPage() {
-  const { userSettings, userProfile, isTrialExpired, session } = useUser();
+  const { userSettings, userProfile, session } = useUser();
   const [orders, setOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
