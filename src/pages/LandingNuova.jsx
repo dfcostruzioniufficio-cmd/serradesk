@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet';
 import { ArrowRight, Check, X, PencilRuler, Euro, FileText, Archive, Smartphone, Thermometer } from 'lucide-react';
 import WindowPreview from '../components/WindowPreview';
 import SEOManager from '../components/SEOManager';
+import { StileEffetti, Tilt, Spazio, LuciDiScena, Finestra3D } from '../components/landing/Effetti';
 
 /**
  * Pagina iniziale "ad effetto", sul modello del sito di DF Costruzioni: il
@@ -817,6 +818,8 @@ export default function LandingNuova({ anteprima = false }) {
           .sd-traccia > *, .sd-quote-testo, .sd-galleggia, .sd-galleggia-2, .sd-cursore, .sd-onda { animation: none !important; stroke-dashoffset: 0; opacity: 1; }
         }
       `}</style>
+      <StileEffetti />
+      <LuciDiScena />
 
       {/* NAV */}
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md" style={{ background: 'rgba(15,24,56,0.95)', borderBottom: `1px solid ${C.bordo}` }}>
@@ -829,7 +832,7 @@ export default function LandingNuova({ anteprima = false }) {
             <a href="#prezzi" className="hidden md:inline text-sm" style={{ color: C.tenue }}>Prezzi</a>
             <Link to="/guida" className="hidden md:inline text-sm" style={{ color: C.tenue }}>Guide</Link>
             <Link to="/login" className="text-sm px-2" style={{ color: C.tenue }}>Accedi</Link>
-            <Link to="/preventivi" className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: GRAD }}>Provalo</Link>
+            <Link to="/preventivi" className="sd-luce text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: GRAD }}>Provalo</Link>
           </div>
         </div>
       </nav>
@@ -839,6 +842,7 @@ export default function LandingNuova({ anteprima = false }) {
         <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 720, height: 720, left: '-12%', top: '-10%', background: 'radial-gradient(circle, rgba(59,130,246,0.25), transparent 65%)', animation: 'sd-respiro 14s ease-in-out infinite' }} />
         <div className="sd-anim absolute rounded-full blur-3xl" style={{ width: 760, height: 760, right: '-15%', bottom: '-20%', background: 'radial-gradient(circle, rgba(139,92,246,0.22), transparent 65%)', animation: 'sd-respiro 18s ease-in-out infinite reverse' }} />
         <DisegnoTecnico />
+        <Spazio />
         <div className="relative max-w-6xl mx-auto px-5 md:px-8 pt-24 pb-16 w-full grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-12 lg:gap-6 items-center">
           <div>
           <Compare>
@@ -846,8 +850,8 @@ export default function LandingNuova({ anteprima = false }) {
           </Compare>
           <Compare ritardo={100}>
             <h1 className="font-display font-bold text-[3.2rem] leading-[0.98] md:text-[5.6rem] lg:text-[6rem] mt-5 tracking-tight">
-              Il preventivo,<br />
-              <span className="sd-serif italic font-normal" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>in due minuti.</span>
+              <span className="sd-flip" style={{ animationDelay: '.15s' }}>Il preventivo,</span><br />
+              <span className="sd-flip sd-serif italic font-normal" style={{ animationDelay: '.45s', backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent', paddingRight: '.08em' }}>in due minuti.</span>
             </h1>
           </Compare>
           <Compare ritardo={220}>
@@ -856,7 +860,7 @@ export default function LandingNuova({ anteprima = false }) {
             </p>
           </Compare>
           <Compare ritardo={320} className="mt-9 flex flex-col sm:flex-row gap-3">
-            <Link to="/preventivi" className="inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 font-semibold text-white" style={{ background: GRAD, boxShadow: '0 16px 40px rgba(99,102,241,0.35)' }}>
+            <Link to="/preventivi" className="sd-luce inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 font-semibold text-white" style={{ background: GRAD, boxShadow: '0 16px 40px rgba(99,102,241,0.35)' }}>
               Prova il configuratore <ArrowRight size={18} />
             </Link>
             <a href="#come-funziona" className="inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 font-semibold" style={{ border: `1px solid ${C.bordo}`, color: C.testo }}>
@@ -866,7 +870,9 @@ export default function LandingNuova({ anteprima = false }) {
           <p className="text-sm mt-6" style={{ color: C.tenue }}>Il configuratore si usa senza iscriversi · funziona nel browser, anche dal telefono</p>
           </div>
           <Compare ritardo={250}>
-            <Telefono />
+            <Tilt max={8} riflesso={false}>
+              <Telefono />
+            </Tilt>
           </Compare>
         </div>
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[11px] uppercase tracking-[0.3em]" style={{ color: C.tenue }}>Scorri</div>
@@ -889,13 +895,13 @@ export default function LandingNuova({ anteprima = false }) {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
             {PUNTI.map(({ icon: Icona, titolo, testo }, i) => (
               <Compare key={titolo} ritardo={(i % 3) * 90}>
-                <div className="h-full rounded-2xl p-6" style={{ background: L.carta, border: `1px solid ${L.bordo}`, boxShadow: '0 10px 30px rgba(15,24,56,0.05)' }}>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white" style={{ background: GRAD }}>
+                <Tilt profondo max={10} className="h-full rounded-2xl p-6" style={{ background: L.carta, border: `1px solid ${L.bordo}`, boxShadow: '0 10px 30px rgba(15,24,56,0.05)' }}>
+                  <div className="sd-salta w-11 h-11 rounded-xl flex items-center justify-center text-white" style={{ background: GRAD, boxShadow: '0 10px 24px rgba(99,102,241,0.35)' }}>
                     <Icona size={20} />
                   </div>
-                  <h3 className="font-display font-bold text-xl mt-5">{titolo}</h3>
+                  <h3 className="sd-salta-poco font-display font-bold text-xl mt-5">{titolo}</h3>
                   <p className="mt-2 leading-relaxed" style={{ color: L.tenue }}>{testo}</p>
-                </div>
+                </Tilt>
               </Compare>
             ))}
           </div>
@@ -929,6 +935,7 @@ export default function LandingNuova({ anteprima = false }) {
           <div className="grid md:grid-cols-2 gap-5 max-w-3xl mx-auto mt-10">
             {PLANS.map((plan, i) => (
               <Compare key={plan.name} ritardo={i * 100}>
+                <Tilt max={5} className={`h-full ${i === 1 ? 'sd-aura' : ''}`}>
                 <div className="relative h-full rounded-2xl p-8 flex flex-col" style={{ background: i === 1 ? '#FBFAFF' : L.sfondo, border: `1px solid ${i === 1 ? C.viola : L.bordo}` }}>
                   {plan.badge && (
                     <div className="absolute -top-3 left-8 text-white text-xs font-semibold px-3 py-1 rounded-full" style={{ background: GRAD }}>{plan.badge}</div>
@@ -951,6 +958,7 @@ export default function LandingNuova({ anteprima = false }) {
                     Inizia subito
                   </Link>
                 </div>
+                </Tilt>
               </Compare>
             ))}
           </div>
@@ -961,11 +969,12 @@ export default function LandingNuova({ anteprima = false }) {
       <section className="relative overflow-hidden py-24 md:py-32" style={{ background: SCURO }}>
         <div className="absolute rounded-full blur-3xl left-1/2 -translate-x-1/2 top-0" style={{ width: 900, height: 600, background: 'radial-gradient(circle, rgba(139,92,246,0.25), transparent 65%)' }} />
         <Compare className="relative text-center max-w-3xl mx-auto px-5">
+          <Finestra3D />
           <h2 className="font-display font-bold text-4xl md:text-6xl leading-[1.05]">
             Il prossimo preventivo, <span className="sd-serif italic font-normal" style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', color: 'transparent' }}>fallo qui.</span>
           </h2>
           <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/preventivi" className="inline-flex items-center justify-center gap-2 rounded-xl px-8 py-4 font-semibold text-white" style={{ background: GRAD }}>
+            <Link to="/preventivi" className="sd-luce inline-flex items-center justify-center gap-2 rounded-xl px-8 py-4 font-semibold text-white" style={{ background: GRAD }}>
               Prova il configuratore <ArrowRight size={18} />
             </Link>
             <a href="mailto:info@serradesk.it" className="inline-flex items-center justify-center rounded-xl px-8 py-4 font-semibold" style={{ border: `1px solid ${C.bordo}`, color: C.testo }}>
