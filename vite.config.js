@@ -323,7 +323,7 @@ export default defineConfig({
 			},
 			workbox: {
 				// Solo codice dell'app e icone: i file pesanti in public/
-				// (tutorial.mp4, smart670.pdf, i mockup) sarebbero decine di MB
+				// (i mockup, i modelli da scaricare) sarebbero decine di MB
 				// scaricati all'installazione senza servire a nulla offline.
 				globPatterns: ['**/*.{js,css,html}', 'pwa-*.png', 'apple-touch-icon.png', 'logo_rounded.png'],
 				// index.html fuori dal precarico, se no la pagina viene servita
