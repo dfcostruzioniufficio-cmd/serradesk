@@ -26,7 +26,7 @@ export default function CRMModal({
             <Database className="w-5 h-5 text-blue-600" />
             Rubrica Clienti
           </h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-red-500 hover:bg-red-50 font-bold p-1 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+          <button onClick={onClose} aria-label="Chiudi" className="text-gray-500 hover:text-red-500 hover:bg-red-50 font-bold p-1 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -41,7 +41,7 @@ export default function CRMModal({
             ) : (
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {savedClients.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white border p-3 rounded-lg hover:border-blue-300 hover:shadow-md transition-all group cursor-pointer" onClick={() => onSelectClient(c)}>
+                  <div key={i} className="flex items-center justify-between bg-white border p-3 rounded-lg hover:border-blue-300 hover:shadow-md transition-all group cursor-pointer" onClick={() => onSelectClient(c)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectClient(c); } }}>
                     <div className="flex-1">
                       <p className="font-bold text-blue-800 text-sm">{c.name}</p>
                       <p className="text-[11px] text-gray-500 mt-1">{c.vat ? `P.IVA: ${c.vat}` : 'Nessuna P.IVA'} {c.phone && `• Tel: ${c.phone}`}</p>

@@ -360,7 +360,7 @@ export default function ItemConfigurator({
     <div>
       <Label className="flex justify-between items-center text-xs font-semibold text-gray-700 mb-1.5">
         Prezzo Base
-        <select value={newItem.calcType} onChange={e => updateItemField('calcType', e.target.value)} className="bg-transparent text-blue-600 font-bold ml-1 outline-none cursor-pointer">
+        <select value={newItem.calcType} onChange={e => updateItemField('calcType', e.target.value)} aria-label="Come si calcola il prezzo" className="bg-transparent text-blue-600 font-bold ml-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer">
           <option value="mq">al mq</option>
           <option value="ml">al ml</option>
           <option value="fisso">fisso</option>
@@ -1162,7 +1162,7 @@ export default function ItemConfigurator({
             <div className="col-span-2 md:col-span-1">
               <Label className="flex justify-between items-center text-xs font-semibold text-gray-700 mb-1.5">
                 Prezzo {newItem.complementoCalcType === 'fisso' ? 'Fisso' : 'al Mq'}
-                <select value={newItem.complementoCalcType || 'mq'} onChange={e => updateItemField('complementoCalcType', e.target.value)} className="bg-transparent text-orange-600 font-bold ml-1 outline-none cursor-pointer">
+                <select value={newItem.complementoCalcType || 'mq'} onChange={e => updateItemField('complementoCalcType', e.target.value)} aria-label="Come si calcola il prezzo" className="bg-transparent text-orange-600 font-bold ml-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-orange-500 cursor-pointer">
                   <option value="mq">al mq</option>
                   <option value="fisso">fisso</option>
                 </select>

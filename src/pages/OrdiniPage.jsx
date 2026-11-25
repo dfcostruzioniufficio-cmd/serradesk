@@ -462,7 +462,7 @@ export default function OrdiniPage() {
                         <span>{new Date(p.data).toLocaleDateString('it-IT')}</span>
                         <div className="flex items-center gap-3">
                           <span className="font-bold text-green-600">€ {Number(p.importo).toFixed(2)}</span>
-                          <button onClick={() => handleDeletePayment(selectedOrderForPayment.id, p.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                          <button onClick={() => handleDeletePayment(selectedOrderForPayment.id, p.id)} aria-label="Elimina pagamento" className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
                         </div>
                       </li>
                     ))}

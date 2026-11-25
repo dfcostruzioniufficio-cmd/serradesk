@@ -761,7 +761,7 @@ export default function ArchivioPage() {
                     }
                     return list.map(s => (
                       <div key={s.id} className="border-b last:border-0">
-                        <div className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer" onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
+                        <div className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer" onClick={() => setExpanded(expanded === s.id ? null : s.id)} aria-expanded={expanded === s.id} role="button" tabIndex={0} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setExpanded(expanded === s.id ? null : s.id); } }}>
                           <div className="flex items-center gap-3">
                             <div className="w-3 h-3 rounded-full" style={{ background: C[s.tipologia] || '#10b981' }}/>
                             <div>

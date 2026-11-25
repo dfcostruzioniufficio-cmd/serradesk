@@ -107,7 +107,7 @@ export default function TemplateGalleryModal({ onSelectTemplate, onClose }) {
             </h2>
             <p className="text-xs text-gray-500 font-medium mt-0.5">Clicca su una tipologia per auto-compilare i campi.</p>
           </div>
-          <button onClick={onClose} className="p-1.5 bg-gray-100 text-gray-400 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors">
+          <button onClick={onClose} aria-label="Chiudi" className="p-1.5 bg-gray-100 text-gray-400 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors">
             <X size={20} />
           </button>
         </div>
