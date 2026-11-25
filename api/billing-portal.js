@@ -88,7 +88,10 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'nessun_abbonamento' });
     }
 
-    const origine = req.headers.origin || 'https://serradesk.it';
+    // Si torna solo sul nostro sito: l'intestazione Origin la scrive chi chiama.
+    const origine = ['https://serradesk.it', 'https://www.serradesk.it'].includes(req.headers.origin)
+      ? req.headers.origin
+      : 'https://serradesk.it';
     const sessione = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${origine}/settings`,
@@ -97,8 +100,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: sessione.url });
   } catch (err) {
     console.error(JSON.stringify({ scope: 'billing-portal', step: 'errore', error: err?.message || String(err) }));
-    // Il messaggio di Stripe è utile quando manca la configurazione del
-    // portale nel pannello: lo passiamo avanti per non far indovinare.
-    return res.status(500).json({ error: err?.message || 'Errore imprevisto' });
+    // Il motivo vero (es. portale non configurato su Stripe) si legge nei log
+    // di Vercel: a chi chiama non si racconta com'e' fatto il server.
+    return res.status(500).json({ error: 'Errore imprevisto' });
   }
 }

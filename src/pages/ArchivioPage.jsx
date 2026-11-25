@@ -5,7 +5,6 @@ import { Plus, Trash2, ChevronDown, ChevronUp, Edit, Copy } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import AIPdfImporter from '../components/AIPdfImporter';
 import PersianaTaglioForm from '../components/archivio/PersianaTaglioForm';
 import ProfiliPreventivoPanel from '../components/archivio/ProfiliPreventivoPanel';
 import ProfiliPreimpostatiPanel from '../components/archivio/ProfiliPreimpostatiPanel';
@@ -104,7 +103,6 @@ export default function ArchivioPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [isInsertingDefaults, setIsInsertingDefaults] = useState(false);
-  const [showAIModal, setShowAIModal] = useState(false);
   
   // Vetro form
   const [formVetro, setFormVetro] = useState({ nome: '', basePrice: '', ug: '', is_active: true });
@@ -822,14 +820,6 @@ export default function ArchivioPage() {
           </div>
         </div>
       </div>
-
-      <AIPdfImporter 
-        isOpen={showAIModal} 
-        onClose={() => setShowAIModal(false)} 
-        onProfilesAdded={(newProfiles) => {
-           setSistemi(s => [...newProfiles, ...s]);
-        }}
-      />
     </div>
   );
 }

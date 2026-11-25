@@ -78,6 +78,12 @@ export default function SettingsPage() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // L'elenco "accept" si aggira scegliendo "tutti i file": si ricontrolla.
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      toast.error("Formato non ammesso: carica il logo in PNG o JPG.");
+      return;
+    }
+
     if (file.size > 200 * 1024) {
       toast.error("Immagine troppo grande: usa un logo di massimo 200 KB.");
       return;

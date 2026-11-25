@@ -23,7 +23,6 @@ import InteractiveGuide from '../components/preventivi/InteractiveGuide';
 import QuotePDFTemplate from '../components/QuotePDFTemplate';
 import TemplateGalleryModal from '../components/preventivi/TemplateGalleryModal';
 import ChangeProfileModal from '../components/preventivi/ChangeProfileModal';
-import AIPdfImporter from '../components/AIPdfImporter';
 
 import { FileText, Bot } from 'lucide-react';
 import SEOManager from '../components/SEOManager';

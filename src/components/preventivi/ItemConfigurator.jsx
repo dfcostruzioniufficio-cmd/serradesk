@@ -16,6 +16,7 @@ import { sonoSovrapposte } from '../../utils/anteSovrapposte';
 import { vanoNuovo, disegnoValido } from '../../utils/disegnoLibero';
 import DisegnoLiberoEditor from './DisegnoLiberoEditor';
 import { supabase } from '../../lib/supabaseClient';
+import { leggiFoto } from '../../lib/leggiFoto';
 import { raccogliVociLibere, filtraVoci } from '../../utils/vociLibere';
 
 // I preventivi salvati servono solo a proporre le voci libere gia' usate: si
@@ -276,14 +277,15 @@ export default function ItemConfigurator({
     }
   }, [isPuntoAlluminio, newItem.calcType]);
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateItemField('customImage', reader.result);
-      };
-      reader.readAsDataURL(file);
+  const handleImageUpload = async (e) => {
+    const campo = e.target;
+    const file = campo.files[0];
+    if (!file) return;
+    try {
+      updateItemField('customImage', await leggiFoto(file));
+    } catch (err) {
+      campo.value = '';
+      toast.error(err.message);
     }
   };
 
@@ -1087,7 +1089,7 @@ export default function ItemConfigurator({
                     <div className="flex items-center gap-4 mt-1">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         onChange={handleImageUpload}
                         className="text-sm w-full max-w-[250px] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                       />

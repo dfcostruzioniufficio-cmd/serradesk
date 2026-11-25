@@ -106,6 +106,8 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  minLength={isSignUp ? 8 : undefined}
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md h-12 bg-gray-50 px-3"
                   placeholder="••••••••"
                 />

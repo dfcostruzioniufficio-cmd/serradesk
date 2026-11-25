@@ -90,7 +90,7 @@ export default function UpdatePasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md h-12 bg-gray-50 px-3"
                   placeholder="••••••••"
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
             </div>
@@ -110,7 +110,7 @@ export default function UpdatePasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md h-12 bg-gray-50 px-3"
                   placeholder="••••••••"
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
             </div>

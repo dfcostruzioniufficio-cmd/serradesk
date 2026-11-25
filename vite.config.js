@@ -216,8 +216,13 @@ if (window.navigation && window.self !== window.top) {
 }
 `;
 
+// Script ereditati dall'editor con cui e' nato il sito: mandano errori,
+// risposte del server e link esterni alla pagina che lo incornicia. Servono
+// solo in quell'editor, mai nel sito pubblicato: "apply: serve" li esclude
+// dalla build.
 const addTransformIndexHtml = {
 	name: 'add-transform-index-html',
+	apply: 'serve',
 	transformIndexHtml(html) {
 		const tags = [
 			{
