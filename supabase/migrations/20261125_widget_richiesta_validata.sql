@@ -43,6 +43,7 @@ begin
         or coalesce(jsonb_typeof(e -> 'width'), 'number') not in ('number', 'null')
         or coalesce(jsonb_typeof(e -> 'height'), 'number') not in ('number', 'null')
         or coalesce(jsonb_typeof(e -> 'quantity'), 'number') not in ('number', 'null')
+        or (e ->> 'type' = 'item' and not e ? 'sistema')
         or case
              when not e ? 'sistema' then false
              when jsonb_typeof(e -> 'sistema') <> 'object' then true
@@ -60,9 +61,17 @@ begin
     raise exception 'richiesta non valida';
   end if;
 
-  -- Qualunque altro campo (per esempio una foto) si scarta.
+  -- Qualunque altro campo (per esempio una foto) si scarta. Anche dentro
+  -- "sistema" restano solo i quattro campi del catalogo pubblico: un prezzo
+  -- aggiunto a mano verrebbe preso per buono quando l'abbonato apre la
+  -- richiesta.
   select jsonb_agg(
-           (select jsonb_object_agg(c.key, c.value)
+           (select jsonb_object_agg(c.key,
+                     case when c.key = 'sistema' then
+                       (select coalesce(jsonb_object_agg(s.key, s.value), '{}'::jsonb)
+                          from jsonb_each(c.value) as s
+                         where s.key in ('id', 'nome', 'tipologia', 'marca'))
+                     else c.value end)
               from jsonb_each(t.e) as c
              where c.key in ('id', 'type', 'sistema', 'width', 'height', 'quantity', 'description', 'clientData'))
            order by t.n)
