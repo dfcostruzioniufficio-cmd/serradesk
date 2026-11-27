@@ -409,8 +409,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         updatedItem.soloRibalta = false;
       }
 
-      // La dicitura "parallelo" e' solo dello scorrevole.
-      if (field === 'apertura' && value !== 'Scorrevole') updatedItem.scorrevoleParallelo = false;
+      // La dicitura "parallelo" e' solo dello scorrevole. Si guarda l'apertura
+      // risultante: la cambia anche la scelta del profilo, e la spunta restava
+      // accesa di nascosto fino al prossimo scorrevole.
+      if (updatedItem.apertura !== 'Scorrevole') updatedItem.scorrevoleParallelo = false;
 
       if (field === 'basePrice') {
         updatedItem.isManualBasePrice = true;
