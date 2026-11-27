@@ -178,7 +178,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     noteArticolo: '',
     composto: false, moduli: [], accoppiamentoMm: 30,
     vetroFinestreId: '', vetroBalconiId: '', vetroScelto: false,
-    disegnoLibero: null
+    disegnoLibero: null, scorrevoleParallelo: false
   };
 
   const [newItem, setNewItem] = useState(defaultNewItem);
@@ -409,6 +409,9 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         updatedItem.soloRibalta = false;
       }
 
+      // La dicitura "parallelo" e' solo dello scorrevole.
+      if (field === 'apertura' && value !== 'Scorrevole') updatedItem.scorrevoleParallelo = false;
+
       if (field === 'basePrice') {
         updatedItem.isManualBasePrice = true;
       }
@@ -612,7 +615,10 @@ export function usePreventivo(isRestoring, setIsRestoring) {
       const anteText = senzaAnte ? '' : `${newItem.numAnte} ANT${newItem.numAnte > 1 ? 'E' : 'A'}`;
       // Il vasistas non e' un battente che fa anche la ribalta: si apre solo a
       // ribalta, quindi si chiama con il suo nome invece che "BATTENTE".
-      const nomeApertura = soloRibalta ? 'VASISTAS' : newItem.apertura.toUpperCase();
+      // Lo scorrevole parallelo e' un sistema a se': al cliente va detto col
+      // suo nome. E' solo una dicitura, il prezzo non cambia.
+      const parallelo = !!newItem.scorrevoleParallelo && newItem.apertura === 'Scorrevole' && !newItem.composto;
+      const nomeApertura = soloRibalta ? 'VASISTAS' : parallelo ? 'SCORREVOLE PARALLELO' : newItem.apertura.toUpperCase();
       // Se nel disegno si e' scelto come si apre ogni anta, la descrizione lo
       // dice anta per anta e prende il posto della ribalta generica.
       // Niente "BATTENTE 5 ANTE:" davanti: l'elenco anta per anta dice gia'
@@ -634,7 +640,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
         : sovrapposte
           ? `FINESTRA ${anteText} UNA SOPRA L'ALTRA${anteDescritte ? ` (DALL'ALTO): ${anteDescritte}` : ''}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`
           : anteDescritte
-            ? anteDescritte
+            ? (parallelo ? `SCORREVOLE PARALLELO: ${anteDescritte}` : anteDescritte)
             : `${[nomeApertura, anteText].filter(Boolean).join(' ')}${hasRibalta ? ' CON ANTA A RIBALTA' : ''}`;
       if (newItem.hasSopraluce && !sovrapposte) {
         const partiSopraluce = Math.max(1, Math.min(6, Number(newItem.sopraluceDivisioni) || 1));
@@ -837,7 +843,7 @@ export function usePreventivo(isRestoring, setIsRestoring) {
     // Un modello dice com'e' fatto il serramento: le ante impilate le si
     // sceglie dopo, con la spunta, come per i bottoni rapidi (RIPULITI).
     // Anche il disegno libero: un modello e' un serramento fatto in un altro modo.
-    updateItemFields({ antaRibalta: false, soloRibalta: false, anteSovrapposte: false, disegnoLibero: null });
+    updateItemFields({ antaRibalta: false, soloRibalta: false, anteSovrapposte: false, disegnoLibero: null, scorrevoleParallelo: false });
     azzeraTipiAnte();
     // Scegliere "2 ante" su un composto non faceva niente di visibile: il
     // disegno del composto resta nascosto e il prezzo restava d'ingombro.

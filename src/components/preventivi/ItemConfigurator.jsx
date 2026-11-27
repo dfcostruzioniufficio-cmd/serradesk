@@ -755,6 +755,18 @@ export default function ItemConfigurator({
                   <span className="text-sm font-medium text-gray-700">Maniglione Antipanico</span>
                 </label>
               )}
+              {/* Solo la dicitura nel preventivo: il prezzo non cambia. */}
+              {newItem.apertura === 'Scorrevole' && !newItem.composto && (
+                <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border hover:border-blue-300 transition-colors shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!newItem.scorrevoleParallelo}
+                    onChange={e => updateItemField('scorrevoleParallelo', e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Scorrevole parallelo</span>
+                </label>
+              )}
               {/* Il finestrone alto e stretto: le ante una sopra l'altra,
                   alte uguali, la 1 in alto. Traverso e sopraluce li' non
                   servono, le ante le divide gia' il traverso del telaio. */}
